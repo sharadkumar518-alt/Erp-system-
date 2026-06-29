@@ -3603,6 +3603,7 @@ function fmtDateTime(ms){ if(!ms) return '-'; const d=new Date(ms); if(isNaN(d.g
   const dd=String(d.getDate()).padStart(2,'0'), mm=String(d.getMonth()+1).padStart(2,'0'), yy=d.getFullYear();
   let h=d.getHours(); const mi=String(d.getMinutes()).padStart(2,'0'); const ap=h<12?'AM':'PM'; h=h%12; if(h===0)h=12;
   return dd+'/'+mm+'/'+yy+' '+h+':'+mi+' '+ap; }
+function _logItems(obj){ const o={}; Object.keys(obj||{}).forEach(function(k){ const v=num(obj[k]); if(v) o[k]=v; }); return o; }
 function compIssueData(fileNo,sfNo){
   const fn=String(fileNo||'').trim().toLowerCase(), sf=String(sfNo||'').trim().toLowerCase();
   if(!fn) return null;
@@ -3611,9 +3612,11 @@ function compIssueData(fileNo,sfNo){
   const comps=orderComponents(order);
   const meta=batchOrderMeta(order);
   const batches=(BATCHES||[]).filter(b=>b.orderId===order.id).slice().sort((a,b)=>(a.savedAt||0)-(b.savedAt||0));
-  const rows=batches.map(b=>({ when:b.savedAt||0, date:b.date||'', location:b.location||'', type:b.type||'', pattern:b.pattern||'', ready:b.ready||{} }));
+  const rows=[];
+  batches.forEach(b=>{ const entries=(b.log&&b.log.length)?b.log:[{at:b.savedAt||0, items:b.ready||{}}]; entries.forEach(e=>{ rows.push({ when:e.at||b.savedAt||0, location:b.location||'', items:e.items||{} }); }); });
+  rows.sort((a,b)=>(a.when||0)-(b.when||0));
   const tot={}; comps.forEach(c=>tot[c.key]=0);
-  rows.forEach(r=>{ comps.forEach(c=>{ tot[c.key]+=num(r.ready[c.key]||0); }); });
+  rows.forEach(r=>{ comps.forEach(c=>{ tot[c.key]+=num(r.items[c.key]||0); }); });
   return { order, meta, comps, rows, tot };
 }
 function compIssueDoc(fileNo,sfNo){
@@ -3625,7 +3628,7 @@ function compIssueDoc(fileNo,sfNo){
     return `<tr><td style="text-align:left">${esc(c.name)}</td><td>${ord||'-'}</td><td>${(c.cutLen!==''&&c.cutLen!=null)?esc(c.cutLen):'-'}</td><td>${given||0}</td><td>${bal}</td></tr>`; }).join('')
     : `<tr><td colspan="5" style="text-align:center;color:#888">Is order me koi component nahi</td></tr>`;
   const histHead=`<tr><th>Date &amp; Time</th><th>Location</th>${comps.map(c=>`<th>${esc(c.name)}</th>`).join('')}</tr>`;
-  const histBody=d.rows.length? d.rows.map(r=>`<tr><td>${esc(fmtDateTime(r.when))}</td><td>${esc(r.location||'-')}</td>${comps.map(c=>`<td>${num(r.ready[c.key]||0)||''}</td>`).join('')}</tr>`).join('')
+  const histBody=d.rows.length? d.rows.map(r=>`<tr><td>${esc(fmtDateTime(r.when))}</td><td>${esc(r.location||'-')}</td>${comps.map(c=>`<td>${num(r.items[c.key]||0)||''}</td>`).join('')}</tr>`).join('')
     : `<tr><td colspan="${2+comps.length}" style="text-align:center;color:#888">Abhi tak koi component issue nahi hua (Batch me add karo)</td></tr>`;
   const totRow=`<tr class="grand"><td>TOTAL GIVEN</td><td></td>${comps.map(c=>`<td>${d.tot[c.key]||0}</td>`).join('')}</tr>`;
   return `<div class="report-doc fab-doc" id="ciDoc">
@@ -3686,7 +3689,7 @@ function compIssueExcel(fileNo,sfNo){
     raw+=`<tr><td style="${td};text-align:left">${esc(c.name)}</td><td style="${td}">${ord||'-'}</td><td style="${td}">${(c.cutLen!==''&&c.cutLen!=null)?esc(c.cutLen):'-'}</td><td style="${td}">${given||0}</td><td style="${td}">${bal}</td></tr>`; });
   raw+='</table><br>';
   raw+='<table><tr><td style="'+th+'">Date &amp; Time</td><td style="'+th+'">Location</td>'+comps.map(c=>`<td style="${th}">${esc(c.name)}</td>`).join('')+'</tr>';
-  d.rows.forEach(r=>{ raw+=`<tr><td style="${td}">${esc(fmtDateTime(r.when))}</td><td style="${td}">${esc(r.location||'-')}</td>`+comps.map(c=>`<td style="${td}">${num(r.ready[c.key]||0)||''}</td>`).join('')+'</tr>'; });
+  d.rows.forEach(r=>{ raw+=`<tr><td style="${td}">${esc(fmtDateTime(r.when))}</td><td style="${td}">${esc(r.location||'-')}</td>`+comps.map(c=>`<td style="${td}">${num(r.items[c.key]||0)||''}</td>`).join('')+'</tr>'; });
   raw+=`<tr><td style="${lbl};text-align:center">TOTAL GIVEN</td><td style="${td}"></td>`+comps.map(c=>`<td style="${lbl};text-align:center">${d.tot[c.key]||0}</td>`).join('')+'</tr>';
   raw+='</table>';
   const _rows=raw.replace(/<br\s*\/?>/g,'<tr><td></td></tr>').replace(/<\/?(table|thead|tbody|tfoot)[^>]*>/g,'');
@@ -4117,9 +4120,11 @@ function openBatchEditor(b){
   document.getElementById('beSave').onclick=()=>{
     const wasComplete=(b.status==='complete');
     document.querySelectorAll('.be-f').forEach(i=>{ b[i.dataset.f]=i.value.trim(); });
-    b.ready=b.ready||{}; let touched=false;
-    document.querySelectorAll('.be-ready').forEach(i=>{ const add=i.value.trim(); if(add!==''){ const cur=num(b.ready[i.dataset.ck]||0); b.ready[i.dataset.ck]=cur+num(add); touched=true; } });
-    if(touched) b.date=todayISO();
+    b.ready=b.ready||{};
+    if(!b.log || !b.log.length){ const _init=_logItems(b.ready); b.log = Object.keys(_init).length ? [{at:b.savedAt||Date.now(), items:_init}] : []; }
+    let touched=false; const _delta={};
+    document.querySelectorAll('.be-ready').forEach(i=>{ const add=i.value.trim(); if(add!==''){ const av=num(add); const cur=num(b.ready[i.dataset.ck]||0); b.ready[i.dataset.ck]=cur+av; if(av){ _delta[i.dataset.ck]=(_delta[i.dataset.ck]||0)+av; } touched=true; } });
+    if(touched){ b.date=todayISO(); if(Object.keys(_delta).length){ b.log.push({at:Date.now(), items:_delta}); } }
     if(wasComplete) b.completeEditUsed=true;   // Complete me edit sirf ek baar
     recomputeBatch(b); saveBatches(); closeModal();
     toast(b.status==='complete'?'Batch complete ho gaya':'Batch updated','ok');
@@ -4157,6 +4162,7 @@ function bindBatch(){
     document.querySelectorAll('.b-man').forEach(i=>{ batchDraft[i.dataset.f]=i.value; });
     document.querySelectorAll('.b-ready').forEach(i=>{ batchDraft.ready=batchDraft.ready||{}; const v=i.value.trim(); if(v==='') delete batchDraft.ready[i.dataset.ck]; else batchDraft.ready[i.dataset.ck]=num(v); });
     const b={ id:uid(), orderId:batchDraft.orderId, type:batchDraft.type||'', pattern:batchDraft.pattern||'', location:batchDraft.location||'', date:todayISO(), ready:batchDraft.ready||{}, savedAt:Date.now() };
+    b.log=[{at:b.savedAt, items:_logItems(b.ready)}];
     recomputeBatch(b); BATCHES.push(b); saveBatches();
     toast(b.status==='complete'?'Batch add — Complete me gaya':'Batch add — Under Process me gaya','ok');
     batchDraft=null; batchQuery=''; renderBatch();
