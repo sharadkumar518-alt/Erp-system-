@@ -1237,16 +1237,45 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
 
 </head>
 <body>
-<div id="loginOverlay" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#0f2238,#1c3a5e)">
-  <div style="background:#fff;border-radius:16px;padding:30px 26px;width:min(360px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:Inter,system-ui,Arial,sans-serif">
-    <div style="text-align:center;margin-bottom:18px">
-      <div style="font-size:20px;font-weight:800;color:#1f3a5f;letter-spacing:.3px">COMSYN Cutting ERP</div>
-      <div style="font-size:13px;color:#7488a0;margin-top:4px">Sign in to continue</div>
+<div id="loginOverlay" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(15,30,48,.55);font-family:Tahoma,'Segoe UI',Arial,sans-serif">
+  <div style="width:min(470px,95vw);background:#f1f0ea;border:1px solid #6c6c6c;box-shadow:0 14px 46px rgba(0,0,0,.55)">
+    <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:#1c1c1c">
+        <span style="display:inline-block;width:15px;height:12px;background:#3a7d3a;border:1px solid #245a24"></span>Login
+      </div>
+      <span id="loginXbtn" style="font-size:16px;color:#555;line-height:1;cursor:pointer;padding:0 3px">&times;</span>
     </div>
-    <input id="loginUser" placeholder="Username" autocomplete="username" style="width:100%;box-sizing:border-box;padding:12px 14px;margin-bottom:12px;border:1px solid #d4dde8;border-radius:9px;font-size:15px;outline:none;font-family:inherit">
-    <input id="loginPass" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;box-sizing:border-box;padding:12px 14px;margin-bottom:14px;border:1px solid #d4dde8;border-radius:9px;font-size:15px;outline:none;font-family:inherit">
-    <button id="loginBtn" style="width:100%;padding:12px;background:#1f3a5f;color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">Login</button>
-    <div id="loginMsg" style="text-align:center;color:#c0392b;font-size:13px;margin-top:12px;min-height:16px"></div>
+    <div style="padding:18px 30px 22px">
+      <div style="text-align:center;font-size:29px;font-weight:800;color:#2a2a86;letter-spacing:.5px;margin-bottom:22px;font-family:'Segoe UI',Tahoma,Arial,sans-serif">Cutting Production Report</div>
+      <div style="display:flex;align-items:center;margin-bottom:11px">
+        <label style="width:100px;font-size:14px;color:#1a1a1a"><u>U</u>ser</label>
+        <div style="flex:1;position:relative">
+          <input id="loginUser" autocomplete="off" style="width:100%;box-sizing:border-box;padding:3px 6px;border:1px solid #7f9db9;font-size:14px;font-family:inherit;background:#fff;outline:none">
+          <div id="loginAccts" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid #7f9db9;border-top:none;max-height:150px;overflow:auto;z-index:5;box-shadow:0 8px 18px rgba(0,0,0,.2)"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:16px">
+        <label style="width:100px;font-size:14px;color:#1a1a1a"><u>P</u>assword:</label>
+        <input id="loginPass" type="password" autocomplete="current-password" style="flex:1;padding:3px 6px;border:1px solid #7f9db9;font-size:14px;font-family:inherit;background:#fff;outline:none">
+      </div>
+      <fieldset style="border:1px solid #aeae9e;margin:0 0 13px;padding:6px 10px 9px">
+        <legend style="font-size:13px;color:#1a1a1a;padding:0 4px">Select Financial Year</legend>
+        <div style="border:1px solid #9a9a8a;background:#fff;max-height:92px;overflow:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="background:#ece9d8"><th style="text-align:left;padding:3px 8px;border-bottom:1px solid #cfcfc0;font-weight:700">Start Date</th><th style="text-align:left;padding:3px 8px;border-bottom:1px solid #cfcfc0;font-weight:700">End Date</th></tr></thead>
+            <tbody id="fyBody"></tbody>
+          </table>
+        </div>
+      </fieldset>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:#1a1a1a;margin-bottom:16px;cursor:pointer;user-select:none">
+        <input id="loginRemember" type="checkbox" style="width:14px;height:14px">Remember password
+      </label>
+      <div style="display:flex;justify-content:center;gap:18px">
+        <button id="loginBtn" style="min-width:100px;padding:5px 12px;font-size:13.5px;font-family:inherit;background:linear-gradient(180deg,#fdfdfa,#e2e2d6);border:1px solid #8a8a78;border-radius:2px;cursor:pointer">OK</button>
+        <button id="loginCancel" style="min-width:100px;padding:5px 12px;font-size:13.5px;font-family:inherit;background:linear-gradient(180deg,#fdfdfa,#e2e2d6);border:1px solid #8a8a78;border-radius:2px;cursor:pointer">Cancel</button>
+      </div>
+      <div id="loginMsg" style="text-align:center;color:#b00000;font-size:12.5px;margin-top:12px;min-height:15px"></div>
+    </div>
   </div>
 </div>
 <div class="app">
@@ -3552,6 +3581,7 @@ function renderCuttingReport(){
         <div class="cr-field"><label>File No.</label><input id="crFileNo" value="${esc(crFile)}" placeholder="e.g. E-1329" autocomplete="off" inputmode="numeric"></div>
         <div class="cr-field"><label>Sf No.</label><input id="crSfNo" value="${esc(crSf)}" placeholder="e.g. 26" autocomplete="off" inputmode="numeric"></div>
         <button class="btn btn-primary" id="crShow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Show Report</button>
+        <button class="btn btn-primary" id="crCompShow" style="background:#0d6b58;border-color:#0d6b58"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M3 10h18M3 16h18"/></svg>Component Report</button>
         <button class="btn btn-ghost" id="crClear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Clear</button>
       </div>
     </div></div>
@@ -3559,11 +3589,113 @@ function renderCuttingReport(){
   </div>`;
   const run=()=>{ crFile=document.getElementById('crFileNo').value.trim(); crSf=document.getElementById('crSfNo').value.trim(); if(!crFile || !crSf){ toast('File No. aur Sf No. dono bharna zaroori hai','err'); if(!crFile) document.getElementById('crFileNo').focus(); else document.getElementById('crSfNo').focus(); return; } document.getElementById('crResult').innerHTML=fabricReportHTML(crFile,crSf); bindFabricExport(crFile,crSf); };
   document.getElementById('crShow').onclick=run;
+  document.getElementById('crCompShow').onclick=()=>{ crFile=document.getElementById('crFileNo').value.trim(); crSf=document.getElementById('crSfNo').value.trim(); if(!crFile||!crSf){ toast('File No. aur Sf No. dono bharo','err'); if(!crFile)document.getElementById('crFileNo').focus(); else document.getElementById('crSfNo').focus(); return; } document.getElementById('crResult').innerHTML=compIssueReportHTML(crFile,crSf); bindCompIssueExport(crFile,crSf); };
   document.getElementById('crClear').onclick=()=>{ crFile=''; crSf=''; document.getElementById('crFileNo').value=''; document.getElementById('crSfNo').value=''; document.getElementById('crResult').innerHTML=`<div class="empty-state"><p>File No. daal kar "Show Report" dabao.</p></div>`; document.getElementById('crFileNo').focus(); };
   document.getElementById('crFileNo').addEventListener('keydown',e=>{if(e.key==='Enter')run();});
   document.getElementById('crSfNo').addEventListener('keydown',e=>{if(e.key==='Enter')run();});
   if(crFile) run();
 }
+
+/* ============================================================
+   COMPONENT ISSUE REPORT (order details + batch-wise component issue history)
+   ============================================================ */
+function fmtDateTime(ms){ if(!ms) return '-'; const d=new Date(ms); if(isNaN(d.getTime())) return '-';
+  const dd=String(d.getDate()).padStart(2,'0'), mm=String(d.getMonth()+1).padStart(2,'0'), yy=d.getFullYear();
+  let h=d.getHours(); const mi=String(d.getMinutes()).padStart(2,'0'); const ap=h<12?'AM':'PM'; h=h%12; if(h===0)h=12;
+  return dd+'/'+mm+'/'+yy+' '+h+':'+mi+' '+ap; }
+function compIssueData(fileNo,sfNo){
+  const fn=String(fileNo||'').trim().toLowerCase(), sf=String(sfNo||'').trim().toLowerCase();
+  if(!fn) return null;
+  const order=(ORDERS||[]).find(o=>{ const ofn=ordVal(o,/file\s*no/i).toLowerCase(); const osf=ordVal(o,/sf\s*no/i).toLowerCase(); return ofn && (ofn===fn||ofn.includes(fn)) && (!sf||!osf||osf===sf); });
+  if(!order) return null;
+  const comps=orderComponents(order);
+  const meta=batchOrderMeta(order);
+  const batches=(BATCHES||[]).filter(b=>b.orderId===order.id).slice().sort((a,b)=>(a.savedAt||0)-(b.savedAt||0));
+  const rows=batches.map(b=>({ when:b.savedAt||0, date:b.date||'', location:b.location||'', type:b.type||'', pattern:b.pattern||'', ready:b.ready||{} }));
+  const tot={}; comps.forEach(c=>tot[c.key]=0);
+  rows.forEach(r=>{ comps.forEach(c=>{ tot[c.key]+=num(r.ready[c.key]||0); }); });
+  return { order, meta, comps, rows, tot };
+}
+function compIssueDoc(fileNo,sfNo){
+  const d=compIssueData(fileNo,sfNo); if(!d) return '';
+  const m=d.meta, comps=d.comps;
+  const info=[['Order No',m.on||'-'],['File No',m.fn||'-'],['Sf No',m.sf||'-'],['Gsm',m.gsm||'-'],['Bag Size',m.bag||'-'],['Order Qty',m.oq||'-']];
+  const half=Math.ceil(info.length/2), colA=info.slice(0,half), colB=info.slice(half);
+  const compRows=comps.length? comps.map(c=>{ const given=d.tot[c.key]||0; const ord=num(c.qty); const bal=ord-given;
+    return `<tr><td style="text-align:left">${esc(c.name)}</td><td>${ord||'-'}</td><td>${(c.cutLen!==''&&c.cutLen!=null)?esc(c.cutLen):'-'}</td><td>${given||0}</td><td>${bal}</td></tr>`; }).join('')
+    : `<tr><td colspan="5" style="text-align:center;color:#888">Is order me koi component nahi</td></tr>`;
+  const histHead=`<tr><th>Date &amp; Time</th><th>Location</th>${comps.map(c=>`<th>${esc(c.name)}</th>`).join('')}</tr>`;
+  const histBody=d.rows.length? d.rows.map(r=>`<tr><td>${esc(fmtDateTime(r.when))}</td><td>${esc(r.location||'-')}</td>${comps.map(c=>`<td>${num(r.ready[c.key]||0)||''}</td>`).join('')}</tr>`).join('')
+    : `<tr><td colspan="${2+comps.length}" style="text-align:center;color:#888">Abhi tak koi component issue nahi hua (Batch me add karo)</td></tr>`;
+  const totRow=`<tr class="grand"><td>TOTAL GIVEN</td><td></td>${comps.map(c=>`<td>${d.tot[c.key]||0}</td>`).join('')}</tr>`;
+  return `<div class="report-doc fab-doc" id="ciDoc">
+    <div class="fab-title">Component Issue Report</div>
+    <div class="fab-info">
+      <div class="fab-info-col">${colA.map(([k,v])=>`<div class="fab-irow"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>
+      <div class="fab-info-col">${colB.map(([k,v])=>`<div class="fab-irow"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>
+    </div>
+    <div class="fab-section-title">Components (Order-wise)</div>
+    <div class="fab-tblwrap"><table class="fab-tbl"><thead><tr><th>Component</th><th>Order Qty</th><th>Cut Len</th><th>Total Given</th><th>Balance</th></tr></thead><tbody>${compRows}</tbody></table></div>
+    <div class="fab-section-title">Issue History (Batch-wise, date &amp; time)</div>
+    <div class="fab-tblwrap"><table class="fab-tbl"><thead>${histHead}</thead><tbody>${histBody}${totRow}</tbody></table></div>
+  </div>`;
+}
+function compIssueReportHTML(fileNo,sfNo){
+  const d=compIssueData(fileNo,sfNo);
+  if(!d) return `<div class="empty-state"><p>"${esc(fileNo)}${sfNo?(' / '+esc(sfNo)):''}" ka koi order nahi mila - pehle Order Entry me banao.</p></div>`;
+  return `<div class="cr-toolbar">
+      <button class="btn btn-green" id="ciXls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13l6 6M15 13l-6 6"/></svg>Export Excel</button>
+      <button class="btn btn-primary" id="ciPdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Download PDF</button>
+    </div>`+compIssueDoc(fileNo,sfNo);
+}
+function bindCompIssueExport(fileNo,sfNo){
+  const xls=document.getElementById('ciXls'), pdf=document.getElementById('ciPdf');
+  if(xls) xls.onclick=()=>compIssueExcel(fileNo,sfNo);
+  if(pdf) pdf.onclick=()=>compIssuePDF(fileNo,sfNo);
+}
+async function compIssuePDF(fileNo,sfNo){
+  const ns=window.jspdf; if(!ns||!ns.jsPDF){ toast('PDF engine load ho raha - phir try karo','err'); return; }
+  const d=compIssueData(fileNo,sfNo); if(!d){ toast('Pehle report dikhao','err'); return; }
+  if(typeof html2canvas!=='function'){ toast('PDF engine load ho raha','err'); return; }
+  try{
+    toast('PDF ban raha hai...','ok');
+    const { jsPDF }=ns; const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight(), margin=7, availW=pw-margin*2, availH=ph-margin*2;
+    const canvas=await _captureDocToCanvas(compIssueDoc(fileNo,sfNo));
+    const ratio=Math.min(availW/canvas.width, availH/canvas.height);
+    const dw=canvas.width*ratio, dh=canvas.height*ratio;
+    pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-dw)/2, margin, dw, dh);
+    pdf.save(`Component_Report_${(fileNo||'').replace(/[^\w-]/g,'')}${sfNo?'_'+sfNo:''}.pdf`);
+    toast('PDF downloaded','ok');
+  }catch(err){ console.error(err); toast('PDF fail - phir try karo','err'); }
+}
+function compIssueExcel(fileNo,sfNo){
+  const d=compIssueData(fileNo,sfNo); if(!d){ toast('Pehle report dikhao','err'); return; }
+  const m=d.meta, comps=d.comps;
+  const th='border:1px solid #1f3a5f;background:#1f3a5f;color:#fff;font-weight:bold;padding:5px 8px;text-align:center';
+  const td='border:1px solid #9fb3c8;padding:5px 8px;text-align:center';
+  const lbl='border:1px solid #1f3a5f;background:#eef3fa;color:#1f3a5f;font-weight:bold;padding:5px 8px';
+  const info=[['Order No',m.on||'-'],['File No',m.fn||'-'],['Sf No',m.sf||'-'],['Gsm',m.gsm||'-'],['Bag Size',m.bag||'-'],['Order Qty',m.oq||'-']];
+  let raw='<table><tr><td style="text-align:center;font-size:18px;font-weight:bold;color:#1f3a5f;padding:8px">COMPONENT ISSUE REPORT</td></tr></table><br>';
+  raw+='<table>';
+  for(let i=0;i<info.length;i+=2){ const a=info[i], b=info[i+1];
+    raw+=`<tr><td style="${lbl}">${esc(a[0])}</td><td style="${td};text-align:left">${esc(a[1])}</td>`+(b?`<td style="${lbl}">${esc(b[0])}</td><td style="${td};text-align:left">${esc(b[1])}</td>`:'')+'</tr>'; }
+  raw+='</table><br>';
+  raw+='<table><tr><td style="'+th+'">Component</td><td style="'+th+'">Order Qty</td><td style="'+th+'">Cut Len</td><td style="'+th+'">Total Given</td><td style="'+th+'">Balance</td></tr>';
+  comps.forEach(c=>{ const given=d.tot[c.key]||0, ord=num(c.qty), bal=ord-given;
+    raw+=`<tr><td style="${td};text-align:left">${esc(c.name)}</td><td style="${td}">${ord||'-'}</td><td style="${td}">${(c.cutLen!==''&&c.cutLen!=null)?esc(c.cutLen):'-'}</td><td style="${td}">${given||0}</td><td style="${td}">${bal}</td></tr>`; });
+  raw+='</table><br>';
+  raw+='<table><tr><td style="'+th+'">Date &amp; Time</td><td style="'+th+'">Location</td>'+comps.map(c=>`<td style="${th}">${esc(c.name)}</td>`).join('')+'</tr>';
+  d.rows.forEach(r=>{ raw+=`<tr><td style="${td}">${esc(fmtDateTime(r.when))}</td><td style="${td}">${esc(r.location||'-')}</td>`+comps.map(c=>`<td style="${td}">${num(r.ready[c.key]||0)||''}</td>`).join('')+'</tr>'; });
+  raw+=`<tr><td style="${lbl};text-align:center">TOTAL GIVEN</td><td style="${td}"></td>`+comps.map(c=>`<td style="${lbl};text-align:center">${d.tot[c.key]||0}</td>`).join('')+'</tr>';
+  raw+='</table>';
+  const _rows=raw.replace(/<br\s*\/?>/g,'<tr><td></td></tr>').replace(/<\/?(table|thead|tbody|tfoot)[^>]*>/g,'');
+  const html='<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Georgia,serif;font-size:12px">'+_rows+'</table>';
+  const blob=new Blob(['\ufeff<html><head><meta charset="utf-8"></head><body>'+html+'</body></html>'],{type:'application/vnd.ms-excel'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`Component_Report_${(fileNo||'').replace(/[^\w-]/g,'')}${sfNo?'_'+sfNo:''}.xls`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
+  toast('Excel downloaded','ok');
+}
+
 
 /* ============================================================
    CUTTING STOCK TAB  (order-wise & location-wise material stock)
@@ -4451,7 +4583,16 @@ const SB_HEADERS = { 'apikey':SUPABASE_ANON_KEY, 'Authorization':'Bearer '+SUPAB
         let role=null;
         try{ var j=JSON.parse(res.text); role=(typeof j==='string')?j:((j&&(j.role||j.comsyn_login))||(Array.isArray(j)&&j.length?j[0]:null)); }
         catch(e){ role=(res.text||'').replace(/^"|"$/g,'')||null; }
-        if(role){ sessionStorage.setItem('comsyn_role',role); sessionStorage.setItem('comsyn_user',u); applyRole(role); hideLogin(); try{toast('Welcome '+u+' ('+role+')','ok');}catch(e){} }
+        if(role){
+          sessionStorage.setItem('comsyn_role',role); sessionStorage.setItem('comsyn_user',u);
+          try{ var rem=document.getElementById('loginRemember');
+            var accs=[]; try{ accs=JSON.parse(localStorage.getItem('comsyn_accounts')||'[]'); }catch(_e){ accs=[]; }
+            if(!Array.isArray(accs)) accs=[];
+            accs=accs.filter(function(a){ return a && a.u!==u; });
+            if(rem && rem.checked) accs.unshift({u:u,p:p});
+            localStorage.setItem('comsyn_accounts', JSON.stringify(accs)); }catch(e){}
+          applyRole(role); hideLogin(); try{toast('Welcome '+u+' ('+role+')','ok');}catch(e){}
+        }
         else { setMsg('Galat username ya password'); }
       })
       .catch(function(err){ setMsg('Login fail \u2014 '+((err&&err.message)||'network')); });
@@ -4461,8 +4602,33 @@ const SB_HEADERS = { 'apikey':SUPABASE_ANON_KEY, 'Authorization':'Bearer '+SUPAB
     const btn=document.getElementById('loginBtn'); if(btn) btn.onclick=doLogin;
     const pw=document.getElementById('loginPass'); if(pw) pw.addEventListener('keydown',function(e){ if(e.key==='Enter') doLogin(); });
     const lo=document.getElementById('logoutBtn'); if(lo) lo.onclick=doLogout;
-    const saved=sessionStorage.getItem('comsyn_role');
-    if(saved){ applyRole(saved); hideLogin(); } else { showLogin(); }
+    var cancelBtn=document.getElementById('loginCancel'); var xBtn=document.getElementById('loginXbtn');
+    var clearFn=function(){ var uu=document.getElementById('loginUser'),pp=document.getElementById('loginPass'); if(uu)uu.value=''; if(pp)pp.value=''; setMsg(''); };
+    if(cancelBtn) cancelBtn.onclick=clearFn; if(xBtn) xBtn.onclick=clearFn;
+    var fy=document.getElementById('fyBody');
+    if(fy){ var ys=[['01/04/2025','31/03/2026'],['01/04/2026','31/03/2027']];
+      fy.innerHTML=ys.map(function(r,i){ return '<tr data-fy="'+i+'" style="cursor:pointer;'+(i===ys.length-1?'background:#316ac5;color:#fff':'')+'"><td style="padding:3px 8px">'+r[0]+'</td><td style="padding:3px 8px">'+r[1]+'</td></tr>'; }).join('');
+      fy.querySelectorAll('tr').forEach(function(tr){ tr.onclick=function(){ fy.querySelectorAll('tr').forEach(function(x){ x.style.background=''; x.style.color=''; }); tr.style.background='#316ac5'; tr.style.color='#fff'; }; });
+    }
+    var userInput=document.getElementById('loginUser'); var accBox=document.getElementById('loginAccts');
+    function loadAccts(){ try{ var a=JSON.parse(localStorage.getItem('comsyn_accounts')||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+    function renderAccts(){
+      if(!accBox) return; var accs=loadAccts();
+      if(!accs.length){ accBox.style.display='none'; accBox.innerHTML=''; return; }
+      accBox.innerHTML=accs.map(function(a,i){ return '<div data-acc="'+i+'" style="padding:7px 11px;font-size:13.5px;cursor:pointer;border-bottom:1px solid #eee;color:#1a1a1a">'+esc(a.u)+'</div>'; }).join('');
+      accBox.querySelectorAll('[data-acc]').forEach(function(el){
+        el.onmouseenter=function(){ el.style.background='#e7f0fb'; };
+        el.onmouseleave=function(){ el.style.background='#fff'; };
+        el.onmousedown=function(ev){ ev.preventDefault(); var a=loadAccts()[+el.dataset.acc]; if(a){ if(userInput) userInput.value=a.u; var pp=document.getElementById('loginPass'); if(pp) pp.value=a.p||''; var cb=document.getElementById('loginRemember'); if(cb) cb.checked=true; setMsg(''); } accBox.style.display='none'; };
+      });
+      accBox.style.display='block';
+    }
+    if(userInput){
+      userInput.addEventListener('focus',renderAccts);
+      userInput.addEventListener('click',renderAccts);
+      userInput.addEventListener('blur',function(){ setTimeout(function(){ if(accBox) accBox.style.display='none'; },180); });
+    }
+    showLogin();
   }
   init();
 })();
