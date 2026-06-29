@@ -2441,9 +2441,17 @@ function reportBodyHTML(r){
   const _restCols=Math.max(0,_allCols-_odCols);
   let thead=`<tr><th class="grp" colspan="${_odCols}" style="text-align:left;font-size:13px">${esc(_unitVal||'—')}</th>${_restCols?`<th colspan="${_restCols}" style="border:none;background:#fff"></th>`:''}</tr><tr>`; secs.forEach(s=>{ thead+=`<th class="grp" colspan="${s.columns.length}">${esc(s.title)}</th>`; }); if(hasRC) thead+=`<th class="grp" colspan="3">Roll Cutting Time</th>`; thead+=`</tr><tr>`;
   secs.forEach(s=>{ s.columns.forEach(c=>thead+=`<th>${esc(c.label)}</th>`); }); if(hasRC) thead+=`<th>Roll Cut Start</th><th>Roll Cut End</th><th>Total Roll Cut. Hour</th>`; thead+=`</tr>`;
+  let _rcSegs=null;
+  if(hasRC && r.rcSegs && r.rcSegs.length>1){
+    _rcSegs=r.rcSegs.map(s=>({rows:s.rows, start:s.start, end:s.end}));
+    let _sum=_rcSegs.reduce((a,s)=>a+s.rows,0);
+    if(_sum!==maxRows && _rcSegs.length){ _rcSegs[_rcSegs.length-1].rows += (maxRows-_sum); if(_rcSegs[_rcSegs.length-1].rows<1) _rcSegs[_rcSegs.length-1].rows=1; }
+  }
+  const _segAt={}; if(_rcSegs){ let _acc=0; _rcSegs.forEach(s=>{ _segAt[_acc]=s; _acc+=s.rows; }); }
   let tbody='';
   for(let i=0;i<maxRows;i++){ tbody+='<tr>'; secs.forEach(s=>{ const row=(r.sections[s.id]||[])[i]; s.columns.forEach(c=>{ let v=''; if(row){ v=c.type==='formula'?fRec(c.formula,r,s,i,c):(row[c.id]??''); } if(/balance/i.test(c.label)&&num(v)===0) v=''; tbody+=`<td class="num">${esc(v===''?'':v)}</td>`; }); });
-    if(hasRC && i===0){ tbody+=`<td class="num" rowspan="${maxRows}">${esc(fmtClock(r.rollCutStart)||'-')}</td><td class="num" rowspan="${maxRows}">${esc(fmtClock(r.rollCutEnd)||'-')}</td><td class="num" rowspan="${maxRows}">${esc(fmtWorkHours(r.rollCutStart,r.rollCutEnd)||'-')}</td>`; }
+    if(hasRC){ if(_rcSegs){ const sg=_segAt[i]; if(sg){ tbody+=`<td class="num" rowspan="${sg.rows}">${esc(fmtClock(sg.start)||'-')}</td><td class="num" rowspan="${sg.rows}">${esc(fmtClock(sg.end)||'-')}</td><td class="num" rowspan="${sg.rows}">${esc(fmtWorkHours(sg.start,sg.end)||'-')}</td>`; } }
+      else if(i===0){ tbody+=`<td class="num" rowspan="${maxRows}">${esc(fmtClock(r.rollCutStart)||'-')}</td><td class="num" rowspan="${maxRows}">${esc(fmtClock(r.rollCutEnd)||'-')}</td><td class="num" rowspan="${maxRows}">${esc(fmtWorkHours(r.rollCutStart,r.rollCutEnd)||'-')}</td>`; } }
     tbody+='</tr>'; }
   // ---- merged TOTAL row: leading identifier cells merged, only quantities summed ----
   const flat=[]; secs.forEach(s=>s.columns.forEach(c=>flat.push({c,s})));
@@ -2485,7 +2493,7 @@ function unitMergedRecs(recs){
 function recHeaderVal(r, re){ const cfg=r.config; const h=(cfg.upperHeaders||[]).concat(cfg.lowerHeaders||[]).find(x=>re.test(x.label)); return h?String(r.headers[h.id]||'').trim():''; }
 function entryFabType(r){
   const cfg=r.config; let val='';
-  (cfg.sections||[]).forEach(s=>{ s.columns.forEach(c=>{ if(/fab\.?\s*type|^\s*type\s*$/i.test(c.label)){ const rows=r.sections[s.id]||[]; for(const row of rows){ const v=String(row[c.id]??'').trim(); if(v && !val) val=v; } } }); });
+  (cfg.sections||[]).forEach(s=>{ s.columns.forEach(c=>{ if(/lam\.?\s*type|fab\.?\s*type/i.test(c.label)){ const rows=r.sections[s.id]||[]; for(const row of rows){ const v=String(row[c.id]??'').trim(); if(v && !val) val=v; } } }); });
   const u=val.toUpperCase().replace(/\s/g,'');
   if(u.indexOf('L/F')>=0||u.indexOf('LF')>=0) return 'lam';
   return 'loom';
@@ -2719,7 +2727,8 @@ function mergeGroup(g){
   const starts=g.recs.map(r=>r.rollCutStart).filter(Boolean).sort();
   const ends=g.recs.map(r=>r.rollCutEnd).filter(Boolean).sort();
   let workMs=0; g.recs.forEach(r=>{ if(r.rollCutStart&&r.rollCutEnd) workMs+=(new Date(r.rollCutEnd)-new Date(r.rollCutStart)); });
-  return { id:'m_'+base.id, date:base.date, config:mcfg, headers:base.headers, sections, savedAt:base.savedAt, rollCutStart:starts[0]||'', rollCutEnd:ends[ends.length-1]||'', workSumMs:workMs };
+  const rcSegs=g.recs.map(r=>{ const rsecs=(r.config.sections||[]).filter(s=>!/location/i.test(s.title)); const rmax=Math.max(1,...rsecs.map(s=>(r.sections[s.id]||[]).length)); return { rows:rmax, start:r.rollCutStart||'', end:r.rollCutEnd||'' }; });
+  return { id:'m_'+base.id, date:base.date, config:mcfg, headers:base.headers, sections, savedAt:base.savedAt, rollCutStart:starts[0]||'', rollCutEnd:ends[ends.length-1]||'', workSumMs:workMs, rcSegs:rcSegs };
 }
 
 /* Combined on-screen view of a whole day — Shift A first, then Machine; same machine+shift merged into one page */
@@ -4432,8 +4441,13 @@ function _xlUnitBlock(r){
   t+=`<tr>`; secs.forEach(s=>{ t+=`<td colspan="${s.columns.length}" style="text-align:center;font-weight:bold;background:#dde8f3">${esc(s.title)}</td>`; }); if(hasRC) t+=`<td colspan="3" style="text-align:center;font-weight:bold;background:#dde8f3">Roll Cutting Time</td>`; t+=`</tr>`;
   t+=`<tr>`; allCols.forEach(({c})=>{ t+=`<td style="font-weight:bold;text-align:center;background:#eef3fa">${esc(c.label)}</td>`; }); if(hasRC) t+=`<td style="font-weight:bold;text-align:center;background:#eef3fa">Roll Cut Start</td><td style="font-weight:bold;text-align:center;background:#eef3fa">Roll Cut End</td><td style="font-weight:bold;text-align:center;background:#eef3fa">Total Roll Cut. Hour</td>`; t+=`</tr>`;
   const maxRows=Math.max(...secs.map(s=>(r.sections[s.id]||[]).length),1);
+  let _rcSegs=null;
+  if(hasRC && r.rcSegs && r.rcSegs.length>1){ _rcSegs=r.rcSegs.map(s=>({rows:s.rows, start:s.start, end:s.end}));
+    let _sum=_rcSegs.reduce((a,s)=>a+s.rows,0); if(_sum!==maxRows && _rcSegs.length){ _rcSegs[_rcSegs.length-1].rows += (maxRows-_sum); if(_rcSegs[_rcSegs.length-1].rows<1) _rcSegs[_rcSegs.length-1].rows=1; } }
+  const _segAt={}; if(_rcSegs){ let _acc=0; _rcSegs.forEach(s=>{ _segAt[_acc]=s; _acc+=s.rows; }); }
   for(let i=0;i<maxRows;i++){ t+='<tr>'; secs.forEach(s=>{ const row=(r.sections[s.id]||[])[i]; s.columns.forEach(c=>{ let v=''; if(row){ v=c.type==='formula'?fRec(c.formula,r,s,i,c):(row[c.id]??''); } if(/balance/i.test(c.label)&&num(v)===0) v=''; t+=`<td style="text-align:center">${esc(v===''?'':v)}</td>`; }); });
-    if(hasRC && i===0){ t+=`<td rowspan="${maxRows}" style="text-align:center;vertical-align:middle">${esc(fmtClock(r.rollCutStart)||'-')}</td><td rowspan="${maxRows}" style="text-align:center;vertical-align:middle">${esc(fmtClock(r.rollCutEnd)||'-')}</td><td rowspan="${maxRows}" style="text-align:center;vertical-align:middle">${esc(fmtWorkHours(r.rollCutStart,r.rollCutEnd)||'-')}</td>`; }
+    if(hasRC){ if(_rcSegs){ const sg=_segAt[i]; if(sg){ t+=`<td rowspan="${sg.rows}" style="text-align:center;vertical-align:middle">${esc(fmtClock(sg.start)||'-')}</td><td rowspan="${sg.rows}" style="text-align:center;vertical-align:middle">${esc(fmtClock(sg.end)||'-')}</td><td rowspan="${sg.rows}" style="text-align:center;vertical-align:middle">${esc(fmtWorkHours(sg.start,sg.end)||'-')}</td>`; } }
+      else if(i===0){ t+=`<td rowspan="${maxRows}" style="text-align:center;vertical-align:middle">${esc(fmtClock(r.rollCutStart)||'-')}</td><td rowspan="${maxRows}" style="text-align:center;vertical-align:middle">${esc(fmtClock(r.rollCutEnd)||'-')}</td><td rowspan="${maxRows}" style="text-align:center;vertical-align:middle">${esc(fmtWorkHours(r.rollCutStart,r.rollCutEnd)||'-')}</td>`; } }
     t+='</tr>'; }
   let firstIdx=allCols.findIndex(x=>isTotalCol(x.c)); if(firstIdx<0) firstIdx=allCols.length; const leadSpan=Math.max(firstIdx,1);
   t+=`<tr><td colspan="${leadSpan}" style="font-weight:bold;text-align:center;background:#f6f8fb">TOTAL</td>`;
