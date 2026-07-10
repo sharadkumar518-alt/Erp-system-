@@ -4868,6 +4868,106 @@ function dshChartSVG(series){
     <path class="area" d="${area}"/><path class="line" d="${line}"/>
   </svg>`;
 }
+/* ---- band drill-down: U/L & L/F rolls alag-alag, full report format ---- */
+function recRollUL(r){
+  try{
+    const s=(r.config.sections||[]).find(x=>/roll/i.test(x.title||'')); if(!s) return '';
+    const cols=(s.columns||[]).filter(c=>/^\s*type\s*$/i.test(String(c.label||'')));
+    let col=cols.find(c=>(c.options||[]).some(o=>/^(U\/?L|L\/?F)$/i.test(String(o).trim())));
+    if(!col) col=cols[1]||cols[0]; if(!col) return '';
+    const rows=(r.sections||{})[s.id]||[];
+    const v=String((rows[0]||{})[col.id]||'').trim().toUpperCase();
+    if(/^U\/?L$/.test(v)) return 'U/L';
+    if(/^L\/?F$/.test(v)) return 'L/F';
+    return v?('OTHER'):'';
+  }catch(e){ return ''; }
+}
+function _bandOf(p){ return p>8?2:(p>3?1:0); }
+function recPct(r){
+  let lr; try{ lr=liveRec(r); }catch(e){ lr=r; }
+  let p=0,w=0;
+  try{ const s=computeReportSummary(lr); p=num(s.production); w=num(s.totalWaste); }catch(e){}
+  return p>0?((w/p)*100):0;
+}
+function dshBandGroups(bi){
+  const a=window.__dshA; if(!a) return [];
+  const recs=a.recs.filter(r=>_bandOf(recPct(r))===bi);
+  const map={};
+  recs.forEach(r=>{ const mc=recHeaderVal(r,/machine/i)||'\u2014'; const sh=recHeaderVal(r,/shift/i)||''; const k=mc+(sh?(' \u00b7 Shift '+sh):''); (map[k]=map[k]||[]).push(r); });
+  const out=[];
+  Object.keys(map).sort().forEach(k=>{
+    const buckets={'U/L':[], 'L/F':[], 'OTHER':[]};
+    map[k].forEach(r=>{ const t=recRollUL(r); (buckets[t==='U/L'?'U/L':(t==='L/F'?'L/F':'OTHER')]).push(r); });
+    ['U/L','L/F','OTHER'].forEach(t=>{
+      if(!buckets[t].length) return;
+      let prod=0,w=0;
+      buckets[t].forEach(r=>{ let lr; try{ lr=liveRec(r);}catch(e){ lr=r; } try{ const s=computeReportSummary(lr); prod+=num(s.production); w+=num(s.totalWaste); }catch(e){} });
+      const mp=prod>0?((w/prod)*100):0;
+      out.push({ label:k+' \u00b7 '+(t==='OTHER'?'Other Rolls':t+' Rolls'), recs:buckets[t], prod:prod, w:w, pct:mp });
+    });
+  });
+  return out;
+}
+const _BAND_NAMES=['GOOD \u2014 \u2264 3% Wastage','WATCH \u2014 3\u20138% Wastage','HIGH \u2014 > 8% Wastage'];
+function openDshBand(bi){
+  const a=window.__dshA; if(!a) return;
+  const groups=dshBandGroups(bi);
+  if(!groups.length){ toast('Is category me abhi koi machine nahi hai','info'); return; }
+  const body=groups.map((g,i)=>`<div${i>0?' style="margin-top:24px;padding-top:24px;border-top:2px dashed var(--line)"':''}>
+      <div style="margin-bottom:10px"><span class="hint" style="font-weight:700;color:var(--ink)">${esc(g.label)} \u00b7 ${g.pct.toFixed(1)}% wastage \u00b7 ${Math.round(g.prod)} kg \u00b7 ${g.recs.length} entr${g.recs.length!==1?'ies':'y'}</span></div>
+      <div class="rpt-host">${buildGroupReportHTML(g.recs)}</div>
+    </div>`).join('');
+  const dlSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>';
+  const ov=openModal({ wide:true, full:true, title:_BAND_NAMES[bi]+' \u00b7 '+groups.length+' report'+(groups.length!==1?'s':'')+' \u00b7 '+esc(a.label), body,
+    footer:`<button class="btn btn-green" id="bandXls">Export Excel</button><button class="btn btn-primary" id="bandPdf">${dlSvg}Download PDF</button>` });
+  document.getElementById('bandPdf').onclick=()=>downloadBandPDF(bi);
+  document.getElementById('bandXls').onclick=()=>downloadBandExcel(bi);
+  try{ scaleReports(ov); }catch(e){}
+}
+async function downloadBandPDF(bi){
+  const ns=window.jspdf;
+  if(!ns||!ns.jsPDF){ toast('PDF engine still loading \u2014 try again in a moment','err'); return; }
+  const { jsPDF }=ns;
+  const groups=dshBandGroups(bi);
+  if(!groups.length){ toast('No data','err'); return; }
+  const bname=['GOOD','WATCH','HIGH'][bi];
+  if(typeof html2canvas==='function'){
+    try{
+      toast('PDF ban raha hai...','ok');
+      const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+      const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight(), margin=6, availW=pw-margin*2, availH=ph-margin*2;
+      for(let i=0;i<groups.length;i++){
+        const canvas=await _captureDocToCanvas(buildGroupReportHTML(groups[i].recs));
+        if(i>0) pdf.addPage();
+        const ratio=Math.min(availW/canvas.width, availH/canvas.height);
+        const dw=canvas.width*ratio, dh=canvas.height*ratio;
+        pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-dw)/2, margin, dw, dh);
+      }
+      pdf.save(`Cutting_${bname}_Report.pdf`);
+      toast(`${bname} PDF \u00b7 ${groups.length} page${groups.length!==1?'s':''}`,'ok');
+      return;
+    }catch(err){ console.error('band pdf html2canvas failed, fallback',err); }
+  }
+  const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  if(typeof pdf.autoTable!=='function'){ toast('PDF engine load ho raha \u2014 phir try karo','err'); return; }
+  let _pg=0;
+  groups.forEach(g=>{ unitMergedRecs(g.recs).forEach(u=>{ if(_pg>0) pdf.addPage(); _renderReportPage(pdf, u); _pg++; }); });
+  pdf.save(`Cutting_${bname}_Report.pdf`);
+  toast(`${bname} PDF \u00b7 ${_pg} page${_pg!==1?'s':''}`,'ok');
+}
+function downloadBandExcel(bi){
+  const groups=dshBandGroups(bi);
+  if(!groups.length){ toast('No data','err'); return; }
+  const bname=['GOOD','WATCH','HIGH'][bi];
+  let raw='';
+  groups.forEach((g,i)=>{ if(i>0) raw+='<br><br>'; raw+='<div style="font-weight:bold;font-size:13px">'+esc(g.label)+' \u00b7 '+g.pct.toFixed(1)+'% wastage</div>'+buildGroupExcelTable(g.recs); });
+  const _rows=raw.replace(/<br\s*\/?>/g,'<tr><td></td></tr>').replace(/<\/?(table|thead|tbody|tfoot)[^>]*>/g,'').replace(/<div[^>]*>/g,'<tr><td colspan="8" style="font-weight:bold;font-size:13px;border:none">').replace(/<\/div>/g,'</td></tr>');
+  const html='<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Georgia,serif;font-size:12px">'+_rows+'</table>';
+  const xml=`<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>${bname} Report</x:Name><x:WorksheetOptions><x:FitToPage/><x:Print><x:ValidPrinterInfo/><x:Orientation>Landscape</x:Orientation><x:FitWidth>1</x:FitWidth><x:FitHeight>0</x:FitHeight><x:Scale>100</x:Scale></x:Print></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->`;
+  const blob=new Blob(['\ufeff<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">'+xml+'</head><body>'+html+'</body></html>'],{type:'application/vnd.ms-excel'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`Cutting_${bname}_Report.xls`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
+  toast('Excel exported','ok');
+}
 function renderDashboard(){
   const c=document.getElementById('content');
   document.getElementById('topActions').innerHTML='';
@@ -4889,39 +4989,89 @@ function renderDashboard(){
   const share=(v)=>a.totProd>0?Math.min(100,(v/a.totProd)*100):0;
   const wcol=(p)=>p>8?'#dc2626':(p>5?'#d97706':'#16a34a');
   const sorted=keys.slice().sort((x,y)=>a.mach[y].prod-a.mach[x].prod);
-  const mrows=sorted.length? sorted.map((k,i)=>{ const m=a.mach[k]; const mp=m.prod>0?((m.w/m.prod)*100):0; const col=wcol(mp);
-    return `<div class="dmr" style="animation-delay:${(0.05*i).toFixed(2)}s">
-      <div class="dmr-l"><span class="dmr-dot" style="background:${col}"></span>
-        <div><div class="dmr-name">${esc(k)}</div>
-        <div class="dmr-sub">&#129525; Loom ${Math.round(m.loom)} &nbsp;\u00b7&nbsp; &#127902; Lam ${Math.round(m.lam)} &nbsp;\u00b7&nbsp; &#9881;&#65039; Proc ${Math.round(m.proc)}</div></div></div>
-      <div class="dmr-bar"><i style="width:${share(m.prod).toFixed(1)}%"></i></div>
-      <div class="dmr-nums">
-        <div class="dmr-n"><b>${Math.round(m.prod)} kg</b><small>PRODUCTION</small></div>
-        <div class="dmr-n"><b>${Math.round(m.w)} kg</b><small>WASTAGE</small></div>
-        <div class="dmr-n"><b style="color:${col}">${mp.toFixed(1)}%</b><small>WASTAGE %</small></div>
+  const band=(p)=>p>8?2:(p>3?1:0);
+  const BANDS=[
+    {bg:'#1e9e50',hd:'#157a3c',label:'GOOD'},
+    {bg:'#e8930c',hd:'#b87104',label:'WATCH'},
+    {bg:'#d93636',hd:'#a82525',label:'HIGH'}
+  ];
+  let bCnt=[0,0,0];
+  a.recs.forEach(r=>{ try{ bCnt[_bandOf(recPct(r))]++; }catch(e){} });
+  const tiles=sorted.length? sorted.map((k,i)=>{
+    const m=a.mach[k]; const mp=m.prod>0?((m.w/m.prod)*100):0; const b=BANDS[band(mp)];
+    return `<div class="mtile" style="background:${b.bg};animation-delay:${(0.04*i).toFixed(2)}s">
+      <div class="mtile-h" style="background:${b.hd}"><span>${esc(k)}</span><span class="mtile-tag">${b.label}</span></div>
+      <div class="mtile-body">
+        <div class="mtile-pct">${mp.toFixed(1)}%</div>
+        <div class="mtile-pl">WASTAGE</div>
+        <div class="mtile-nums">
+          <div><b>${Math.round(m.prod)}</b><small>PROD KG</small></div>
+          <div><b>${Math.round(m.w)}</b><small>WASTE KG</small></div>
+        </div>
+        <div class="mtile-brk"><span>LOOM ${Math.round(m.loom)}</span><span>LAM ${Math.round(m.lam)}</span><span>PROC ${Math.round(m.proc)}</span></div>
       </div>
     </div>`; }).join('') : `<div class="dsh-emp">Is period ki koi production entry nahi mili</div>`;
-  const wshare=(v)=>a.totW>0?Math.min(100,(v/a.totW)*100):0;
-  const wbars=[['&#129525; Loom',wLm,'#3b82f6'],['&#127902; Lamination',wLa,'#8b5cf6'],['&#9881;&#65039; Process',wPr,'#f59e0b']].map(x=>`
-    <div class="dwb"><div class="dwb-t"><span>${x[0]}</span><b>${Math.round(x[1])} kg \u00b7 ${wshare(x[1]).toFixed(0)}%</b></div>
-    <div class="dwb-bar"><i style="width:${wshare(x[1]).toFixed(1)}%;background:${x[2]}"></i></div></div>`).join('');
-
-  const alerts=[];
-  keys.forEach(k=>{ const m=a.mach[k]; const mp=m.prod>0?((m.w/m.prod)*100):0; if(mp>5) alerts.push({c:'#ef4444',t:esc(k)+' wastage - '+mp.toFixed(1)+'%'}); });
-  if(pct>5) alerts.push({c:'#f59e0b',t:'Overall wastage high - '+pct.toFixed(1)+'%'});
-  alerts.push({c:'#38bdf8',t:(ORDERS||[]).length+' orders open'});
-  alerts.push({c:'#22c07a',t:keys.length+' machines | '+a.recs.length+' reports'});
   const iso=todayISO();
   const selDateVal=window.__dshDate||iso, selMonVal=window.__dshMonth||iso.slice(0,7);
-  c.innerHTML=`<div class="view"><div class="dsh">
-    <div class="dsh-head">
+  const NAVY='#1f3a5f';
+  const statCell=(t,v,sub,vc)=>`<div class="dstat"><div class="dstat-h">${t}</div><div class="dstat-v"${vc?` style="color:${vc}"`:''}>${v}</div><div class="dstat-s">${sub||''}</div></div>`;
+  c.innerHTML=`<style>
+    .dsh2{font-variant-numeric:tabular-nums}
+    .dsh2 .dsh-headx{position:relative;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:linear-gradient(135deg,#152841 0%,#1f3a5f 60%,#24466f 100%);color:#fff;border-radius:14px;padding:16px 20px;box-shadow:0 4px 14px rgba(18,36,58,.25);border-bottom:3px solid #2e86c1}
+    .dsh2 .dsh-headx .t{font-family:Georgia,'Times New Roman',serif;font-weight:800;font-size:19px;letter-spacing:.6px}
+    .dsh2 .dsh-headx .s{display:flex;align-items:center;gap:7px;font-size:11px;opacity:.92;margin-top:5px;letter-spacing:1px;font-weight:700}
+    .dsh2 .lvdot{width:8px;height:8px;border-radius:50%;background:#35d07f;box-shadow:0 0 0 0 rgba(53,208,127,.7);animation:lvp 1.6s infinite}
+    @keyframes lvp{0%{box-shadow:0 0 0 0 rgba(53,208,127,.6)}70%{box-shadow:0 0 0 7px rgba(53,208,127,0)}100%{box-shadow:0 0 0 0 rgba(53,208,127,0)}}
+    .dsh2 .dsh-headx .clk{font-size:15px;font-weight:800;letter-spacing:1.5px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);padding:8px 15px;border-radius:9px}
+    .dsh2 .chiprow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+    @media(max-width:700px){.dsh2 .chiprow{grid-template-columns:repeat(2,1fr)}}
+    .dsh2 .chip{display:flex;align-items:stretch;border-radius:10px;overflow:hidden;background:#fff;border:1px solid #dbe3ec;box-shadow:0 1px 3px rgba(18,36,58,.08);transition:transform .12s}
+    .dsh2 .chip[data-band]:active{transform:scale(.97)}
+    .dsh2 .chip .n{color:#fff;font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;min-width:52px}
+    .dsh2 .chip .d{padding:8px 12px;flex:1;display:flex;flex-direction:column;justify-content:center}
+    .dsh2 .chip .d b{font-size:12px;color:#16283f;letter-spacing:.5px}
+    .dsh2 .chip .d small{font-size:9.5px;color:#7488a0;font-weight:800;letter-spacing:.5px;margin-top:2px}
+    .dsh2 .dstats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+    @media(max-width:760px){.dsh2 .dstats{grid-template-columns:repeat(2,1fr)}}
+    .dsh2 .dstat{border:1px solid #dbe3ec;border-radius:11px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(18,36,58,.07)}
+    .dsh2 .dstat-h{background:linear-gradient(135deg,#1a3050,#1f3a5f);color:#fff;font-size:10.5px;font-weight:800;letter-spacing:1.1px;text-align:center;padding:8px 6px;border-bottom:2px solid #2e86c1}
+    .dsh2 .dstat-v{font-size:26px;font-weight:800;color:#12243a;text-align:center;padding:12px 6px 2px;letter-spacing:.3px}
+    .dsh2 .dstat-s{font-size:10px;font-weight:800;color:#8a99ad;text-align:center;padding-bottom:10px;letter-spacing:.7px}
+    .dsh2 .mpanel{border:1px solid #dbe3ec;border-radius:13px;background:#fff;margin-top:12px;overflow:hidden;box-shadow:0 1px 4px rgba(18,36,58,.08)}
+    .dsh2 .mpanel-h{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#1a3050,#1f3a5f);color:#fff;padding:11px 16px;border-bottom:2px solid #2e86c1}
+    .dsh2 .mpanel-h .mt{font-size:12px;font-weight:800;letter-spacing:1.2px}
+    .dsh2 .mpanel-h .mc{font-size:11px;font-weight:800;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);padding:3px 11px;border-radius:12px;letter-spacing:.5px}
+    .dsh2 .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:11px;padding:14px}
+    .dsh2 .mtile{border-radius:11px;overflow:hidden;color:#fff;box-shadow:0 3px 8px rgba(0,0,0,.16);animation:dshIn .4s both}
+    .dsh2 .mtile-h{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:8px 11px;font-weight:800;font-size:12.5px;letter-spacing:.4px}
+    .dsh2 .mtile-tag{font-size:9px;background:rgba(255,255,255,.92);color:#333;padding:2.5px 8px;border-radius:10px;letter-spacing:.7px;font-weight:800;white-space:nowrap}
+    .dsh2 .mtile-body{padding:11px 11px 12px;text-align:center;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(0,0,0,.05))}
+    .dsh2 .mtile-pct{font-size:28px;font-weight:800;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,.2)}
+    .dsh2 .mtile-pl{font-size:9px;font-weight:800;letter-spacing:1.4px;opacity:.88;margin:4px 0 9px}
+    .dsh2 .mtile-nums{display:flex;gap:7px;justify-content:center}
+    .dsh2 .mtile-nums div{background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:6px 0;flex:1}
+    .dsh2 .mtile-nums b{display:block;font-size:15px}
+    .dsh2 .mtile-nums small{font-size:8px;font-weight:800;letter-spacing:.7px;opacity:.92}
+    .dsh2 .mtile-brk{display:flex;gap:4px;justify-content:center;margin-top:8px;flex-wrap:wrap}
+    .dsh2 .mtile-brk span{font-size:9px;font-weight:800;background:rgba(0,0,0,.22);padding:3px 8px;border-radius:9px;letter-spacing:.3px}
+    .dsh2 .dsh-emp{padding:26px;text-align:center;color:#8a99ad;font-weight:600}
+    @keyframes dshIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  </style>
+  <div class="view"><div class="dsh dsh2">
+    <div class="dsh-headx">
       <div>
-        <div class="dsh-title">Cutting Production Report</div>
-        <div class="dsh-sub"><span class="dsh-dot"></span> COMSYN UNIT-1 &nbsp;|&nbsp; ${esc(a.label)} &nbsp;|&nbsp; System Online</div>
+        <div class="t">CUTTING PRODUCTION \u2014 LIVE MONITOR</div>
+        <div class="s"><span class="lvdot"></span> COMSYN UNIT-1 &nbsp;\u00b7&nbsp; ${esc(a.label).toUpperCase()} &nbsp;\u00b7&nbsp; SYSTEM ONLINE</div>
       </div>
-      <div class="dsh-clock">&#128340; <span id="dshClock"></span></div>
+      <div class="clk"><span id="dshClock"></span></div>
     </div>
-    <div class="dsh-bar">
+    <div class="chiprow">
+      <div class="chip" data-band="0" style="cursor:pointer"><div class="n" style="background:#1e9e50">${bCnt[0]}</div><div class="d"><b>GOOD</b><small>ROLLS \u2264 3%</small></div></div>
+      <div class="chip" data-band="1" style="cursor:pointer"><div class="n" style="background:#e8930c">${bCnt[1]}</div><div class="d"><b>WATCH</b><small>ROLLS 3\u20138%</small></div></div>
+      <div class="chip" data-band="2" style="cursor:pointer"><div class="n" style="background:#d93636">${bCnt[2]}</div><div class="d"><b>HIGH</b><small>ROLLS &gt; 8%</small></div></div>
+      <div class="chip"><div class="n" style="background:#2e86c1">${keys.length}</div><div class="d"><b>MACHINES</b><small>${a.recs.length} REPORTS</small></div></div>
+    </div>
+    <div class="dsh-bar" style="margin-top:12px">
       <div class="dsh-toggle">
         <button id="dshTd" class="${mode==='today'?'on':''}">Today</button>
         <button id="dshMo" class="${(mode==='month'&&selMonVal===iso.slice(0,7))?'on':''}">This Month</button>
@@ -4936,56 +5086,19 @@ function renderDashboard(){
       <label>Date select <input type="date" id="dshDateIn" value="${mode==='date'?selDateVal:''}"></label>
       <label>Month select <input type="month" id="dshMonIn" value="${mode==='month'?selMonVal:''}"></label>
     </div>
-    <div class="dkpi">
-      <div class="dk" style="animation-delay:0s"><div class="dk-i" style="background:#e8f0fe">&#128230;</div><div><div class="dk-v"><span id="dshTotal">0</span> kg</div><div class="dk-l">Total Production</div></div></div>
-      <div class="dk" style="animation-delay:.05s"><div class="dk-i" style="background:#fdeeee">&#128465;&#65039;</div><div><div class="dk-v">${Math.round(a.totW)} kg</div><div class="dk-l">Total Wastage</div></div></div>
-      <div class="dk" style="animation-delay:.1s"><div class="dk-i" style="background:#fff4e5">&#9888;&#65039;</div><div><div class="dk-v" style="color:${wcol(pct)}">${pct.toFixed(2)}%</div><div class="dk-l">Wastage %</div></div></div>
-      <div class="dk" style="animation-delay:.15s"><div class="dk-i" style="background:#e9f9f0">&#127981;</div><div><div class="dk-v">${keys.length} <small style="font-size:13px;font-weight:800;color:#7488a0">/ ${a.recs.length} reports</small></div><div class="dk-l">Machines Active</div></div></div>
+    <div class="dstats">
+      ${statCell('TOTAL PRODUCTION','<span id="dshTotal">0</span> kg','KG \u00b7 '+esc(a.label).toUpperCase())}
+      ${statCell('TOTAL WASTAGE',Math.round(a.totW)+' kg','LOOM '+Math.round(wLm)+' \u00b7 LAM '+Math.round(wLa)+' \u00b7 PROC '+Math.round(wPr))}
+      ${statCell('WASTAGE %',pct.toFixed(2)+'%','OF TOTAL PRODUCTION',wcol(pct))}
+      ${statCell('EFFICIENCY',eff.toFixed(1)+'%','UPTIME '+uptime.toFixed(1)+'%','#1e9e50')}
     </div>
-    <div class="dsh-panel dmp">
-      <div class="p-t">&#127981; MACHINE PERFORMANCE \u00b7 LIVE</div>
-      ${mrows}
-    </div>
-    <div class="dgrid">
-      <div class="dsh-panel"><div class="p-t">&#128200; PRODUCTION TREND</div>
-        ${dshChartSVG(a.series)}
-        <div class="dsh-xlabs">${a.xlabs.map(x=>`<span>${x}</span>`).join('')}</div>
-      </div>
-      <div class="dsh-panel"><div class="p-t">&#128465;&#65039; WASTAGE BREAKDOWN</div>${wbars}
-        <div class="dwb-tot">Total \u00b7 ${Math.round(a.totW)} kg \u00b7 ${pct.toFixed(2)}% of production</div>
-      </div>
-    </div>
-    <div class="dsh-flow"></div><div class="dsh-flowlab">DATA FLOW</div>
-    <div class="dsh-statusrow">
-      <span class="dsh-stat">&#9889; Uptime <i>${uptime.toFixed(1)}%</i></span>
-      <span class="dsh-stat">&#128200; Overall Efficiency <i>${eff.toFixed(0)}%</i></span>
-    </div>
-    <div class="dsh-row2">
-      <div class="dsh-panel">
-        <div class="p-t">STOCK</div>
-        <div class="dsh-g2">
-          <div class="dsh-gauge"><div class="g-v">${(ORDERS||[]).length}</div><div class="g-l">Orders</div></div>
-          <div class="dsh-gauge"><div class="g-v">${(BATCHES||[]).length}</div><div class="g-l">Batches</div></div>
-        </div>
-        <div style="font-size:11px;font-weight:800;color:#7488a0;margin-top:7px">${keys.length} machines active</div>
-      </div>
-      <div class="dsh-panel">
-        <div class="p-t">LIVE ALERTS</div>
-        ${alerts.map(al=>`<div class="dsh-alert"><i style="background:${al.c}"></i>${al.t}</div>`).join('')}
-        <div style="font-size:11px;font-weight:800;color:#7488a0;margin-top:5px">${alerts.length} signals</div>
-      </div>
-      <div class="dsh-panel">
-        <div class="p-t">SYSTEM PERFORMANCE</div>
-        <div class="dsh-eq">${Array.from({length:14},(_,i)=>`<b style="animation-delay:${(i*0.09).toFixed(2)}s"></b>`).join('')}</div>
-        <div class="dsh-wave"><svg viewBox="0 0 300 52" preserveAspectRatio="none">
-          <path d="M0 30 C 25 8, 45 46, 70 27 S 115 8, 140 30 S 185 48, 210 26 S 255 10, 300 30" fill="none" stroke="#7dd3fc" stroke-width="2.2"/>
-          <path d="M0 34 C 30 52, 50 12, 85 32 S 130 50, 160 28 S 210 12, 245 34 S 280 46, 300 26" fill="none" stroke="#f472b6" stroke-width="1.8" opacity=".85"/>
-          <path d="M0 26 C 35 12, 65 44, 100 24 S 160 6, 200 34 S 260 48, 300 22" fill="none" stroke="#fbbf24" stroke-width="1.4" opacity=".8"/>
-        </svg></div>
-        <div style="font-size:11px;font-weight:800;color:#7488a0;margin-top:7px">Loom ${Math.round(wLm)} &nbsp;\u00b7&nbsp; Live speed \u00b7 <span id="dshClock2"></span></div>
-      </div>
+    <div class="mpanel">
+      <div class="mpanel-h"><span class="mt">MACHINE PERFORMANCE \u00b7 LIVE</span><span class="mc">${keys.length} MACHINE${keys.length!==1?'S':''}</span></div>
+      <div class="mgrid">${tiles}</div>
     </div>
   </div></div>`;
+  window.__dshA=a;
+  c.querySelectorAll('[data-band]').forEach(ch=>ch.onclick=()=>openDshBand(+ch.dataset.band));
   document.getElementById('dshTd').onclick=()=>{ window.__dshPeriod='today'; renderDashboard(); };
   document.getElementById('dshMo').onclick=()=>{ window.__dshPeriod='month'; window.__dshMonth=todayISO().slice(0,7); renderDashboard(); };
   document.getElementById('dshPt').onclick=()=>{ window.__dshPeriod='today'; renderDashboard(); };
