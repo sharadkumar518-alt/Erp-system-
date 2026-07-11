@@ -5537,15 +5537,26 @@ function renderTrash(){
   function _gateHide(){ var g=document.getElementById('locGate'); if(g) g.style.display='none'; }
   function _gateMsg(t,col){ var m=document.getElementById('locGateMsg'); if(m){ m.textContent=t; m.style.color=col||'#b33'; } }
   function _gpsSave(lat,lon,cb){
-    fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude='+lat+'&longitude='+lon+'&localityLanguage=en')
+    var fin=function(v){ try{ localStorage.setItem('comsyn_loc', JSON.stringify({v:v+' \u00b7 GPS', t:Date.now(), gps:1})); }catch(e){} cb(); };
+    fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lon+'&zoom=16&addressdetails=1&accept-language=en')
       .then(function(r){ return r.json(); }).then(function(j){
-        var v=[(j&&(j.city||j.locality)), j&&j.principalSubdivision, j&&j.countryCode].filter(Boolean).join(', ');
-        if(!v) v=lat.toFixed(4)+', '+lon.toFixed(4);
-        try{ localStorage.setItem('comsyn_loc', JSON.stringify({v:v+' \u00b7 GPS', t:Date.now(), gps:1})); }catch(e){}
-        cb();
+        var a=(j&&j.address)||{};
+        var area=a.neighbourhood||a.suburb||a.hamlet||a.village||a.road||a.industrial||'';
+        var city=a.town||a.city||a.municipality||a.county||'';
+        var st=a.state||'';
+        if(area && city && area===city) area='';
+        var v=[area,city,st].filter(Boolean).join(', ');
+        if(!v) throw 0;
+        fin(v);
       }).catch(function(){
-        try{ localStorage.setItem('comsyn_loc', JSON.stringify({v:lat.toFixed(4)+', '+lon.toFixed(4)+' \u00b7 GPS', t:Date.now(), gps:1})); }catch(e){}
-        cb();
+        fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude='+lat+'&longitude='+lon+'&localityLanguage=en')
+          .then(function(r){ return r.json(); }).then(function(j){
+            var loc=(j&&j.locality)||'', cty=(j&&j.city)||'';
+            if(loc&&cty&&loc===cty) loc='';
+            var v=[loc,cty,(j&&j.principalSubdivision)].filter(Boolean).join(', ');
+            if(!v) v=lat.toFixed(4)+', '+lon.toFixed(4);
+            fin(v);
+          }).catch(function(){ fin(lat.toFixed(4)+', '+lon.toFixed(4)); });
       });
   }
   var _locRetry=null;
@@ -5555,6 +5566,11 @@ function renderTrash(){
     _gateMsg('Location on ki ja rahi hai\u2026','#1f6da3');
     navigator.geolocation.getCurrentPosition(function(pos){
       if(_locRetry){ clearInterval(_locRetry); _locRetry=null; }
+      if(pos.coords && pos.coords.accuracy && pos.coords.accuracy>1200){
+        LOC_OK=false;
+        _gateMsg('Approximate location chalegi nahi \u2014 Precise (Exact location) zaroori hai. Address bar ke \ud83d\udd12 icon > Permissions > Location me jaakar permission reset karein, phir Yes dabakar Precise select karein.');
+        return;
+      }
       LOC_OK=true;
       _gateMsg('Location on ho gayi \u2713','#1e7a3c');
       _gpsSave(pos.coords.latitude,pos.coords.longitude,function(){ _gateHide(); try{ _heartbeat(); }catch(e){} });
