@@ -5337,9 +5337,10 @@ function renderTrash(){
     tick(); _lockTimer=setInterval(tick,1000);
   }
   function doLogin(){
-    const u=(document.getElementById('loginUser').value||'').trim();
+    const u=document.getElementById('loginUser').value||'';
     const p=document.getElementById('loginPass').value||'';
     if(!u||!p){ setMsg('Please enter both Username and Password to continue.'); return; }
+    if(/\s/.test(u)||/\s/.test(p)){ setMsg('Invalid Username or Password \u2014 spaces are not allowed. Please remove all spaces and try again.'); return; }
     var _lk=_getLock(); if(_lk.until && Date.now()<_lk.until){ _startLockWatch(); setMsg('Account temporarily locked due to multiple failed login attempts. Please try again in '+_fmtLeft(_lk.until-Date.now())+'.'); return; }
     try{ var _fyb=document.getElementById('fyBody');
       if(_fyb){ var _sel=_fyb.querySelector('tr[data-fysel]');
@@ -5360,6 +5361,7 @@ function renderTrash(){
         let role=null; var j=null;
         try{ j=JSON.parse(res.text); if(Array.isArray(j)) j=j.length?j[0]:null; role=(typeof j==='string')?j:((j&&(j.role||j.comsyn_login))||null); }
         catch(e){ role=(res.text||'').replace(/^\"|\"$/g,'')||null; }
+        if(j && typeof j==='object' && j.error==='blocked'){ setMsg('Access Denied \u2014 Your account has been blocked by the administrator. Please contact your administrator.'); return; }
         var canE='1', canD='1', tabsStr='';
         if(j && typeof j==='object'){ if(j.can_edit===false||j.can_edit==='false') canE='0'; if(j.can_delete===false||j.can_delete==='false') canD='0'; if(typeof j.tabs==='string') tabsStr=j.tabs; }
         if(role){
@@ -5372,7 +5374,7 @@ function renderTrash(){
             accs=accs.filter(function(a){ return a && a.u!==u; });
             if(rem && rem.checked) accs.unshift({u:u,p:p});
             localStorage.setItem('comsyn_accounts', JSON.stringify(accs)); }catch(e){}
-          applyRole(role); hideLogin(); try{toast('Welcome '+u+' ('+role+')','ok');}catch(e){}
+          applyRole(role); hideLogin(); try{toast('Welcome '+u+' ('+role+')','ok');}catch(e){} try{ _heartbeat(); }catch(e){}
         }
         else { var _l2=_getLock(); _l2.stage=_l2.stage||0; _l2.fails=(_l2.fails||0)+1;
           var _allowed=(_l2.stage>=1)?1:5;
@@ -5386,6 +5388,20 @@ function renderTrash(){
       .catch(function(err){ setMsg('Login fail \u2014 '+((err&&err.message)||'network')); });
   }
   function doLogout(){ sessionStorage.removeItem('comsyn_role'); sessionStorage.removeItem('comsyn_user'); sessionStorage.removeItem('comsyn_pass'); sessionStorage.removeItem('comsyn_can_edit'); sessionStorage.removeItem('comsyn_can_delete'); sessionStorage.removeItem('comsyn_tabs'); location.reload(); }
+  /* ---- ACTIVE SESSION HEARTBEAT + ADMIN BLOCK KICK ---- */
+  function _hbSid(){ try{ let s=sessionStorage.getItem('comsyn_sid'); if(!s){ s='s'+Math.random().toString(36).slice(2,10)+Date.now().toString(36); sessionStorage.setItem('comsyn_sid',s); } return s; }catch(e){ return 'anon'; } }
+  function _hbDevice(){ return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'')?'MOBILE':'PC'; }
+  function _heartbeat(){
+    var u,p; try{ u=sessionStorage.getItem('comsyn_user'); p=sessionStorage.getItem('comsyn_pass'); }catch(e){}
+    if(!u||!p) return;
+    fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_heartbeat',{ method:'POST', headers:SB_HEADERS,
+      body:JSON.stringify({u:u,p:p,s:_hbSid(),d:_hbDevice(),agent:String(navigator.userAgent||'').slice(0,180)}) })
+      .then(function(r){ return r.json().catch(function(){return null;}); })
+      .then(function(j){ if(j && j.error==='blocked'){ try{ sessionStorage.setItem('comsyn_blocked','1'); }catch(e){} doLogout(); } })
+      .catch(function(){});
+  }
+  try{ _heartbeat(); setInterval(_heartbeat,60000); }catch(e){}
+  setTimeout(function(){ try{ if(sessionStorage.getItem('comsyn_blocked')==='1'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Access Denied \u2014 Your account has been blocked by the administrator. Please contact your administrator.'); } }catch(e){} },700);
   function init(){
     const btn=document.getElementById('loginBtn'); if(btn) btn.onclick=doLogin;
     _startLockWatch();
