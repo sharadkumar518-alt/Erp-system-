@@ -4913,8 +4913,8 @@ function renderUsers(){
     </div>
     <div class="uchips" id="usrChips"></div>
     <div class="utblw"><table>
-      <thead><tr><th>STATUS</th><th>USER ID</th><th>DEVICE</th><th>LAST ACTIVE</th><th>DEVICE ID</th><th>ACTION</th></tr></thead>
-      <tbody id="usrRows"><tr><td colspan="6" style="text-align:center;color:#8a99ad;padding:22px">Loading\u2026</td></tr></tbody>
+      <thead><tr><th>STATUS</th><th>USER ID</th><th>DEVICE</th><th>LOCATION</th><th>LAST ACTIVE</th><th>DEVICE ID</th><th>ACTION</th></tr></thead>
+      <tbody id="usrRows"><tr><td colspan="7" style="text-align:center;color:#8a99ad;padding:22px">Loading\u2026</td></tr></tbody>
     </table></div>
     <div class="hint2">Green = abhi active (2 min ke andar) \u00b7 Ek hi ID se kai log ho to har device ki alag row \u00b7 Sirf usi device ko block karo jise rokna hai \u2014 baki sab chalte rahenge.</div>
   </div></div>`;
@@ -4947,11 +4947,12 @@ function _usersLoad(){
         return '<tr><td><span class="st" style="color:'+stc+'"><i style="background:'+stc+'"></i>'+stt+'</span></td>'
           +'<td style="font-weight:700">'+esc(s.username||'')+me+'</td>'
           +'<td><span class="dvc" style="background:'+dvbg+';color:'+dvcl+'">'+esc(s.device||'\u2014')+'</span></td>'
+          +'<td>'+(s.location?('\ud83d\udccd '+esc(s.location)):'<span style="color:#b6c2d1">\u2014</span>')+'</td>'
           +'<td>'+_agoTxt(s.last_seen)+'</td>'
           +'<td style="color:#8a99ad;font-size:11px">'+esc(String(s.sid||'').slice(0,12))+'\u2026</td>'
           +'<td>'+btn+'</td></tr>';
       }).join('');
-      tb.innerHTML=html||'<tr><td colspan="6" style="text-align:center;color:#8a99ad;padding:22px">Abhi tak koi device connect nahi hua</td></tr>';
+      tb.innerHTML=html||'<tr><td colspan="7" style="text-align:center;color:#8a99ad;padding:22px">Abhi tak koi device connect nahi hua</td></tr>';
       if(ch) ch.innerHTML='<div class="uchip"><b>'+rows.length+'</b><small>TOTAL DEVICES</small></div>'
         +'<div class="uchip"><b style="color:#1e9e50">'+act+'</b><small>ACTIVE NOW</small></div>'
         +'<div class="uchip"><b style="color:#d93636">'+blk+'</b><small>BLOCKED</small></div>';
@@ -5494,14 +5495,31 @@ function renderTrash(){
   /* ---- ACTIVE SESSION HEARTBEAT + ADMIN BLOCK KICK ---- */
   function _hbSid(){ try{ let s=localStorage.getItem('comsyn_did'); if(!s){ s='d'+Math.random().toString(36).slice(2,10)+Date.now().toString(36); localStorage.setItem('comsyn_did',s); } return s; }catch(e){ return 'anon'; } }
   function _hbDevice(){ return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'')?'MOBILE':'PC'; }
+  function _hbLoc(cb){
+    try{
+      var c=JSON.parse(localStorage.getItem('comsyn_loc')||'null');
+      if(c && c.t && (Date.now()-c.t)<43200000 && c.v){ cb(c.v); return; }
+    }catch(e){}
+    var save=function(v){ try{ localStorage.setItem('comsyn_loc',JSON.stringify({v:v,t:Date.now()})); }catch(e){} cb(v); };
+    fetch('https://ipwho.is/').then(function(r){return r.json();}).then(function(j){
+      var v=(j&&j.success!==false)?[j.city,j.region,j.country_code].filter(Boolean).join(', '):'';
+      if(v) save(v); else throw 0;
+    }).catch(function(){
+      fetch('https://ipapi.co/json/').then(function(r){return r.json();}).then(function(j){
+        save([j&&j.city,j&&j.region,j&&j.country_code].filter(Boolean).join(', ')||'');
+      }).catch(function(){ cb(''); });
+    });
+  }
   function _heartbeat(){
     var u,p; try{ u=sessionStorage.getItem('comsyn_user'); p=sessionStorage.getItem('comsyn_pass'); }catch(e){}
     if(!u||!p) return;
+    _hbLoc(function(loc){
     fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_heartbeat',{ method:'POST', headers:SB_HEADERS,
-      body:JSON.stringify({u:u,p:p,s:_hbSid(),d:_hbDevice(),agent:String(navigator.userAgent||'').slice(0,180)}) })
+      body:JSON.stringify({u:u,p:p,s:_hbSid(),d:_hbDevice(),agent:String(navigator.userAgent||'').slice(0,180),loc:String(loc||'').slice(0,120)}) })
       .then(function(r){ return r.json().catch(function(){return null;}); })
       .then(function(j){ if(j && j.error==='blocked'){ try{ sessionStorage.setItem('comsyn_blocked','1'); }catch(e){} doLogout(); } else if(j && j.error==='blocked_session'){ try{ sessionStorage.setItem('comsyn_blocked','2'); }catch(e){} doLogout(); } })
       .catch(function(){});
+    });
   }
   try{ _heartbeat(); setInterval(_heartbeat,60000); }catch(e){}
   setTimeout(function(){ try{ var _bf=sessionStorage.getItem('comsyn_blocked'); if(_bf==='1'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Access Denied \u2014 Your account has been blocked by the administrator. Please contact your administrator.'); } else if(_bf==='2'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Access Denied \u2014 This device has been blocked by the administrator. Please contact your administrator.'); } }catch(e){} },700);
