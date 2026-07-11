@@ -4993,7 +4993,12 @@ function _usersLoad(){
         return '<tr><td><span class="st" style="color:'+stc+'"><i style="background:'+stc+'"></i>'+stt+'</span></td>'
           +'<td style="font-weight:700">'+esc(s.username||'')+me+'</td>'
           +'<td><span class="dvc" style="background:'+dvbg+';color:'+dvcl+'">'+esc(s.device||'\u2014')+'</span></td>'
-          +'<td>'+(s.location?('\ud83d\udccd '+esc(s.location)):'<span style="color:#b6c2d1">\u2014</span>')+'</td>'
+          +'<td>'+(function(){
+            if(!s.location) return '<span style="color:#b6c2d1">\u2014</span>';
+            var L=String(s.location); var mm=L.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)\s*$/);
+            if(mm){ var nm=L.replace(/\s*@[^@]*$/,''); return '\ud83d\udccd <a href="https://www.google.com/maps?q='+mm[1]+','+mm[2]+'" target="_blank" rel="noopener" style="color:#1f6da3;font-weight:700;text-decoration:underline;text-underline-offset:2px">'+esc(nm)+'</a> <a href="https://www.google.com/maps?q='+mm[1]+','+mm[2]+'" target="_blank" rel="noopener" style="display:inline-block;font-size:9.5px;font-weight:800;background:#e8f2fc;color:#1f6da3;border:1px solid #cfe3f5;padding:2px 8px;border-radius:9px;text-decoration:none;letter-spacing:.4px;margin-left:4px">MAP \u2197</a>'; }
+            return '\ud83d\udccd '+esc(L);
+          })()+'</td>'
           +'<td>'+_agoTxt(s.last_seen)+'</td>'
           +'<td style="color:#8a99ad;font-size:11px">'+esc(String(s.sid||'').slice(0,12))+'\u2026</td>'
           +'<td>'+btn+'</td></tr>';
@@ -5546,7 +5551,7 @@ function renderTrash(){
   function _gateHide(){ var g=document.getElementById('locGate'); if(g) g.style.display='none'; }
   function _gateMsg(t,col){ var m=document.getElementById('locGateMsg'); if(m){ m.textContent=t; m.style.color=col||'#b33'; } }
   function _gpsSave(lat,lon,cb){
-    var fin=function(v){ try{ localStorage.setItem('comsyn_loc', JSON.stringify({v:v+' \u00b7 GPS', t:Date.now(), gps:1})); }catch(e){} cb(); };
+    var fin=function(v){ v=String(v).slice(0,88)+' \u00b7 GPS @'+lat.toFixed(5)+','+lon.toFixed(5); try{ localStorage.setItem('comsyn_loc', JSON.stringify({v:v, t:Date.now(), gps:1})); }catch(e){} cb(); };
     fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lon+'&zoom=18&addressdetails=1&accept-language=en')
       .then(function(r){ return r.json(); }).then(function(j){
         var a=(j&&j.address)||{};
