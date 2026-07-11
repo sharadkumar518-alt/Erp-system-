@@ -5547,13 +5547,13 @@ function renderTrash(){
   function _gateMsg(t,col){ var m=document.getElementById('locGateMsg'); if(m){ m.textContent=t; m.style.color=col||'#b33'; } }
   function _gpsSave(lat,lon,cb){
     var fin=function(v){ try{ localStorage.setItem('comsyn_loc', JSON.stringify({v:v+' \u00b7 GPS', t:Date.now(), gps:1})); }catch(e){} cb(); };
-    fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lon+'&zoom=16&addressdetails=1&accept-language=en')
+    fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lon+'&zoom=18&addressdetails=1&accept-language=en')
       .then(function(r){ return r.json(); }).then(function(j){
         var a=(j&&j.address)||{};
-        var area=a.neighbourhood||a.suburb||a.hamlet||a.village||a.road||a.industrial||'';
         var city=a.town||a.city||a.municipality||a.county||'';
+        var cand=[a.amenity,a.building,a.road,a.neighbourhood,a.suburb,a.quarter,a.residential,a.industrial,a.commercial,a.hamlet,a.village,a.city_district,(j&&j.name)||''];
+        var area=''; for(var ci=0;ci<cand.length;ci++){ var cv=cand[ci]; if(cv && cv!==city){ area=cv; break; } }
         var st=a.state||'';
-        if(area && city && area===city) area='';
         var v=[area,city,st].filter(Boolean).join(', ');
         if(!v) throw 0;
         fin(v);
