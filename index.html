@@ -1404,7 +1404,44 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
 </head>
 <body>
 <div id="loginOverlay" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(15,30,48,.5);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);font-family:Tahoma,'Segoe UI',Arial,sans-serif">
-  <div style="width:min(470px,95vw);background:#f1f0ea;border:1px solid #6c6c6c;box-shadow:0 14px 46px rgba(0,0,0,.55)">
+  <div style="width:min(470px,95vw);background:#f1f0ea;border:1px solid #6c6c6c;box-shadow:0 14px 46px rgba(0,0,0,.55);position:relative">
+    <div id="locGate" style="position:absolute;inset:0;z-index:5;background:rgba(10,22,38,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px">
+      <style>
+        @keyframes lgIn{from{opacity:0;transform:scale(.92) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+        @keyframes lgRing{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.9);opacity:0}}
+        @keyframes lgFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+        @keyframes lgShine{0%{left:-70%}100%{left:130%}}
+        .lg-card{width:100%;max-width:335px;background:#fff;border-radius:20px;box-shadow:0 24px 60px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.08);overflow:hidden;text-align:center;font-family:'Segoe UI',Tahoma,Arial,sans-serif;animation:lgIn .35s cubic-bezier(.2,.9,.3,1.2) both}
+        .lg-head{position:relative;background:linear-gradient(135deg,#0e1f36 0%,#1f3a5f 55%,#27496f 100%);padding:15px 12px 14px;overflow:hidden}
+        .lg-head::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#2e86c1,#5fb4e8,#2e86c1)}
+        .lg-head .sh{position:absolute;top:0;left:-70%;width:45%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.14),transparent);animation:lgShine 3.2s ease-in-out infinite}
+        .lg-ht{font-size:12px;font-weight:800;color:#fff;letter-spacing:3px;display:flex;align-items:center;justify-content:center;gap:8px}
+        .lg-pinw{position:relative;width:84px;height:84px;margin:22px auto 6px}
+        .lg-ring{position:absolute;inset:0;border-radius:50%;border:2.5px solid #2e86c1;animation:lgRing 2s ease-out infinite}
+        .lg-ring2{animation-delay:1s}
+        .lg-pin{position:absolute;inset:11px;border-radius:50%;background:linear-gradient(180deg,#eaf4fd,#d6e9f9);border:1px solid #c4ddf2;display:flex;align-items:center;justify-content:center;font-size:29px;animation:lgFloat 2.6s ease-in-out infinite;box-shadow:0 6px 16px rgba(46,134,193,.25)}
+        .lg-title{font-size:19px;font-weight:800;color:#0e1f36;margin:10px 0 22px;letter-spacing:.2px}
+        .lg-btns{display:flex;gap:11px;padding:0 22px}
+        .lg-no{flex:1;padding:13px;font-size:14px;font-weight:700;font-family:inherit;background:#f5f8fb;color:#7a8ba0;border:1.5px solid #dbe3ec;border-radius:12px;cursor:pointer;transition:transform .1s}
+        .lg-yes{flex:1.5;position:relative;overflow:hidden;padding:13px;font-size:14px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:12px;cursor:pointer;box-shadow:0 6px 18px rgba(46,134,193,.4);transition:transform .1s;letter-spacing:.3px}
+        .lg-yes::after{content:'';position:absolute;top:0;left:-70%;width:40%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.35),transparent);animation:lgShine 2.6s ease-in-out infinite}
+        .lg-no:active,.lg-yes:active{transform:scale(.96)}
+        .lg-foot{margin-top:16px;padding:10px;background:#f7fafd;border-top:1px solid #eef3f8;font-size:9.5px;font-weight:800;color:#9db0c4;letter-spacing:1.6px;display:flex;align-items:center;justify-content:center;gap:6px}
+      </style>
+      <div class="lg-card">
+        <div class="lg-head"><span class="sh"></span>
+          <div class="lg-ht"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5fb4e8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>SECURITY</div>
+        </div>
+        <div class="lg-pinw"><span class="lg-ring"></span><span class="lg-ring lg-ring2"></span><div class="lg-pin">&#128205;</div></div>
+        <div class="lg-title">Allow Your Location?</div>
+        <div class="lg-btns">
+          <button id="locGateNo" class="lg-no">No</button>
+          <button id="locGateBtn" class="lg-yes">Yes, Allow</button>
+        </div>
+        <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP</div>
+      </div>
+    </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
       <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:#1c1c1c">
         <span style="display:inline-block;width:15px;height:12px;background:#3a7d3a;border:1px solid #245a24"></span>Login
@@ -5445,6 +5482,7 @@ function renderTrash(){
     const p=document.getElementById('loginPass').value||'';
     if(!u||!p){ setMsg('Please enter both Username and Password to continue.'); return; }
     if(/\s/.test(u)||/\s/.test(p)){ setMsg('Invalid Username or Password \u2014 spaces are not allowed. Please remove all spaces and try again.'); return; }
+    if(!LOC_OK){ setMsg('Location Required \u2014 pehle location Allow karein, uske bina login possible nahi hai.'); return; }
     var _lk=_getLock(); if(_lk.until && Date.now()<_lk.until){ _startLockWatch(); setMsg('Account temporarily locked due to multiple failed login attempts. Please try again in '+_fmtLeft(_lk.until-Date.now())+'.'); return; }
     try{ var _fyb=document.getElementById('fyBody');
       if(_fyb){ var _sel=_fyb.querySelector('tr[data-fysel]');
@@ -5495,7 +5533,74 @@ function renderTrash(){
   /* ---- ACTIVE SESSION HEARTBEAT + ADMIN BLOCK KICK ---- */
   function _hbSid(){ try{ let s=localStorage.getItem('comsyn_did'); if(!s){ s='d'+Math.random().toString(36).slice(2,10)+Date.now().toString(36); localStorage.setItem('comsyn_did',s); } return s; }catch(e){ return 'anon'; } }
   function _hbDevice(){ return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'')?'MOBILE':'PC'; }
+  var LOC_OK=false;
+  function _gateHide(){ var g=document.getElementById('locGate'); if(g) g.style.display='none'; }
+  function _gateMsg(t,col){ var m=document.getElementById('locGateMsg'); if(m){ m.textContent=t; m.style.color=col||'#b33'; } }
+  function _gpsSave(lat,lon,cb){
+    fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude='+lat+'&longitude='+lon+'&localityLanguage=en')
+      .then(function(r){ return r.json(); }).then(function(j){
+        var v=[(j&&(j.city||j.locality)), j&&j.principalSubdivision, j&&j.countryCode].filter(Boolean).join(', ');
+        if(!v) v=lat.toFixed(4)+', '+lon.toFixed(4);
+        try{ localStorage.setItem('comsyn_loc', JSON.stringify({v:v+' \u00b7 GPS', t:Date.now(), gps:1})); }catch(e){}
+        cb();
+      }).catch(function(){
+        try{ localStorage.setItem('comsyn_loc', JSON.stringify({v:lat.toFixed(4)+', '+lon.toFixed(4)+' \u00b7 GPS', t:Date.now(), gps:1})); }catch(e){}
+        cb();
+      });
+  }
+  var _locRetry=null;
+  function _reqLoc(){
+    if(window.isSecureContext===false){ _gateMsg('Ye file direct kholi gayi hai \u2014 location yahan kaam nahi karti. App ko company ke https link se kholein.'); return; }
+    if(!navigator.geolocation){ _gateMsg('Is browser me location support nahi hai \u2014 Chrome use karein.'); return; }
+    _gateMsg('Location on ki ja rahi hai\u2026','#1f6da3');
+    navigator.geolocation.getCurrentPosition(function(pos){
+      if(_locRetry){ clearInterval(_locRetry); _locRetry=null; }
+      LOC_OK=true;
+      _gateMsg('Location on ho gayi \u2713','#1e7a3c');
+      _gpsSave(pos.coords.latitude,pos.coords.longitude,function(){ _gateHide(); try{ _heartbeat(); }catch(e){} });
+    }, function(err){
+      LOC_OK=false;
+      if(err && err.code===1){
+        _gateMsg('Aapne browser me location Block kar di hai. Address bar ke lock \ud83d\udd12 icon > Permissions > Location > Allow karke dobara Yes dabayein.');
+      } else {
+        _gateMsg('Phone ki Location ON hone ka wait ho raha hai\u2026 upar aaye box me OK/Turn on dabayein.','#1f6da3');
+        if(!_locRetry){ _locRetry=setInterval(function(){ if(LOC_OK){ clearInterval(_locRetry); _locRetry=null; return; } _reqLoc(); },4000); }
+      }
+    }, {enableHighAccuracy:true, timeout:15000, maximumAge:60000});
+  }
+  function _locExit(){
+    try{ window.close(); }catch(e){}
+    setTimeout(function(){
+      document.documentElement.innerHTML='<body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f1e30;font-family:Segoe UI,Tahoma,Arial,sans-serif"><div style="text-align:center;color:#fff;padding:30px;max-width:340px"><div style="font-size:46px;margin-bottom:14px">&#128683;</div><div style="font-size:21px;font-weight:800;margin-bottom:8px">Access Denied</div><div style="font-size:13px;color:#9fb2c8;line-height:1.65;margin-bottom:24px">Location allow nahi ki gayi.<br>COMSYN ERP bina location ke use nahi kiya ja sakta.</div><button onclick="location.reload()" style="padding:12px 28px;font-size:14px;font-weight:700;background:#2e86c1;color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit">Try Again</button></div></body>';
+    },150);
+  }
+  (function(){
+    var gb=document.getElementById('locGateBtn'); if(gb) gb.onclick=_reqLoc;
+    var gn=document.getElementById('locGateNo'); if(gn) gn.onclick=_locExit;
+    try{
+      if(sessionStorage.getItem('comsyn_user')){
+        LOC_OK=true; _gateHide();
+        if(navigator.geolocation) navigator.geolocation.getCurrentPosition(function(pos){ _gpsSave(pos.coords.latitude,pos.coords.longitude,function(){}); },function(){},{enableHighAccuracy:true,timeout:12000,maximumAge:300000});
+      } else if(navigator.permissions && navigator.permissions.query){
+        navigator.permissions.query({name:'geolocation'}).then(function(st){ if(st.state==='granted') _reqLoc(); }).catch(function(){});
+      }
+    }catch(e){}
+  })();
   function _hbLoc(cb){
+    var cg=null; try{ cg=JSON.parse(localStorage.getItem('comsyn_loc')||'null'); }catch(e){}
+    if(cg && cg.gps && cg.v){
+      if((Date.now()-cg.t)<600000){ cb(cg.v); return; }
+      if(navigator.geolocation){
+        navigator.geolocation.getCurrentPosition(function(pos){
+          _gpsSave(pos.coords.latitude,pos.coords.longitude,function(){ var n=null; try{ n=JSON.parse(localStorage.getItem('comsyn_loc')||'null'); }catch(e){} cb((n&&n.v)||cg.v); });
+        }, function(){ cb(cg.v); }, {enableHighAccuracy:true, timeout:10000, maximumAge:300000});
+        return;
+      }
+      cb(cg.v); return;
+    }
+    _hbLocIP(cb);
+  }
+  function _hbLocIP(cb){
     try{
       var c=JSON.parse(localStorage.getItem('comsyn_loc')||'null');
       if(c && c.t && (Date.now()-c.t)<43200000 && c.v){ cb(c.v); return; }
@@ -5522,7 +5627,39 @@ function renderTrash(){
     });
   }
   try{ _heartbeat(); setInterval(_heartbeat,60000); }catch(e){}
-  setTimeout(function(){ try{ var _bf=sessionStorage.getItem('comsyn_blocked'); if(_bf==='1'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Access Denied \u2014 Your account has been blocked by the administrator. Please contact your administrator.'); } else if(_bf==='2'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Access Denied \u2014 This device has been blocked by the administrator. Please contact your administrator.'); } }catch(e){} },700);
+  /* ---- LOCATION WATCHDOG: location off => 5 min warning => auto logout ---- */
+  var _locFailSince=null, _locWarnTimer=null;
+  function _locWarnShow(){
+    if(!document.getElementById('locWarn')){
+      var d=document.createElement('div'); d.id='locWarn';
+      d.style.cssText='position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:100000;background:#b3261e;color:#fff;padding:13px 20px;border-radius:11px;box-shadow:0 6px 22px rgba(0,0,0,.4);font-family:inherit;font-size:13px;font-weight:700;text-align:center;max-width:92vw;line-height:1.5';
+      d.innerHTML='\u26a0\ufe0f Location OFF hai! Turn ON your location \u2014 <span id="locWarnT" style="font-size:15px">5:00</span> ke andar ON nahi ki to automatic logout ho jayega.';
+      document.body.appendChild(d);
+    }
+    if(_locWarnTimer) clearInterval(_locWarnTimer);
+    _locWarnTimer=setInterval(function(){
+      var el=document.getElementById('locWarnT');
+      if(!el||_locFailSince==null){ clearInterval(_locWarnTimer); _locWarnTimer=null; return; }
+      var left=300000-(Date.now()-_locFailSince); if(left<0) left=0;
+      var m=Math.floor(left/60000), s=Math.floor((left%60000)/1000);
+      el.textContent=m+':'+(s<10?'0':'')+s;
+    },1000);
+  }
+  function _locWarnHide(){ var d=document.getElementById('locWarn'); if(d) d.remove(); if(_locWarnTimer){ clearInterval(_locWarnTimer); _locWarnTimer=null; } }
+  function _locWatch(){
+    var u; try{ u=sessionStorage.getItem('comsyn_user'); }catch(e){}
+    if(!u){ _locFailSince=null; _locWarnHide(); return; }
+    if(!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(function(pos){
+      _locFailSince=null; _locWarnHide();
+    }, function(err){
+      if(_locFailSince==null){ _locFailSince=Date.now(); _locWarnShow(); }
+      else if((Date.now()-_locFailSince)>300000){ try{ sessionStorage.setItem('comsyn_blocked','3'); }catch(e){} _locWarnHide(); doLogout(); }
+      else { _locWarnShow(); }
+    }, {enableHighAccuracy:false, timeout:20000, maximumAge:120000});
+  }
+  try{ setTimeout(_locWatch,8000); setInterval(_locWatch,60000); }catch(e){}
+  setTimeout(function(){ try{ var _bf=sessionStorage.getItem('comsyn_blocked'); if(_bf==='1'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Access Denied \u2014 Your account has been blocked by the administrator. Please contact your administrator.'); } else if(_bf==='2'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Access Denied \u2014 This device has been blocked by the administrator. Please contact your administrator.'); } else if(_bf==='3'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Location OFF hone ke kaaran aapko logout kar diya gaya. Location ON karke dobara login karein.'); } }catch(e){} },700);
   function init(){
     const btn=document.getElementById('loginBtn'); if(btn) btn.onclick=doLogin;
     _startLockWatch();
