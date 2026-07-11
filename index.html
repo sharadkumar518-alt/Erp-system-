@@ -1502,6 +1502,10 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>
         Trash
       </button>
+      <button data-tab="users">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Active Users
+      </button>
     </nav>
     <div class="side-foot">
       <span class="dot"></span> <span id="userChip">—</span><br>
@@ -1698,7 +1702,8 @@ const TAB_META={
   batch:{title:'Batch',sub:'Batch cards, component readiness & completion'},
   assign:{title:'Assignment',sub:'Build & configure your entry form'},
   orderassign:{title:'Order Entry Assignment',sub:'Build & configure the order entry form'},
-  trash:{title:'Trash',sub:'Deleted items \u2014 restore or delete permanently'}
+  trash:{title:'Trash',sub:'Deleted items \u2014 restore or delete permanently'},
+  users:{title:'Active Users',sub:'Live devices \u2014 kaun connected hai, block/unblock control'}
 };
 let current='entry';
 function setTab(tab){
@@ -1724,6 +1729,7 @@ function render(){
   else if(current==='cuttingstock') renderCuttingStock();
   else if(current==='batch') renderBatch();
   else if(current==='trash') renderTrash();
+  else if(current==='users') renderUsers();
   else if(current==='orderassign') renderOrderAssign();
   else renderAssign();
 }
@@ -4868,6 +4874,103 @@ function dshChartSVG(series){
     <path class="area" d="${area}"/><path class="line" d="${line}"/>
   </svg>`;
 }
+/* ---- ACTIVE USERS PANEL (admin) ---- */
+let _usersTimer=null;
+function _agoTxt(iso){
+  try{ const ms=Date.now()-new Date(iso).getTime(); const m=Math.floor(ms/60000);
+    if(m<1) return 'Just now'; if(m<60) return m+' min ago';
+    const hr=Math.floor(m/60); if(hr<24) return hr+' hr '+(m%60)+' min ago';
+    return Math.floor(hr/24)+' day'+(Math.floor(hr/24)>1?'s':'')+' ago';
+  }catch(e){ return ''; }
+}
+function renderUsers(){
+  const c=document.getElementById('content');
+  try{ document.getElementById('topActions').innerHTML=''; }catch(e){}
+  c.innerHTML=`<style>
+    .usrs{font-variant-numeric:tabular-nums;max-width:1050px}
+    .usrs .uhead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:linear-gradient(135deg,#152841,#1f3a5f);color:#fff;border-radius:13px;padding:14px 18px;border-bottom:3px solid #2e86c1}
+    .usrs .uhead .t{font-family:Georgia,serif;font-weight:800;font-size:17px;letter-spacing:.4px}
+    .usrs .uhead .s{font-size:11px;opacity:.85;margin-top:3px;letter-spacing:.6px;font-weight:700}
+    .usrs .uchips{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+    .usrs .uchip{background:#fff;border:1px solid #dbe3ec;border-radius:10px;padding:9px 16px;box-shadow:0 1px 3px rgba(18,36,58,.07)}
+    .usrs .uchip b{display:block;font-size:19px;color:#12243a}
+    .usrs .uchip small{font-size:9.5px;font-weight:800;color:#7488a0;letter-spacing:.7px}
+    .usrs .utblw{border:1px solid #dbe3ec;border-radius:12px;overflow:auto;background:#fff;box-shadow:0 1px 4px rgba(18,36,58,.07)}
+    .usrs table{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
+    .usrs th{background:linear-gradient(135deg,#1a3050,#1f3a5f);color:#fff;font-size:10.5px;letter-spacing:.9px;font-weight:800;padding:10px 12px;text-align:left;white-space:nowrap}
+    .usrs td{padding:10px 12px;border-top:1px solid #edf1f6;vertical-align:middle;white-space:nowrap}
+    .usrs tr:nth-child(even) td{background:#fafcfe}
+    .usrs .st{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:11px;letter-spacing:.4px}
+    .usrs .st i{width:9px;height:9px;border-radius:50%;display:inline-block}
+    .usrs .dvc{font-size:10px;font-weight:800;padding:3px 10px;border-radius:10px;letter-spacing:.5px}
+    .usrs .ubtn{border:none;border-radius:8px;padding:7px 14px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;color:#fff}
+    .usrs .hint2{color:#8a99ad;font-size:12px;margin-top:10px}
+  </style>
+  <div class="view"><div class="usrs">
+    <div class="uhead">
+      <div><div class="t">ACTIVE USERS \u2014 DEVICE MONITOR</div><div class="s">HAR DEVICE KI ALAG PEHCHAAN \u00b7 2 MIN ME UPDATE \u00b7 BLOCK/UNBLOCK PER DEVICE</div></div>
+      <button class="btn btn-primary" id="usrRefresh">Refresh</button>
+    </div>
+    <div class="uchips" id="usrChips"></div>
+    <div class="utblw"><table>
+      <thead><tr><th>STATUS</th><th>USER ID</th><th>DEVICE</th><th>LAST ACTIVE</th><th>DEVICE ID</th><th>ACTION</th></tr></thead>
+      <tbody id="usrRows"><tr><td colspan="6" style="text-align:center;color:#8a99ad;padding:22px">Loading\u2026</td></tr></tbody>
+    </table></div>
+    <div class="hint2">Green = abhi active (2 min ke andar) \u00b7 Ek hi ID se kai log ho to har device ki alag row \u00b7 Sirf usi device ko block karo jise rokna hai \u2014 baki sab chalte rahenge.</div>
+  </div></div>`;
+  document.getElementById('usrRefresh').onclick=_usersLoad;
+  _usersLoad();
+  if(_usersTimer) clearInterval(_usersTimer);
+  _usersTimer=setInterval(function(){ if(current!=='users'){ clearInterval(_usersTimer); _usersTimer=null; return; } _usersLoad(); },10000);
+}
+function _usersLoad(){
+  var u,pw; try{ u=sessionStorage.getItem('comsyn_user'); pw=sessionStorage.getItem('comsyn_pass'); }catch(e){}
+  if(!u||!pw) return;
+  fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_sessions_list',{ method:'POST', headers:SB_HEADERS, body:JSON.stringify({u:u,p:pw}) })
+    .then(function(r){ return r.json().catch(function(){ return []; }); })
+    .then(function(rows){
+      var tb=document.getElementById('usrRows'), ch=document.getElementById('usrChips');
+      if(!tb) return;
+      rows=Array.isArray(rows)?rows:[];
+      var act=0, blk=0, myDid=''; try{ myDid=localStorage.getItem('comsyn_did')||''; }catch(e){}
+      var html=rows.map(function(s){
+        var fresh=(Date.now()-new Date(s.last_seen).getTime())<120000;
+        if(fresh&&!s.blocked) act++;
+        if(s.blocked) blk++;
+        var stc=s.blocked?'#d93636':(fresh?'#1e9e50':'#8a99ad');
+        var stt=s.blocked?'BLOCKED':(fresh?'ACTIVE':'OFFLINE');
+        var dvbg=s.device==='MOBILE'?'#e8f2fc':'#f3ecfd', dvcl=s.device==='MOBILE'?'#2e86c1':'#7c4dcc';
+        var me=(s.sid===myDid)?' <span style="font-size:9px;background:#e6f4ea;color:#1e7a3c;padding:2px 7px;border-radius:8px;font-weight:800">YE DEVICE</span>':'';
+        var btn=s.blocked
+          ?'<button class="ubtn" style="background:#1e9e50" data-ub="'+esc(s.sid)+'">Unblock</button>'
+          :'<button class="ubtn" style="background:#d93636" data-bl="'+esc(s.sid)+'">Block</button>';
+        return '<tr><td><span class="st" style="color:'+stc+'"><i style="background:'+stc+'"></i>'+stt+'</span></td>'
+          +'<td style="font-weight:700">'+esc(s.username||'')+me+'</td>'
+          +'<td><span class="dvc" style="background:'+dvbg+';color:'+dvcl+'">'+esc(s.device||'\u2014')+'</span></td>'
+          +'<td>'+_agoTxt(s.last_seen)+'</td>'
+          +'<td style="color:#8a99ad;font-size:11px">'+esc(String(s.sid||'').slice(0,12))+'\u2026</td>'
+          +'<td>'+btn+'</td></tr>';
+      }).join('');
+      tb.innerHTML=html||'<tr><td colspan="6" style="text-align:center;color:#8a99ad;padding:22px">Abhi tak koi device connect nahi hua</td></tr>';
+      if(ch) ch.innerHTML='<div class="uchip"><b>'+rows.length+'</b><small>TOTAL DEVICES</small></div>'
+        +'<div class="uchip"><b style="color:#1e9e50">'+act+'</b><small>ACTIVE NOW</small></div>'
+        +'<div class="uchip"><b style="color:#d93636">'+blk+'</b><small>BLOCKED</small></div>';
+      tb.querySelectorAll('[data-bl]').forEach(function(b){ b.onclick=function(){ _sessBlock(b.dataset.bl,true); }; });
+      tb.querySelectorAll('[data-ub]').forEach(function(b){ b.onclick=function(){ _sessBlock(b.dataset.ub,false); }; });
+    })
+    .catch(function(){});
+}
+function _sessBlock(sid,b){
+  var u,pw; try{ u=sessionStorage.getItem('comsyn_user'); pw=sessionStorage.getItem('comsyn_pass'); }catch(e){}
+  if(!u||!pw) return;
+  fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_session_block',{ method:'POST', headers:SB_HEADERS, body:JSON.stringify({u:u,p:pw,s:sid,b:b}) })
+    .then(function(r){ return r.json().catch(function(){ return null; }); })
+    .then(function(j){
+      if(j&&j.ok){ toast(b?'Device block ho gaya \u2014 1 min ke andar bahar ho jayega':'Device unblock ho gaya','info'); _usersLoad(); }
+      else toast('Action failed \u2014 dobara try karo','err');
+    })
+    .catch(function(){ toast('Network error','err'); });
+}
 /* ---- band drill-down: U/L & L/F rolls alag-alag, full report format ---- */
 function recRollUL(r){
   try{
@@ -5275,7 +5378,7 @@ function renderTrash(){
 
 /* ===== LOGIN + ROLE-BASED ACCESS ===== */
 (function(){
-  const ROLE_HIDE = { view:['entry','orderentry','assign','orderassign','trash'], entry:['assign','orderassign','trash'], admin:[] };
+  const ROLE_HIDE = { view:['entry','orderentry','assign','orderassign','trash','users'], entry:['assign','orderassign','trash','users'], admin:[] };
   function applyRole(role){
     const hide=ROLE_HIDE[role]||ROLE_HIDE.view;
     let allowed=null;
@@ -5389,7 +5492,7 @@ function renderTrash(){
   }
   function doLogout(){ sessionStorage.removeItem('comsyn_role'); sessionStorage.removeItem('comsyn_user'); sessionStorage.removeItem('comsyn_pass'); sessionStorage.removeItem('comsyn_can_edit'); sessionStorage.removeItem('comsyn_can_delete'); sessionStorage.removeItem('comsyn_tabs'); location.reload(); }
   /* ---- ACTIVE SESSION HEARTBEAT + ADMIN BLOCK KICK ---- */
-  function _hbSid(){ try{ let s=sessionStorage.getItem('comsyn_sid'); if(!s){ s='s'+Math.random().toString(36).slice(2,10)+Date.now().toString(36); sessionStorage.setItem('comsyn_sid',s); } return s; }catch(e){ return 'anon'; } }
+  function _hbSid(){ try{ let s=localStorage.getItem('comsyn_did'); if(!s){ s='d'+Math.random().toString(36).slice(2,10)+Date.now().toString(36); localStorage.setItem('comsyn_did',s); } return s; }catch(e){ return 'anon'; } }
   function _hbDevice(){ return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'')?'MOBILE':'PC'; }
   function _heartbeat(){
     var u,p; try{ u=sessionStorage.getItem('comsyn_user'); p=sessionStorage.getItem('comsyn_pass'); }catch(e){}
@@ -5397,11 +5500,11 @@ function renderTrash(){
     fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_heartbeat',{ method:'POST', headers:SB_HEADERS,
       body:JSON.stringify({u:u,p:p,s:_hbSid(),d:_hbDevice(),agent:String(navigator.userAgent||'').slice(0,180)}) })
       .then(function(r){ return r.json().catch(function(){return null;}); })
-      .then(function(j){ if(j && j.error==='blocked'){ try{ sessionStorage.setItem('comsyn_blocked','1'); }catch(e){} doLogout(); } })
+      .then(function(j){ if(j && j.error==='blocked'){ try{ sessionStorage.setItem('comsyn_blocked','1'); }catch(e){} doLogout(); } else if(j && j.error==='blocked_session'){ try{ sessionStorage.setItem('comsyn_blocked','2'); }catch(e){} doLogout(); } })
       .catch(function(){});
   }
   try{ _heartbeat(); setInterval(_heartbeat,60000); }catch(e){}
-  setTimeout(function(){ try{ if(sessionStorage.getItem('comsyn_blocked')==='1'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Access Denied \u2014 Your account has been blocked by the administrator. Please contact your administrator.'); } }catch(e){} },700);
+  setTimeout(function(){ try{ var _bf=sessionStorage.getItem('comsyn_blocked'); if(_bf==='1'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Access Denied \u2014 Your account has been blocked by the administrator. Please contact your administrator.'); } else if(_bf==='2'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Access Denied \u2014 This device has been blocked by the administrator. Please contact your administrator.'); } }catch(e){} },700);
   function init(){
     const btn=document.getElementById('loginBtn'); if(btn) btn.onclick=doLogin;
     _startLockWatch();
