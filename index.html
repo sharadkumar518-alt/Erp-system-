@@ -4597,23 +4597,25 @@ async function batchDayPDF(dateStr){
   items.forEach(b=>{
     const o=batchOrder(b); if(!o) return; const m=batchOrderMeta(o); const comps=orderComponents(o);
     if(y>250){ pdf.addPage(); y=14; }
-    pdf.setFillColor(18,36,58); pdf.rect(M,y,pageW-2*M,8,'F');
-    pdf.setTextColor(255,255,255); pdf.setFontSize(11); pdf.setFont('times','bold');
-    pdf.text('BATCH CARD', M+3, y+5.5); pdf.text('LOCATION : '+(b.location||'—'), pageW-M-3, y+5.5, {align:'right'}); y+=8;
+    pdf.setFillColor(214,228,240); pdf.setDrawColor(110,135,165); pdf.setLineWidth(.3);
+    pdf.rect(M,y,pageW-2*M,8.5,'FD');
+    pdf.setTextColor(18,36,58); pdf.setFontSize(11); pdf.setFont('times','bold');
+    pdf.text('BATCH CARD', M+3, y+5.7);
+    pdf.text('LOCATION : '+(b.location||'—'), pageW-M-3, y+5.7, {align:'right'}); y+=8.5;
     pdf.autoTable({ startY:y, margin:{left:M,right:M}, theme:'grid',
-      styles:{font:'times',fontSize:9,cellPadding:1.6,textColor:[20,30,40],lineColor:[200,210,220]},
-      body:[[ {content:'Order No.',styles:{fontStyle:'bold',fillColor:[238,243,250]}}, m.on||'—', {content:'Order Qty.',styles:{fontStyle:'bold',fillColor:[238,243,250]}}, m.oq||'—' ],
-            [ {content:'File No.',styles:{fontStyle:'bold',fillColor:[238,243,250]}}, m.fn||'—', {content:'Printing',styles:{fontStyle:'bold',fillColor:[238,243,250]}}, m.printing||'—' ],
-            [ {content:'Sf No.',styles:{fontStyle:'bold',fillColor:[238,243,250]}}, m.sf||'—', {content:'Type',styles:{fontStyle:'bold',fillColor:[238,243,250]}}, b.type||'—' ],
-            [ {content:'Bag Size',styles:{fontStyle:'bold',fillColor:[238,243,250]}}, m.bag||'—', {content:'Pattern',styles:{fontStyle:'bold',fillColor:[238,243,250]}}, b.pattern||'—' ],
-            [ {content:'Gsm',styles:{fontStyle:'bold',fillColor:[238,243,250]}}, m.gsm||'—', {content:'Date',styles:{fontStyle:'bold',fillColor:[238,243,250]}}, b.date?fmtDate(b.date):'—' ] ] });
+      styles:{font:'times',fontSize:9,cellPadding:2,textColor:[20,30,40],lineColor:[110,135,165],lineWidth:.28},
+      body:[[ {content:'Order No.',styles:{fontStyle:'bold',fillColor:[255,251,235],textColor:[80,60,20]}}, m.on||'—', {content:'Order Qty.',styles:{fontStyle:'bold',fillColor:[255,251,235],textColor:[80,60,20]}}, m.oq||'—' ],
+            [ {content:'File No.',styles:{fontStyle:'bold',fillColor:[255,251,235],textColor:[80,60,20]}}, m.fn||'—', {content:'Printing',styles:{fontStyle:'bold',fillColor:[255,251,235],textColor:[80,60,20]}}, m.printing||'—' ],
+            [ {content:'Sf No.',styles:{fontStyle:'bold',fillColor:[255,251,235],textColor:[80,60,20]}}, m.sf||'—', {content:'Type',styles:{fontStyle:'bold',fillColor:[255,251,235],textColor:[80,60,20]}}, b.type||'—' ],
+            [ {content:'Bag Size',styles:{fontStyle:'bold',fillColor:[255,251,235],textColor:[80,60,20]}}, m.bag||'—', {content:'Pattern',styles:{fontStyle:'bold',fillColor:[255,251,235],textColor:[80,60,20]}}, b.pattern||'—' ],
+            [ {content:'Gsm',styles:{fontStyle:'bold',fillColor:[255,251,235],textColor:[80,60,20]}}, m.gsm||'—', {content:'Date',styles:{fontStyle:'bold',fillColor:[255,251,235],textColor:[80,60,20]}}, b.date?fmtDate(b.date):'—' ] ] });
     y=pdf.lastAutoTable.finalY+1;
     pdf.autoTable({ startY:y, margin:{left:M,right:M}, theme:'grid',
-      headStyles:{font:'times',fillColor:[18,36,58],textColor:[255,255,255],fontSize:9,halign:'left'},
-      styles:{font:'times',fontSize:9,cellPadding:1.6,lineColor:[200,210,220]},
-      head:[['Component','Required','Ready','Balance']],
-      body:comps.map(c=>{ const rd=num((b.ready||{})[c.key]||0); const bal=Math.max(0,c.qty-rd); return [c.name, String(c.qty), String(rd), bal>0?String(bal):'Done']; }),
-      foot:[[ {content:(b.status==='complete'?'COMPLETE':'UNDER PROCESS'),colSpan:4,styles:{halign:'left',fontStyle:'bold',textColor:b.status==='complete'?[30,158,106]:[232,112,42],fillColor:[247,250,252]}} ]] });
+      headStyles:{font:'times',fillColor:[226,239,218],textColor:[40,72,46],fontSize:9,fontStyle:'bold',halign:'center',lineColor:[110,135,165],lineWidth:.28},
+      styles:{font:'times',fontSize:9,cellPadding:2,lineColor:[110,135,165],lineWidth:.28,halign:'center',textColor:[35,50,70]},
+      columnStyles:{0:{halign:'left',fontStyle:'bold',fillColor:[255,251,235]},2:{fillColor:[255,229,204],fontStyle:'bold',textColor:[122,74,10]},3:{fillColor:[250,222,228],fontStyle:'bold',textColor:[140,30,50]}},
+      head:[['Component','Order Total','THIS BATCH QTY','Balance']],
+      body:comps.map(c=>{ const rd=num((b.ready||{})[c.key]||0); const bal=Math.max(0,c.qty-rd); return [c.name, String(c.qty), String(rd), bal>0?String(bal):'Done']; }) });
     y=pdf.lastAutoTable.finalY+6;
   });
   pdf.save(`Batch_${dateStr}.pdf`);
@@ -4621,22 +4623,23 @@ async function batchDayPDF(dateStr){
 function batchDayExcel(dateStr){
   const items=batchesOfDay(dateStr); if(!items.length){ toast('Is din koi batch nahi','err'); return; }
   const thS='style="background:#12243a;color:#fff;font-weight:bold;border:1px solid #12243a;padding:5px;text-align:left"';
-  const lblS='style="background:#eef3fa;font-weight:bold;color:#12243a;border:1px solid #9fb3c8;padding:4px 7px"';
-  const valS='style="border:1px solid #9fb3c8;padding:4px 7px;color:#111"';
-  const tdS='style="border:1px solid #9fb3c8;padding:4px 7px;text-align:center"';
+  const lblS='style="background:#fffbeb;font-weight:bold;color:#504014;border:1px solid #6e87a5;padding:5px 8px"';
+  const valS='style="border:1px solid #6e87a5;padding:5px 8px;color:#111"';
+  const tdS='style="border:1px solid #6e87a5;padding:5px 8px;text-align:center"';
   let h=`<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Times New Roman',serif">`;
   h+=`<tr><td colspan="4" style="text-align:center;font-size:18px;font-weight:bold;color:#12243a;padding:8px">BATCH ORDER — ${dateStr==='—'?'No date':esc(fmtDate(dateStr))}</td></tr><tr><td colspan="4"></td></tr>`;
   items.forEach(b=>{
     const o=batchOrder(b); if(!o) return; const m=batchOrderMeta(o); const comps=orderComponents(o);
-    h+=`<tr><td colspan="2" style="background:#12243a;color:#fff;font-weight:bold;border:1px solid #12243a;padding:5px">BATCH CARD</td><td colspan="2" style="background:#12243a;color:#fff;font-weight:bold;border:1px solid #12243a;padding:5px">LOCATION : ${esc(b.location||'—')}</td></tr>`;
+    h+=`<tr><td colspan="2" style="background:#d6e4f0;color:#12243a;font-weight:bold;border:1px solid #6e87a5;padding:6px">BATCH CARD</td><td colspan="2" style="background:#d6e4f0;color:#12243a;font-weight:bold;border:1px solid #6e87a5;padding:6px;text-align:right">LOCATION : ${esc(b.location||'—')}</td></tr>`;
     h+=`<tr><td ${lblS}>Order No.</td><td ${valS}>${esc(m.on||'—')}</td><td ${lblS}>Order Qty.</td><td ${valS}>${esc(m.oq||'—')}</td></tr>`;
     h+=`<tr><td ${lblS}>File No.</td><td ${valS}>${esc(m.fn||'—')}</td><td ${lblS}>Printing</td><td ${valS}>${esc(m.printing||'—')}</td></tr>`;
     h+=`<tr><td ${lblS}>Sf No.</td><td ${valS}>${esc(m.sf||'—')}</td><td ${lblS}>Type</td><td ${valS}>${esc(b.type||'—')}</td></tr>`;
     h+=`<tr><td ${lblS}>Bag Size</td><td ${valS}>${esc(m.bag||'—')}</td><td ${lblS}>Pattern</td><td ${valS}>${esc(b.pattern||'—')}</td></tr>`;
     h+=`<tr><td ${lblS}>Gsm</td><td ${valS}>${esc(m.gsm||'—')}</td><td ${lblS}>Date</td><td ${valS}>${esc(b.date?fmtDate(b.date):'—')}</td></tr>`;
-    h+=`<tr><td ${thS}>Component</td><td ${thS}>Required</td><td ${thS}>Ready</td><td ${thS}>Balance</td></tr>`;
-    comps.forEach(c=>{ const rd=num((b.ready||{})[c.key]||0); const bal=Math.max(0,c.qty-rd); h+=`<tr><td ${tdS}>${esc(c.name)}</td><td ${tdS}>${c.qty}</td><td ${tdS}>${rd}</td><td ${tdS}>${bal>0?bal:'Done'}</td></tr>`; });
-    h+=`<tr><td colspan="4" style="border:1px solid #9fb3c8;padding:4px 7px;font-weight:bold;color:${b.status==='complete'?'#1e9e6a':'#e8702a'}">${b.status==='complete'?'COMPLETE':'UNDER PROCESS'}</td></tr><tr><td colspan="4"></td></tr>`;
+    const _cth='style="background:#e2efda;color:#28482e;font-weight:bold;border:1px solid #6e87a5;padding:6px;text-align:center"';
+    h+=`<tr><td ${_cth}>Component</td><td ${_cth}>Order Total</td><td ${_cth}>THIS BATCH QTY</td><td ${_cth}>Balance</td></tr>`;
+    comps.forEach(c=>{ const rd=num((b.ready||{})[c.key]||0); const bal=Math.max(0,c.qty-rd); h+=`<tr><td style="border:1px solid #6e87a5;padding:5px 8px;background:#fffbeb;font-weight:bold">${esc(c.name)}</td><td ${tdS}>${c.qty}</td><td style="border:1px solid #6e87a5;padding:5px 8px;text-align:center;background:#ffe5cc;color:#7a4a0a;font-weight:bold">${rd}</td><td style="border:1px solid #6e87a5;padding:5px 8px;text-align:center;${bal>0?'background:#fadee4;color:#8c1e32;font-weight:bold':'background:#e2efda;color:#1e7a3c;font-weight:bold'}">${bal>0?bal:'Done'}</td></tr>`; });
+    h+=`<tr><td colspan="4"></td></tr>`;
   });
   h+='</table>';
   const blob=new Blob(['\ufeff<html><head><meta charset="utf-8"></head><body>'+h+'</body></html>'],{type:'application/vnd.ms-excel'});
