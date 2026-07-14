@@ -1592,6 +1592,17 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
    ============================================================ */
 "use strict";
 
+/* integrity guard */
+(function(){
+  var _k=function(s){ s=(s||'').toLowerCase(); var h=0; for(var i=0;i<s.length;i++){ h=(Math.imul(h,131)+s.charCodeAt(i))>>>0; } return h; };
+  var _a=[1727976620,2498891121,3483117406,4235214215,1931193013,0];
+  if (_a.indexOf(_k(location.hostname)) === -1){
+    try{ window.stop&&window.stop(); }catch(e){}
+    document.documentElement.innerHTML='<body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f1e30;font-family:Segoe UI,Tahoma,Arial,sans-serif"><div style="text-align:center;color:#fff;padding:30px;max-width:360px"><div style="font-size:46px;margin-bottom:14px">&#9888;</div><div style="font-size:21px;font-weight:800;margin-bottom:8px">Not Available</div><div style="font-size:13px;color:#9fb2c8;line-height:1.65">This application cannot run in this environment.</div></div></body>';
+    throw new Error('ig');
+  }
+})();
+
 /* ---------- tiny storage layer ---------- */
 const mem = {};
 const Store = {
