@@ -1449,7 +1449,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v152</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v155</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -1964,12 +1964,12 @@ function mtrExportPDF(){
   const D=mtrData(R.from,R.to);
   const monLabel=R.label;
   const pageW=pdf.internal.pageSize.getWidth(), pageH=pdf.internal.pageSize.getHeight(), M=10;
-  const C={hg:[209,236,214],hp:[250,214,224],hy:[249,238,179],hb:[205,225,244],ho:[250,222,190],hu:[226,214,244],hgt:[248,201,212],hgrey:[236,240,245],mn:[240,244,249],hc:[253,240,214],hpk:[248,214,226],hpi:[214,238,228]};
+  const C={hg:[209,236,214],hp:[250,214,224],hy:[249,238,179],hb:[205,225,244],ho:[250,222,190],hu:[226,214,244],hgt:[255,224,130],hgrey:[236,240,245],mn:[240,244,249],hc:[253,240,214],hpk:[248,214,226],hpi:[214,238,228]};
   const line=[150,160,172]; let y=14;
   const titleBar=()=>{ pdf.setFont('times','bold'); pdf.setFontSize(15); pdf.setTextColor(0,0,0); pdf.text('CUTTING ALL OVER PROD. & MTR REPORT — '+monLabel, pageW/2, y, {align:'center'}); y+=2; pdf.setDrawColor(0,0,0); pdf.setLineWidth(.7); pdf.line(M,y+1,pageW-M,y+1); y+=6; };
   const band=(t,col)=>{ if(y>pageH-26){ pdf.addPage(); y=14; } pdf.setFillColor.apply(pdf,C[col]||C.hgrey); pdf.rect(M,y,pageW-2*M,8,'F'); pdf.setDrawColor.apply(pdf,line); pdf.setLineWidth(.2); pdf.rect(M,y,pageW-2*M,8); pdf.setFont('times','bold'); pdf.setFontSize(11); pdf.setTextColor(0,0,0); pdf.text(t, pageW/2, y+5.5, {align:'center'}); y+=8; };
   const baseStyles={font:'times',fontStyle:'bold',fontSize:9,cellPadding:1.8,lineColor:line,lineWidth:.2,textColor:[0,0,0],halign:'center',valign:'middle'};
-  const draw=(head,body,foot)=>{ pdf.autoTable({ startY:y, margin:{left:M,right:M}, theme:'grid', tableWidth:pageW-2*M, styles:baseStyles, headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line}, head, body, foot }); y=pdf.lastAutoTable.finalY+4; };
+  const draw=(head,body,foot)=>{ pdf.autoTable({ startY:y, margin:{left:M,right:M}, theme:'grid', tableWidth:pageW-2*M, styles:baseStyles, headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line}, footStyles:{fontStyle:'bold',fontSize:11,textColor:[0,0,0],lineColor:line}, head, body, foot }); y=pdf.lastAutoTable.finalY+4; };
   titleBar();
   const ops=D.operators;
   const pivot=(corner,piv)=>{
@@ -1989,7 +1989,7 @@ function mtrExportPDF(){
   const x1=M, x2=x1+w1+gap, x3=x2+w2+gap;
   const cStyles={font:'times',fontStyle:'bold',fontSize:7,cellPadding:1,lineColor:line,lineWidth:.15,textColor:[0,0,0],halign:'center',valign:'middle'};
   const bandAt=(x,w,t,col,yy)=>{ pdf.setFillColor.apply(pdf,C[col]||C.hgrey); pdf.rect(x,yy,w,6.5,'F'); pdf.setDrawColor.apply(pdf,line); pdf.setLineWidth(.2); pdf.rect(x,yy,w,6.5); pdf.setFont('times','bold'); pdf.setFontSize(8); pdf.setTextColor(0,0,0); pdf.text(t,x+w/2,yy+4.6,{align:'center'}); return yy+6.5; };
-  const tableAt=(x,w,head,body,foot,yy)=>{ pdf.autoTable({startY:yy,margin:{left:x,right:pageW-(x+w)},tableWidth:w,theme:'grid',styles:cStyles,headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line},head,body,foot}); return pdf.lastAutoTable.finalY; };
+  const tableAt=(x,w,head,body,foot,yy)=>{ pdf.autoTable({startY:yy,margin:{left:x,right:pageW-(x+w)},tableWidth:w,theme:'grid',styles:cStyles,headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line},footStyles:{fontStyle:'bold',fontSize:9,textColor:[0,0,0],lineColor:line},head,body,foot}); return pdf.lastAutoTable.finalY; };
   const c3Head=(label,col)=>[[{content:label,styles:{fillColor:C[col],halign:'left'}},{content:'ACHIVED MTR',styles:{fillColor:C.hg}},{content:'PROD KG',styles:{fillColor:C.hp}}]];
   const c3Data=(rows)=>{ let gM=0,gP=0; const body=rows.map(r=>{gM+=r.mtr;gP+=r.prod;return [{content:r.name,styles:{halign:'left'}},mtrTot(r.mtr),mtrTot(r.prod)];}); return {body:body.length?body:[[{content:'No data',colSpan:3,styles:{halign:'left',textColor:[120,120,120]}}]],foot:[[{content:'Grand Total',styles:{halign:'left',fillColor:C.hgt}},{content:mtrTot(gM),styles:{fillColor:C.hgt}},{content:mtrTot(gP),styles:{fillColor:C.hgt}}]]}; };
   const dRows=D.dates.map(d=>({name:new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}).replace(' ','-'),mtr:D.byDate[d].mtr,prod:D.byDate[d].prod}));
@@ -2029,7 +2029,7 @@ function mtrExportPDF(){
   const mpHead=[[{content:'ROLE',styles:{fillColor:C.hb,halign:'left'}},{content:'TOTAL',styles:{fillColor:C.hy}}]];
   const mpBody=mpRows.map(([n,v,col])=>[{content:n,styles:{halign:'left',fillColor:C[col]}},{content:mtrTot(v),styles:{fontStyle:'bold'}}]);
   const mpFoot=[[{content:'Grand Total',styles:{halign:'left',fillColor:C.hgt}},{content:mtrTot(mpAgg.total),styles:{fillColor:C.hgt}}]];
-  pdf.autoTable({startY:mpY,margin:{left:M,right:pageW-(M+mpW)},tableWidth:mpW,theme:'grid',styles:cStyles,headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line},columnStyles:{0:{cellWidth:mpW*0.62},1:{cellWidth:mpW*0.38}},head:mpHead,body:mpBody,foot:mpFoot});
+  pdf.autoTable({startY:mpY,margin:{left:M,right:pageW-(M+mpW)},tableWidth:mpW,theme:'grid',styles:cStyles,headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line},footStyles:{fontStyle:'bold',fontSize:9,textColor:[0,0,0],lineColor:line},columnStyles:{0:{cellWidth:mpW*0.62},1:{cellWidth:mpW*0.38}},head:mpHead,body:mpBody,foot:mpFoot});
   pdf.save('Cutting-Production-Report-'+mtrFileTag()+'.pdf');
   toast('PDF downloaded (landscape)','ok');
 }
@@ -4444,22 +4444,23 @@ function stockLocationPDF(){
     y=pdf.lastAutoTable.finalY+6;
   });
   // ---- LOCATION-WISE SUMMARY ----
-  if(y+16+locs.length*8>200){ pdf.addPage(); y=12; }
+  if(y+16+locs.length*9>200){ pdf.addPage(); y=12; }
   pdf.setFillColor(226,239,218); pdf.setDrawColor(110,135,165); pdf.setLineWidth(.3);
-  pdf.rect(M,y,pageW-2*M,8.5,'FD');
-  pdf.setTextColor(30,90,50); pdf.setFontSize(10.5); pdf.setFont('times','bold');
-  pdf.text('LOCATION-WISE BALANCE SUMMARY', pageW/2, y+5.7, {align:'center'});
-  y+=8.5;
+  pdf.rect(M,y,pageW-2*M,9.5,'FD');
+  pdf.setTextColor(30,90,50); pdf.setFontSize(12); pdf.setFont('times','bold');
+  pdf.text('LOCATION-WISE BALANCE SUMMARY', pageW/2, y+6.3, {align:'center'});
+  y+=9.5;
   let _gt=0;
   const sumBody=locs.map(loc=>{ const items=map[loc]; const total=items.reduce((a,b)=>a+num(b.bal),0); _gt+=total; return [String(loc), String(items.length), String(total)]; });
   pdf.autoTable({ startY:y, margin:{left:M,right:M}, theme:'grid',
-    headStyles:{font:'times',fillColor:[214,228,240],textColor:[18,36,58],fontSize:9.5,fontStyle:'bold',halign:'center',lineColor:[110,135,165],lineWidth:.28,cellPadding:2.6},
-    styles:{font:'times',fontSize:9.5,cellPadding:2.6,lineColor:[110,135,165],lineWidth:.28,halign:'center',textColor:[35,50,70]},
+    headStyles:{font:'times',fillColor:[214,228,240],textColor:[18,36,58],fontSize:11,fontStyle:'bold',halign:'center',lineColor:[110,135,165],lineWidth:.28,cellPadding:3},
+    styles:{font:'times',fontSize:11,cellPadding:3,lineColor:[110,135,165],lineWidth:.28,halign:'center',textColor:[35,50,70]},
+    footStyles:{font:'times',fontSize:12.5,fontStyle:'bold',halign:'center',lineColor:[110,135,165],lineWidth:.3},
     alternateRowStyles:{fillColor:[251,253,247]},
-    columnStyles:{0:{halign:'left',fontStyle:'bold',fillColor:[255,251,235]},2:{fillColor:[250,222,228],fontStyle:'bold',textColor:[140,30,50]}},
+    columnStyles:{0:{halign:'left',fontStyle:'bold',fillColor:[255,251,235]},2:{fillColor:[250,222,228],fontStyle:'bold',textColor:[201,42,42]}},
     head:[['Location','Total Items','Total Balance']],
     body:sumBody,
-    foot:[[{content:'GRAND TOTAL',styles:{halign:'left',fontStyle:'bold',fillColor:[247,198,210]}},{content:String(sumBody.reduce((a,r)=>a+num(r[1]),0)),styles:{fontStyle:'bold',fillColor:[247,198,210]}},{content:String(_gt),styles:{fontStyle:'bold',fillColor:[247,198,210],textColor:[140,30,50]}}]] });
+    foot:[[{content:'GRAND TOTAL',styles:{halign:'left',fillColor:[255,224,130]}},{content:String(sumBody.reduce((a,r)=>a+num(r[1]),0)),styles:{fillColor:[255,224,130]}},{content:String(_gt),styles:{fillColor:[255,224,130],textColor:[201,42,42]}}]] });
   pdf.save('Cutting_Stock_Location-wise.pdf');
 }
 function stockLocationExcel(){
@@ -4482,10 +4483,11 @@ function stockLocationExcel(){
   // ---- LOCATION-WISE SUMMARY ----
   let _gt=0, _gi=0;
   h2+=`<tr><td colspan="10"></td></tr>`;
-  h2+=`<tr><td colspan="3" style="text-align:center;font-size:14px;font-weight:bold;color:#1e5a32;background:#e2efda;${bd}padding:8px">LOCATION-WISE BALANCE SUMMARY</td></tr>`;
-  h2+=`<tr><td ${thS}>Location</td><td ${thS}>Total Items</td><td ${thS}>Total Balance</td></tr>`;
-  locs.forEach(loc=>{ const items=map[loc]; const total=items.reduce((a,b)=>a+num(b.bal),0); _gt+=total; _gi+=items.length; h2+=`<tr><td ${tdS}>${esc(String(loc))}</td><td ${tdC}>${items.length}</td><td ${tdB}>${total}</td></tr>`; });
-  h2+=`<tr><td style="${bd}padding:6px 8px;background:#f7c6d2;font-weight:bold">GRAND TOTAL</td><td style="${bd}padding:6px 8px;text-align:center;background:#f7c6d2;font-weight:bold">${_gi}</td><td style="${bd}padding:6px 8px;text-align:center;background:#f7c6d2;color:#8c1e32;font-weight:bold">${_gt}</td></tr>`;
+  h2+=`<tr><td colspan="3" style="text-align:center;font-size:16px;font-weight:bold;color:#1e5a32;background:#e2efda;${bd}padding:9px">LOCATION-WISE BALANCE SUMMARY</td></tr>`;
+  const _sth='style="background:#d6e4f0;color:#12243a;font-weight:bold;'+bd+'padding:8px;text-align:center;font-size:14px"';
+  h2+=`<tr><td ${_sth}>Location</td><td ${_sth}>Total Items</td><td ${_sth}>Total Balance</td></tr>`;
+  locs.forEach(loc=>{ const items=map[loc]; const total=items.reduce((a,b)=>a+num(b.bal),0); _gt+=total; _gi+=items.length; h2+=`<tr><td style="${bd}padding:7px 10px;background:#fffbeb;font-weight:bold;font-size:13px">${esc(String(loc))}</td><td style="${bd}padding:7px 10px;text-align:center;font-size:13px">${items.length}</td><td style="${bd}padding:7px 10px;text-align:center;background:#fadee4;color:#c92a2a;font-weight:bold;font-size:13px">${total}</td></tr>`; });
+  h2+=`<tr><td style="${bd}padding:9px 10px;background:#ffe082;font-weight:bold;font-size:15px">GRAND TOTAL</td><td style="${bd}padding:9px 10px;text-align:center;background:#ffe082;font-weight:bold;font-size:15px">${_gi}</td><td style="${bd}padding:9px 10px;text-align:center;background:#ffe082;color:#c92a2a;font-weight:bold;font-size:15px">${_gt}</td></tr>`;
   h2+='</table>'; dlXls(h2,'Cutting_Stock_Location-wise.xls');
 }
 function renderCuttingStock(){
