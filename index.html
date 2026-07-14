@@ -966,7 +966,8 @@ table.dt tbody tr:hover td{background:rgba(232,112,42,.04)}
 .mtr-tbl .mname{font-weight:800;background:transparent;color:#000}
 .mtr-tbl tr.tot td,.mtr-tbl td.tot{font-weight:800;color:#000}
 .mtr-tbl tfoot td{border-top:2px solid #9aa8b8}
-.hg{background:#d6efdc} .hp{background:#fbd6e0} .hy{background:#f7edb8} .hb{background:#cfe2f3} .ho{background:#f8dcbb} .hu{background:#e3d6f3} .hgt{background:#f7c6d2} .hgrey{background:#eef1f5}
+.mtr-tbl tfoot tr.tot td{font-size:13.5px;font-weight:900}
+.hg{background:#d6efdc} .hp{background:#fbd6e0} .hy{background:#f7edb8} .hb{background:#cfe2f3} .ho{background:#f8dcbb} .hu{background:#e3d6f3} .hgt{background:#fde9ad} .hgrey{background:#eef1f5}
 .mtr-grid{display:block}
 .mtr-grid .col{width:100%;min-width:0}
 @media print{
@@ -977,6 +978,7 @@ table.dt tbody tr:hover td{background:rgba(232,112,42,.04)}
   .mtr-page:last-child{break-after:auto;page-break-after:auto}
   .mtr-tw{overflow:visible!important}
   .mtr-tbl{font-size:9px}
+  .mtr-tbl tfoot tr.tot td{font-size:11px}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   @page{size:A4 landscape;margin:8mm}
 }
@@ -1969,12 +1971,14 @@ function mtrExportPDF(){
   const D=mtrData(R.from,R.to);
   const monLabel=R.label;
   const pageW=pdf.internal.pageSize.getWidth(), pageH=pdf.internal.pageSize.getHeight(), M=10;
-  const C={hg:[209,236,214],hp:[250,214,224],hy:[249,238,179],hb:[205,225,244],ho:[250,222,190],hu:[226,214,244],hgt:[255,224,130],hgrey:[236,240,245],mn:[240,244,249],hc:[253,240,214],hpk:[248,214,226],hpi:[214,238,228]};
+  const C={hg:[209,236,214],hp:[250,214,224],hy:[249,238,179],hb:[205,225,244],ho:[250,222,190],hu:[226,214,244],hgt:[253,233,173],hgrey:[236,240,245],mn:[240,244,249],hc:[253,240,214],hpk:[248,214,226],hpi:[214,238,228]};
+  const ROWP=[[232,246,234],[229,238,251],[252,238,243],[253,246,224],[253,239,227],[239,234,251]];
+  const rowTint=(data)=>{ if(data.section==='body'){ data.cell.styles.fillColor=ROWP[data.row.index%ROWP.length]; } };
   const line=[150,160,172]; let y=14;
   const titleBar=()=>{ pdf.setFont('times','bold'); pdf.setFontSize(15); pdf.setTextColor(0,0,0); pdf.text('CUTTING ALL OVER PROD. & MTR REPORT — '+monLabel, pageW/2, y, {align:'center'}); y+=2; pdf.setDrawColor(0,0,0); pdf.setLineWidth(.7); pdf.line(M,y+1,pageW-M,y+1); y+=6; };
   const band=(t,col)=>{ if(y>pageH-26){ pdf.addPage(); y=14; } pdf.setFillColor.apply(pdf,C[col]||C.hgrey); pdf.rect(M,y,pageW-2*M,8,'F'); pdf.setDrawColor.apply(pdf,line); pdf.setLineWidth(.2); pdf.rect(M,y,pageW-2*M,8); pdf.setFont('times','bold'); pdf.setFontSize(11); pdf.setTextColor(0,0,0); pdf.text(t, pageW/2, y+5.5, {align:'center'}); y+=8; };
   const baseStyles={font:'times',fontStyle:'bold',fontSize:9,cellPadding:1.8,lineColor:line,lineWidth:.2,textColor:[0,0,0],halign:'center',valign:'middle'};
-  const draw=(head,body,foot)=>{ pdf.autoTable({ startY:y, margin:{left:M,right:M}, theme:'grid', tableWidth:pageW-2*M, styles:baseStyles, headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line}, footStyles:{fontStyle:'bold',fontSize:11,textColor:[0,0,0],lineColor:line}, head, body, foot }); y=pdf.lastAutoTable.finalY+4; };
+  const draw=(head,body,foot)=>{ pdf.autoTable({ startY:y, margin:{left:M,right:M}, theme:'grid', tableWidth:pageW-2*M, styles:baseStyles, headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line}, footStyles:{fontStyle:'bold',fontSize:11,textColor:[0,0,0],lineColor:line}, didParseCell:rowTint, head, body, foot }); y=pdf.lastAutoTable.finalY+4; };
   titleBar();
   const ops=D.operators;
   const pivot=(corner,piv)=>{
@@ -1994,7 +1998,7 @@ function mtrExportPDF(){
   const x1=M, x2=x1+w1+gap, x3=x2+w2+gap;
   const cStyles={font:'times',fontStyle:'bold',fontSize:7,cellPadding:1,lineColor:line,lineWidth:.15,textColor:[0,0,0],halign:'center',valign:'middle'};
   const bandAt=(x,w,t,col,yy)=>{ pdf.setFillColor.apply(pdf,C[col]||C.hgrey); pdf.rect(x,yy,w,6.5,'F'); pdf.setDrawColor.apply(pdf,line); pdf.setLineWidth(.2); pdf.rect(x,yy,w,6.5); pdf.setFont('times','bold'); pdf.setFontSize(8); pdf.setTextColor(0,0,0); pdf.text(t,x+w/2,yy+4.6,{align:'center'}); return yy+6.5; };
-  const tableAt=(x,w,head,body,foot,yy)=>{ pdf.autoTable({startY:yy,margin:{left:x,right:pageW-(x+w)},tableWidth:w,theme:'grid',styles:cStyles,headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line},footStyles:{fontStyle:'bold',fontSize:9,textColor:[0,0,0],lineColor:line},head,body,foot}); return pdf.lastAutoTable.finalY; };
+  const tableAt=(x,w,head,body,foot,yy)=>{ pdf.autoTable({startY:yy,margin:{left:x,right:pageW-(x+w)},tableWidth:w,theme:'grid',styles:cStyles,headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line},footStyles:{fontStyle:'bold',fontSize:9,textColor:[0,0,0],lineColor:line},didParseCell:rowTint,head,body,foot}); return pdf.lastAutoTable.finalY; };
   const c3Head=(label,col)=>[[{content:label,styles:{fillColor:C[col],halign:'left'}},{content:'ACHIVED MTR',styles:{fillColor:C.hg}},{content:'PROD KG',styles:{fillColor:C.hp}}]];
   const c3Data=(rows)=>{ let gM=0,gP=0; const body=rows.map(r=>{gM+=r.mtr;gP+=r.prod;return [{content:r.name,styles:{halign:'left'}},mtrTot(r.mtr),mtrTot(r.prod)];}); return {body:body.length?body:[[{content:'No data',colSpan:3,styles:{halign:'left',textColor:[120,120,120]}}]],foot:[[{content:'Grand Total',styles:{halign:'left',fillColor:C.hgt}},{content:mtrTot(gM),styles:{fillColor:C.hgt}},{content:mtrTot(gP),styles:{fillColor:C.hgt}}]]}; };
   const dRows=D.dates.map(d=>({name:new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}).replace(' ','-'),mtr:D.byDate[d].mtr,prod:D.byDate[d].prod}));
@@ -2034,7 +2038,7 @@ function mtrExportPDF(){
   const mpHead=[[{content:'ROLE',styles:{fillColor:C.hb,halign:'left'}},{content:'TOTAL',styles:{fillColor:C.hy}}]];
   const mpBody=mpRows.map(([n,v,col])=>[{content:n,styles:{halign:'left',fillColor:C[col]}},{content:mtrTot(v),styles:{fontStyle:'bold'}}]);
   const mpFoot=[[{content:'Grand Total',styles:{halign:'left',fillColor:C.hgt}},{content:mtrTot(mpAgg.total),styles:{fillColor:C.hgt}}]];
-  pdf.autoTable({startY:mpY,margin:{left:M,right:pageW-(M+mpW)},tableWidth:mpW,theme:'grid',styles:cStyles,headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line},footStyles:{fontStyle:'bold',fontSize:9,textColor:[0,0,0],lineColor:line},columnStyles:{0:{cellWidth:mpW*0.62},1:{cellWidth:mpW*0.38}},head:mpHead,body:mpBody,foot:mpFoot});
+  pdf.autoTable({startY:mpY,margin:{left:M,right:pageW-(M+mpW)},tableWidth:mpW,theme:'grid',styles:cStyles,headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line},footStyles:{fontStyle:'bold',fontSize:9,textColor:[0,0,0],lineColor:line},didParseCell:rowTint,columnStyles:{0:{cellWidth:mpW*0.62},1:{cellWidth:mpW*0.38}},head:mpHead,body:mpBody,foot:mpFoot});
   pdf.save('Cutting-Production-Report-'+mtrFileTag()+'.pdf');
   toast('PDF downloaded (landscape)','ok');
 }
