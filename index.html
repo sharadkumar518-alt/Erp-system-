@@ -955,10 +955,15 @@ table.dt tbody tr:hover td{background:rgba(232,112,42,.04)}
 .mtr-tbl th,.mtr-tbl td{border:1px solid #c4ccd6;padding:7px 9px;text-align:center;white-space:nowrap;color:#000;font-weight:700}
 .mtr-tbl thead th{font-weight:800;letter-spacing:.3px;font-size:11px}
 .mtr-tbl td.l,.mtr-tbl th.l{text-align:left}
-.mtr-tbl tbody tr:nth-child(even){background:#f6f9fc}
-.mtr-tbl tbody tr:hover{background:#edf4fb}
+.mtr-tbl tbody tr:nth-child(6n+1){background:#e8f6ea}
+.mtr-tbl tbody tr:nth-child(6n+2){background:#e5eefb}
+.mtr-tbl tbody tr:nth-child(6n+3){background:#fceef3}
+.mtr-tbl tbody tr:nth-child(6n+4){background:#fdf6e0}
+.mtr-tbl tbody tr:nth-child(6n+5){background:#fdefe3}
+.mtr-tbl tbody tr:nth-child(6n){background:#efeafb}
+.mtr-tbl tbody tr:hover{background:#eef4fb}
 .mtr-tbl .num{font-weight:800}
-.mtr-tbl .mname{font-weight:800;background:#eef2f7;color:#000}
+.mtr-tbl .mname{font-weight:800;background:transparent;color:#000}
 .mtr-tbl tr.tot td,.mtr-tbl td.tot{font-weight:800;color:#000}
 .mtr-tbl tfoot td{border-top:2px solid #9aa8b8}
 .hg{background:#d6efdc} .hp{background:#fbd6e0} .hy{background:#f7edb8} .hb{background:#cfe2f3} .ho{background:#f8dcbb} .hu{background:#e3d6f3} .hgt{background:#f7c6d2} .hgrey{background:#eef1f5}
@@ -4499,13 +4504,6 @@ function renderCuttingStock(){
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
       <input id="stkSearch" value="${esc(stockQuery)}" placeholder="${stockSub==='order'?'Search Order No / File No…':'Search location (Jali 1…)'}" autocomplete="off">
       <button class="btn btn-ghost" id="stkClear" style="${stockQuery?'':'display:none'}">Clear</button>
-    </div>
-    <div class="stk-datefilter" style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px">
-      <span style="display:inline-flex;align-items:center;gap:7px;font-weight:700;color:var(--steel);font-size:13.5px"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Stock as on date:</span>
-      <input type="date" id="stkDate" value="${esc(stockDate)}" style="padding:8px 11px;border:1.5px solid var(--line-2);border-radius:9px;font:inherit;font-size:13.5px;font-weight:700;color:var(--steel);background:#fff">
-      <button class="btn btn-ghost btn-sm" id="stkDateClear" style="${stockDate?'':'display:none'}">Aaj ka (Clear)</button>
-      <span style="flex:1"></span>
-      <span style="font-size:11.5px;color:var(--muted-2);font-weight:600">${stockDate?('Us din tak ka stock — '+esc(fmtDate(stockDate))):'Aaj ka (current) stock dikh raha hai'}</span>
     </div>
   </div></div>`;
   const exportBar=`<div class="card" style="margin-bottom:14px"><div class="card-body"><div class="stk-exp">
