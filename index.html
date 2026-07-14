@@ -938,9 +938,10 @@ table.dt tbody tr:hover td{background:rgba(232,112,42,.04)}
 .mtr{padding:2px;font-family:'Times New Roman',Times,serif}
 .mtr *{font-family:'Times New Roman',Times,serif!important}
 .mtr-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
-.mtr-month{display:flex;align-items:center;gap:9px;border:1.5px solid var(--line-2);border-radius:10px;padding:7px 12px;background:#fff;color:var(--steel)}
+.mtr-month{display:flex;align-items:center;gap:9px;border:1.5px solid var(--line-2);border-radius:10px;padding:7px 12px;background:#fff;color:var(--steel);flex-wrap:wrap}
 .mtr-month svg{width:18px;height:18px;stroke:var(--amber);flex:none}
 .mtr-month input{border:none;outline:none;font:inherit;font-size:14px;font-weight:700;color:var(--steel);background:transparent}
+.mtr-modesel{border:none;outline:none;font:inherit;font-size:13px;font-weight:700;color:var(--steel);background:#f4f6f9;border-radius:7px;padding:5px 8px;border-right:1.5px solid var(--line-2);margin-right:2px}
 .mtr-note{background:#fff7ed;border:1px solid #f4d7b0;color:#8a5a1c;border-radius:12px;padding:11px 14px;font-size:12.5px;line-height:1.5;margin-bottom:16px}
 .mtr-doc{display:flex;flex-direction:column;gap:18px}
 .mtr-page{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 16px;overflow-x:auto;box-shadow:0 6px 20px rgba(0,0,0,.05)}
@@ -1448,7 +1449,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v147</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v148</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -1595,6 +1596,8 @@ const uid=()=>Math.random().toString(36).slice(2,9);
 const clone=o=>JSON.parse(JSON.stringify(o));
 const num=v=>{const n=parseFloat(v);return isNaN(n)?0:n;};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function isAdmin(){ try{ return sessionStorage.getItem('comsyn_role')==='admin'; }catch(e){ return false; } }
+function _lock48(ref){ if(isAdmin()) return false; if(!ref) return false; return (Date.now()-new Date(ref).getTime())>48*3600*1000; }
 
 /* ---------- default configuration (matches the sheet) ---------- */
 function defaultConfig(){
@@ -1783,6 +1786,42 @@ function render(){
 let DRAFT=null;
 let editingId=null;
 let mtrMonth=null;
+let mtrRangeMode='month';
+let mtrSingle=null, mtrWeekAnchor=null, mtrYear=null, mtrCustomFrom=null, mtrCustomTo=null;
+function _ymd(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+function _monthLastDay(m){ const [y,mo]=m.split('-').map(Number); return _ymd(new Date(y,mo,0)); }
+function mtrLatestDataDate(){ const ds=[...new Set((RECORDS||[]).map(r=>r.date).filter(Boolean))].sort(); return ds.length?ds[ds.length-1]:todayISO(); }
+function mtrRange(){
+  const mode=mtrRangeMode;
+  if(mode==='single'){ if(!mtrSingle) mtrSingle=mtrLatestDataDate(); const d=new Date(mtrSingle+'T00:00:00'); return {from:mtrSingle,to:mtrSingle,label:'DATE: '+d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()}; }
+  if(mode==='week'){ if(!mtrWeekAnchor) mtrWeekAnchor=mtrLatestDataDate(); const s=new Date(mtrWeekAnchor+'T00:00:00'); const day=s.getDay(); const mon=new Date(s); mon.setDate(s.getDate()-((day+6)%7)); const sun=new Date(mon); sun.setDate(mon.getDate()+6); return {from:_ymd(mon),to:_ymd(sun),label:'WEEK: '+mon.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}).toUpperCase()+' \u2013 '+sun.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()}; }
+  if(mode==='year'){ if(!mtrYear) mtrYear=String(new Date(mtrLatestDataDate()).getFullYear()); return {from:mtrYear+'-01-01',to:mtrYear+'-12-31',label:'YEAR '+mtrYear}; }
+  if(mode==='custom'){ if(!mtrCustomFrom||!mtrCustomTo){ const l=mtrLatestDataDate(); mtrCustomFrom=mtrCustomFrom||l; mtrCustomTo=mtrCustomTo||l; } const a=mtrCustomFrom,b=mtrCustomTo; const from=a<=b?a:b, to=a<=b?b:a;
+    const da=new Date(from+'T00:00:00'),db=new Date(to+'T00:00:00');
+    return {from,to,label:da.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()+' \u2013 '+db.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()}; }
+  // month (default)
+  if(!mtrMonth){ const ms=[...new Set((RECORDS||[]).map(r=>r.date&&r.date.slice(0,7)).filter(Boolean))].sort(); mtrMonth= ms.length? ms[ms.length-1] : todayISO().slice(0,7); }
+  const monLabel=new Date(mtrMonth+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'}).toUpperCase();
+  return {from:mtrMonth+'-01',to:_monthLastDay(mtrMonth),label:'MONTH OF '+monLabel};
+}
+function mtrFileTag(){
+  const mode=mtrRangeMode; const R=mtrRange();
+  if(mode==='month') return mtrMonth;
+  if(mode==='single') return R.from;
+  if(mode==='year') return mtrYear;
+  return R.from+'_to_'+R.to;
+}
+function mtrManpowerAgg(from,to){
+  const dates=Object.keys(EXTRA||{}).filter(d=>d>=from&&d<=to);
+  let inc=0,sup=0,opC=0,opCash=0,helC=0,helCash=0;
+  dates.forEach(d=>{ const mp=(EXTRA[d]||{}).mp; if(!mp) return; inc+=num(mp.inc);sup+=num(mp.sup);opC+=num(mp.opC);opCash+=num(mp.opCash);helC+=num(mp.helC);helCash+=num(mp.helCash); });
+  return {inc,sup,opC,opCash,helC,helCash,total:inc+sup+opC+opCash+helC+helCash};
+}
+function mtrMpTable(agg){
+  const rows=[['Incharge',agg.inc],['Supervisor',agg.sup],['Company Operator',agg.opC],['Cash Operator',agg.opCash],['Company Helper',agg.helC],['Cash Helper',agg.helCash]];
+  const body=rows.map(([n,v])=>`<tr><td class="l">${esc(n)}</td><td class="num">${mtrTot(v)}</td></tr>`).join('');
+  return `<div class="mtr-tw"><table class="mtr-tbl"><thead><tr><th class="hb l">ROLE</th><th class="hy">TOTAL</th></tr></thead><tbody>${body}</tbody><tfoot><tr class="tot hgt"><td class="l">Grand Total</td><td class="num">${mtrTot(agg.total)}</td></tr></tfoot></table></div>`;
+}
 function mtrFmt(n){ n=Math.round(num(n)); return n? n.toLocaleString('en-US') : ''; }
 function mtrTot(n){ return Math.round(num(n)).toLocaleString('en-US'); }
 function mtrColFind(r,re){ for(const sec of ((r.config&&r.config.sections)||[])){ const col=(sec.columns||[]).find(c=>re.test(c.label)); if(col) return {sec,col}; } return null; }
@@ -1793,8 +1832,8 @@ function mtrOperator(r){ const h=(typeof recHdr==='function')?recHdr(r,/opr\.?\s
 function mtrShift(r){ const h=((typeof recHdr==='function')?recHdr(r,/shift/i):'')||mtrVal(r,/shift/i); return (h||'—').toUpperCase(); }
 function mtrProd(r){ try{ const s=computeReportSummary(liveRec(r)); if(s&&(s.production||s.production===0)) return s.production; }catch(e){} if(mtrColFind(r,/prod\.?\s*kg|production\s*kg/i)) return mtrSum(r,/prod\.?\s*kg|production\s*kg/i); return mtrSum(r,/weight\s*kg|^weight/i); }
 function mtrMtr(r){ try{ const s=computeReportSummary(liveRec(r)); if(s&&(s.length||s.length===0)) return s.length; }catch(e){} if(mtrColFind(r,/achiev.*mtr|^mtr\b|meter/i)) return mtrSum(r,/achiev.*mtr|^mtr\b|meter/i); return mtrSum(r,/length\s*\(?\s*m\)?/i); }
-function mtrData(month){
-  const recs=(RECORDS||[]).filter(r=>r.date && r.date.slice(0,7)===month);
+function mtrData(from,to){
+  const recs=(RECORDS||[]).filter(r=>r.date && r.date>=from && r.date<=to);
   const machines=new Set(),operators=new Set(),shifts=new Set(),dates=new Set();
   const pmo={},mmo={},byDate={},byMachine={},byOp={},byShift={},bySM={};
   recs.forEach(r=>{ const d=r.date,mc=mtrMachine(r),op=mtrOperator(r),sh=mtrShift(r),prod=mtrProd(r),mtr=mtrMtr(r);
@@ -1838,48 +1877,69 @@ function mtrShiftMachine(D){
   let foot='<tr class="tot hgt"><td class="l">Grand Total</td>'; shifts.forEach(s=>{ const t=shTot[s]||{mtr:0,prod:0}; foot+=`<td class="num">${mtrTot(t.mtr)}</td><td class="num">${mtrTot(t.prod)}</td>`; }); foot+=`<td class="num">${mtrTot(gtm)}</td><td class="num">${mtrTot(gtp)}</td></tr>`;
   return `<div class="mtr-tw"><table class="mtr-tbl"><thead>${h1}${h2}</thead><tbody>${body||''}</tbody><tfoot>${foot}</tfoot></table></div>`;
 }
-function mtrBuildTables(D,monLabel){
-  const title=`<div class="mtr-title">CUTTING ALL OVER PROD. &amp; MTR REPORT — MONTH OF ${monLabel}</div>`;
+function mtrBuildTables(D,monLabel,from,to){
+  const title=`<div class="mtr-title">CUTTING ALL OVER PROD. &amp; MTR REPORT — ${monLabel}</div>`;
   const p1=`${title}<div class="mtr-sec"><div class="mtr-band hp">PROD. KG &nbsp;·&nbsp; OPR. NAME</div>${mtrPivot('PROD. KG',D.pmo,D.machines,D.operators)}</div><div class="mtr-sec"><div class="mtr-band hy">ACHIVED MTR &nbsp;·&nbsp; OPR. NAME</div>${mtrPivot('ACHIVED MTR',D.mmo,D.machines,D.operators)}</div>`;
   const dRows=D.dates.map(d=>({name:new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}).replace(' ','-'),mtr:D.byDate[d].mtr,prod:D.byDate[d].prod}));
   const mRows=D.machines.map(mc=>({name:mc,mtr:D.byMachine[mc].mtr,prod:D.byMachine[mc].prod}));
   const oRows=D.operators.map(o=>({name:o,mtr:D.byOp[o].mtr,prod:D.byOp[o].prod}));
   const sRows=D.shifts.map(s=>({name:'SHIFT-'+s,mtr:D.byShift[s].mtr,prod:D.byShift[s].prod}));
+  const mpAgg=mtrManpowerAgg(from,to);
   const p2=`${title}<div class="mtr-grid">
       <div class="col"><div class="mtr-sec"><div class="mtr-band hy">DATE WISE MTR &amp; PROD.</div>${mtr3col('DATE','hy',dRows)}</div></div>
       <div class="col"><div class="mtr-sec"><div class="mtr-band hg">MACHINE WISE MTR &amp; PROD.</div>${mtr3col('MACHINE NAME','hy',mRows)}</div>
         <div class="mtr-sec"><div class="mtr-band hb">OPR. WISE MTR &amp; PROD.</div>${mtr3col('OPR. NAME','hb',oRows)}</div></div>
-      <div class="col"><div class="mtr-sec"><div class="mtr-band hu">SHIFT WISE MTR &amp; PROD.</div>${mtr3col('SHIFT','hu',sRows)}</div></div>
+      <div class="col"><div class="mtr-sec"><div class="mtr-band hu">SHIFT WISE MTR &amp; PROD.</div>${mtr3col('SHIFT','hu',sRows)}</div>
+        <div class="mtr-sec"><div class="mtr-band hb">CUTTING MAN POWER SUMMARY</div>${mtrMpTable(mpAgg)}</div></div>
     </div>
     <div class="mtr-sec" style="margin-top:14px"><div class="mtr-band hy">SHIFT &amp; MACHINE WISE MTR &amp; PROD.</div>${mtrShiftMachine(D)}</div>`;
   return {p1,p2};
 }
+function mtrFilterHTML(){
+  const mode=mtrRangeMode;
+  const R=mtrRange();
+  const modeOpts=[['month','Month'],['single','Single Date'],['week','Week'],['year','Year'],['custom','Custom']];
+  const sel=`<select id="mtrModeSel" class="mtr-modesel">${modeOpts.map(([v,l])=>`<option value="${v}" ${mode===v?'selected':''}>${l}</option>`).join('')}</select>`;
+  let picker='';
+  if(mode==='month') picker=`<input type="month" id="mtrMonthInp" value="${mtrMonth||R.from.slice(0,7)}">`;
+  else if(mode==='single') picker=`<input type="date" id="mtrSingleInp" value="${mtrSingle||R.from}">`;
+  else if(mode==='week') picker=`<input type="date" id="mtrWeekInp" value="${mtrWeekAnchor||R.from}" title="Kisi bhi din select karo, uska pura hafta (Mon-Sun) aa jayega">`;
+  else if(mode==='year') picker=`<input type="number" id="mtrYearInp" value="${mtrYear||R.from.slice(0,4)}" min="2000" max="2100" style="width:90px">`;
+  else if(mode==='custom') picker=`<input type="date" id="mtrFromInp" value="${mtrCustomFrom||R.from}"><span style="padding:0 4px;color:var(--muted-2)">to</span><input type="date" id="mtrToInp" value="${mtrCustomTo||R.to}">`;
+  return `<div class="mtr-month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${sel}${picker}</div>`;
+}
 function renderMtrReport(){
   const c=document.getElementById('content'); document.getElementById('topActions').innerHTML='';
-  if(!mtrMonth){ const ms=[...new Set((RECORDS||[]).map(r=>r.date&&r.date.slice(0,7)).filter(Boolean))].sort(); mtrMonth= ms.length? ms[ms.length-1] : todayISO().slice(0,7); }
-  const D=mtrData(mtrMonth);
-  const monLabel=new Date(mtrMonth+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'}).toUpperCase();
-  const T=mtrBuildTables(D,monLabel);
+  const R=mtrRange();
+  const D=mtrData(R.from,R.to);
+  const T=mtrBuildTables(D,R.label,R.from,R.to);
   c.innerHTML=`<div class="view"><div class="mtr">
     <div class="mtr-toolbar no-print">
-      <div class="mtr-month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><input type="month" id="mtrMonthInp" value="${mtrMonth}"></div>
+      ${mtrFilterHTML()}
       <div style="flex:1"></div>
       <button class="btn btn-primary" id="mtrPdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 11l4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Download PDF</button>
       <button class="btn btn-blue" id="mtrXls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13l6 6M15 13l-6 6"/></svg>Export Excel</button>
     </div>
-    ${D.recs.length?'':`<div class="mtr-note no-print">Is month (${monLabel}) ka koi production data nahi mila. Jaise hi entries save hongi, report auto-fill ho jayegi. <b>Operator</b> aur <b>Shift</b> wise tables ke liye entry form me "Operator" aur "Shift" column hone chahiye.</div>`}
+    ${D.recs.length?'':`<div class="mtr-note no-print">Is period (${R.label}) ka koi production data nahi mila. Jaise hi entries save hongi, report auto-fill ho jayegi. <b>Operator</b> aur <b>Shift</b> wise tables ke liye entry form me "Operator" aur "Shift" column hone chahiye.</div>`}
     <div id="mtrDoc" class="mtr-doc">
       <section class="mtr-page">${T.p1}</section>
       <section class="mtr-page">${T.p2}</section>
     </div>
   </div></div>`;
+  const ms=document.getElementById('mtrModeSel'); if(ms) ms.onchange=()=>{ mtrRangeMode=ms.value; renderMtrReport(); };
   const mi=document.getElementById('mtrMonthInp'); if(mi) mi.onchange=()=>{ if(mi.value){ mtrMonth=mi.value; renderMtrReport(); } };
+  const si=document.getElementById('mtrSingleInp'); if(si) si.onchange=()=>{ if(si.value){ mtrSingle=si.value; renderMtrReport(); } };
+  const wi=document.getElementById('mtrWeekInp'); if(wi) wi.onchange=()=>{ if(wi.value){ mtrWeekAnchor=wi.value; renderMtrReport(); } };
+  const yi=document.getElementById('mtrYearInp'); if(yi) yi.onchange=()=>{ if(yi.value){ mtrYear=String(yi.value); renderMtrReport(); } };
+  const fi=document.getElementById('mtrFromInp'); if(fi) fi.onchange=()=>{ if(fi.value){ mtrCustomFrom=fi.value; renderMtrReport(); } };
+  const ti=document.getElementById('mtrToInp'); if(ti) ti.onchange=()=>{ if(ti.value){ mtrCustomTo=ti.value; renderMtrReport(); } };
   const pb=document.getElementById('mtrPdf'); if(pb) pb.onclick=mtrExportPDF;
   const xb=document.getElementById('mtrXls'); if(xb) xb.onclick=mtrExportExcel;
 }
 function mtrExportExcel(){
-  const D=mtrData(mtrMonth); const monLabel=new Date(mtrMonth+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'}).toUpperCase();
-  const T=mtrBuildTables(D,monLabel);
+  const R=mtrRange();
+  const D=mtrData(R.from,R.to);
+  const T=mtrBuildTables(D,R.label,R.from,R.to);
   const map={hg:'#cfe8d4',hp:'#f6cdd8',hy:'#f1e4a6',hb:'#c4dcec',ho:'#f4cfa9',hu:'#dccdeb',hgt:'#f3b9c6',hgrey:'#eef1f4'};
   function toRows(s){
     s=s.replace(/<div class="mtr-band([^"]*)">([\s\S]*?)<\/div>/g,function(m,extra,txt){ const arr=('mtr-band'+extra).split(/\s+/); const key=Object.keys(map).find(k=>arr.includes(k)); return '<tr><td colspan="20" style="'+(key?'background:'+map[key]+';':'')+'font-weight:bold;text-align:center;border:1px solid #888;padding:5px">'+txt+'</td></tr>'; });
@@ -1893,19 +1953,20 @@ function mtrExportExcel(){
   const body='<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Arial,sans-serif">'+rows+'</table>';
   const xml=`<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Cutting Production</x:Name><x:WorksheetOptions><x:FitToPage/><x:Print><x:ValidPrinterInfo/><x:Orientation>Landscape</x:Orientation><x:FitWidth>1</x:FitWidth><x:FitHeight>0</x:FitHeight><x:Scale>100</x:Scale></x:Print></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->`;
   const blob=new Blob(['\ufeff<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">'+xml+'</head><body>'+body+'</body></html>'],{type:'application/vnd.ms-excel'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Cutting-Production-Report-'+mtrMonth+'.xls'; document.body.appendChild(a); a.click(); a.remove();
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Cutting-Production-Report-'+mtrFileTag()+'.xls'; document.body.appendChild(a); a.click(); a.remove();
   toast('Excel exported (landscape)','ok');
 }
 function mtrExportPDF(){
   const ns=window.jspdf; if(!ns||!ns.jsPDF){ try{ window.print(); }catch(e){ toast('PDF engine load ho raha — phir try karo','err'); } return; }
   const { jsPDF }=ns; const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
   if(typeof pdf.autoTable!=='function'){ try{ window.print(); }catch(e){ toast('PDF plugin load ho raha — phir try karo','err'); } return; }
-  const D=mtrData(mtrMonth);
-  const monLabel=new Date(mtrMonth+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'}).toUpperCase();
+  const R=mtrRange();
+  const D=mtrData(R.from,R.to);
+  const monLabel=R.label;
   const pageW=pdf.internal.pageSize.getWidth(), pageH=pdf.internal.pageSize.getHeight(), M=10;
   const C={hg:[214,239,220],hp:[251,214,224],hy:[247,237,184],hb:[207,226,243],ho:[248,220,187],hu:[227,214,243],hgt:[247,198,210],hgrey:[238,241,245],mn:[238,242,247]};
   const line=[150,160,172]; let y=14;
-  const titleBar=()=>{ pdf.setFont('times','bold'); pdf.setFontSize(15); pdf.setTextColor(0,0,0); pdf.text('CUTTING ALL OVER PROD. & MTR REPORT — MONTH OF '+monLabel, pageW/2, y, {align:'center'}); y+=2; pdf.setDrawColor(0,0,0); pdf.setLineWidth(.7); pdf.line(M,y+1,pageW-M,y+1); y+=8; };
+  const titleBar=()=>{ pdf.setFont('times','bold'); pdf.setFontSize(15); pdf.setTextColor(0,0,0); pdf.text('CUTTING ALL OVER PROD. & MTR REPORT — '+monLabel, pageW/2, y, {align:'center'}); y+=2; pdf.setDrawColor(0,0,0); pdf.setLineWidth(.7); pdf.line(M,y+1,pageW-M,y+1); y+=8; };
   const band=(t,col)=>{ if(y>pageH-26){ pdf.addPage(); y=14; } pdf.setFillColor.apply(pdf,C[col]||C.hgrey); pdf.rect(M,y,pageW-2*M,8,'F'); pdf.setDrawColor.apply(pdf,line); pdf.setLineWidth(.2); pdf.rect(M,y,pageW-2*M,8); pdf.setFont('times','bold'); pdf.setFontSize(11); pdf.setTextColor(0,0,0); pdf.text(t, pageW/2, y+5.5, {align:'center'}); y+=8; };
   const baseStyles={font:'times',fontStyle:'bold',fontSize:9,cellPadding:1.8,lineColor:line,lineWidth:.2,textColor:[0,0,0],halign:'center',valign:'middle'};
   const draw=(head,body,foot)=>{ pdf.autoTable({ startY:y, margin:{left:M,right:M}, theme:'grid', tableWidth:pageW-2*M, styles:baseStyles, headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line}, head, body, foot }); y=pdf.lastAutoTable.finalY+4; };
@@ -1955,7 +2016,15 @@ function mtrExportPDF(){
   shifts.forEach(s=>{ const t=shTot[s]||{mtr:0,prod:0}; smFoot.push({content:mtrTot(t.mtr),styles:{fillColor:C.hgt}},{content:mtrTot(t.prod),styles:{fillColor:C.hgt}}); });
   smFoot.push({content:mtrTot(gtm),styles:{fillColor:C.hgt}},{content:mtrTot(gtp),styles:{fillColor:C.hgt}});
   tableAt(M,usable,[h1,h2],smBody,[smFoot],by);
-  pdf.save('Cutting-Production-Report-'+mtrMonth+'.pdf');
+  // ---- Man power summary ----
+  let mpY=pdf.lastAutoTable.finalY+6; mpY=bandAt(M,usable,'CUTTING MAN POWER SUMMARY','hb',mpY);
+  const mpAgg=mtrManpowerAgg(R.from,R.to);
+  const mpRows=[['Incharge',mpAgg.inc],['Supervisor',mpAgg.sup],['Company Operator',mpAgg.opC],['Cash Operator',mpAgg.opCash],['Company Helper',mpAgg.helC],['Cash Helper',mpAgg.helCash]];
+  const mpHead=[[{content:'ROLE',styles:{fillColor:C.hb,halign:'left'}},{content:'TOTAL',styles:{fillColor:C.hy}}]];
+  const mpBody=mpRows.map(([n,v])=>[{content:n,styles:{halign:'left'}},mtrTot(v)]);
+  const mpFoot=[[{content:'Grand Total',styles:{halign:'left',fillColor:C.hgt}},{content:mtrTot(mpAgg.total),styles:{fillColor:C.hgt}}]];
+  tableAt(M,usable,mpHead,mpBody,mpFoot,mpY);
+  pdf.save('Cutting-Production-Report-'+mtrFileTag()+'.pdf');
   toast('PDF downloaded (landscape)','ok');
 }
 
@@ -2487,7 +2556,10 @@ function renderRollCutting(body){
       byMachine[mc].forEach(r=>{
         const m=recMeta(r);
         const done=!!r.rollCutEnd;
-        html+=`<tr class="${done?'mc-done':'mc-prog'}"><td>${esc(m.rollNo||'—')}</td><td>${esc(m.orderNo||'—')}</td><td>${esc(m.fileNo||'—')}</td><td>${esc(m.sfNo||'—')}</td><td>${esc(m.bagSize||'—')}</td><td>${esc(m.gsm||'—')}</td><td>${esc(fmtClock(r.rollCutStart)||'—')}</td><td>${esc(fmtClock(r.rollCutEnd)||'—')}</td><td>${esc(fmtWorkHours(r.rollCutStart,r.rollCutEnd)||'—')}</td><td><button class="btn btn-sm btn-amber" data-edit="${r.id}">EDIT</button></td></tr>`;
+        const _ref=r.rollCutEnd||r.savedAt||(r.date?r.date+'T00:00:00':null);
+        const _locked=_lock48(_ref);
+        const _editBtn=_locked?`<button class="btn btn-sm" disabled title="Edit locked after 48 hours \u2014 contact admin" style="opacity:.45;cursor:not-allowed">EDIT</button>`:`<button class="btn btn-sm btn-amber" data-edit="${r.id}">EDIT</button>`;
+        html+=`<tr class="${done?'mc-done':'mc-prog'}"><td>${esc(m.rollNo||'—')}</td><td>${esc(m.orderNo||'—')}</td><td>${esc(m.fileNo||'—')}</td><td>${esc(m.sfNo||'—')}</td><td>${esc(m.bagSize||'—')}</td><td>${esc(m.gsm||'—')}</td><td>${esc(fmtClock(r.rollCutStart)||'—')}</td><td>${esc(fmtClock(r.rollCutEnd)||'—')}</td><td>${esc(fmtWorkHours(r.rollCutStart,r.rollCutEnd)||'—')}</td><td>${_editBtn}</td></tr>`;
       });
       html+=`</tbody></table></div></div>`;
     });
@@ -2535,9 +2607,9 @@ function cutRecTable(list, isAll){
   let h=`<div class="mc-scroll"><table class="mc-tbl cut-tbl"><thead><tr><th>DATE</th><th>Roll No.</th><th>Order No.</th><th>File No.</th><th>Sf No.</th><th>Bag Size</th><th>Gsm</th><th></th><th></th></tr></thead><tbody>`;
   list.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).forEach(r=>{ const m=recMeta(r);
     const ref=r.rollCutEnd||r.savedAt||(r.date?r.date+'T00:00:00':null);
-    const locked = ref ? ((Date.now()-new Date(ref).getTime()) > 48*3600*1000) : false;
+    const locked = _lock48(ref);
     const editBtn = locked
-      ? `<button class="btn btn-sm" disabled title="Edit locked after 48 hours" style="opacity:.45;cursor:not-allowed">EDIT</button>`
+      ? `<button class="btn btn-sm" disabled title="Edit locked after 48 hours \u2014 contact admin" style="opacity:.45;cursor:not-allowed">EDIT</button>`
       : `<button class="btn btn-sm btn-amber" data-edit="${r.id}">EDIT</button>`;
     h+=`<tr><td>${esc(fmtDate(r.date))}</td><td>${esc(m.rollNo||'—')}</td><td>${esc(m.orderNo||'—')}</td><td>${esc(m.fileNo||'—')}</td><td>${esc(m.sfNo||'—')}</td><td>${esc(m.bagSize||'—')}</td><td>${esc(m.gsm||'—')}</td><td>${editBtn}</td><td><button class="btn btn-sm btn-danger" data-del="${r.id}">DELETE</button></td></tr>`;
   });
@@ -2810,14 +2882,16 @@ function buildDaySummaryExcel(dateStr){
   });
   const _exmp=extraFor(dateStr).mp;
   if(_exmp){
-    const _t=num(_exmp.inc)+num(_exmp.sup)+num(_exmp.op)+num(_exmp.hel);
+    const _t=num(_exmp.inc)+num(_exmp.sup)+num(_exmp.opC)+num(_exmp.opCash)+num(_exmp.helC)+num(_exmp.helCash);
     const _mv='border:1px solid #888;padding:5px 14px;text-align:center';
     html+='<br><table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Georgia,serif;font-size:12px">'
       +'<tr><td colspan="2" style="'+kk+';text-align:center;font-size:14px">Cutting Man Power</td></tr>'
       +'<tr><td style="'+vv+'">Incharge :-</td><td style="'+_mv+'">'+num(_exmp.inc)+'</td></tr>'
       +'<tr><td style="'+vv+'">Supervisor :-</td><td style="'+_mv+'">'+num(_exmp.sup)+'</td></tr>'
-      +'<tr><td style="'+vv+'">Operator :-</td><td style="'+_mv+'">'+num(_exmp.op)+'</td></tr>'
-      +'<tr><td style="'+vv+'">Helper :-</td><td style="'+_mv+'">'+num(_exmp.hel)+'</td></tr>'
+      +'<tr><td style="'+vv+'">Company Operator :-</td><td style="'+_mv+'">'+num(_exmp.opC)+'</td></tr>'
+      +'<tr><td style="'+vv+'">Cash Operator :-</td><td style="'+_mv+'">'+num(_exmp.opCash)+'</td></tr>'
+      +'<tr><td style="'+vv+'">Company Helper :-</td><td style="'+_mv+'">'+num(_exmp.helC)+'</td></tr>'
+      +'<tr><td style="'+vv+'">Cash Helper :-</td><td style="'+_mv+'">'+num(_exmp.helCash)+'</td></tr>'
       +'<tr><td style="'+vv+'">Total :-</td><td style="'+_mv+';font-weight:bold">'+_t+'</td></tr>'
       +'</table>';
   }
@@ -2840,19 +2914,45 @@ function buildDaySummaryHTML(dateStr){
   let right='';
   cashGroups.forEach(g=>{ right+=`<div class="dsum-blk dsum-cash"><table class="dsum-head2"><tr><td class="k">Contractor Name :-</td><td class="v" colspan="3">Cash</td></tr><tr><td class="k">Machine Name :-</td><td class="v">${esc(g.machine)}</td><td class="k">Operator Name :-</td><td class="v">${esc(g.operator)}</td></tr></table>${sumTableHTML(daySumAgg(g.recs),false)}</div>`; });
   if(_ex.mp){
-    const _mt=num(_ex.mp.inc)+num(_ex.mp.sup)+num(_ex.mp.op)+num(_ex.mp.hel);
+    const _mt=num(_ex.mp.inc)+num(_ex.mp.sup)+num(_ex.mp.opC)+num(_ex.mp.opCash)+num(_ex.mp.helC)+num(_ex.mp.helCash);
     right+=`<div class="dsum-blk dsum-cash"><table class="dsum-tbl">
       <tr><th colspan="2">Cutting Man Power</th></tr>
       <tr><td class="lbl">Incharge :-</td><td class="num">${num(_ex.mp.inc)}</td></tr>
       <tr><td class="lbl">Supervisor :-</td><td class="num">${num(_ex.mp.sup)}</td></tr>
-      <tr><td class="lbl">Operator :-</td><td class="num">${num(_ex.mp.op)}</td></tr>
-      <tr><td class="lbl">Helper :-</td><td class="num">${num(_ex.mp.hel)}</td></tr>
+      <tr><td class="lbl">Company Operator :-</td><td class="num">${num(_ex.mp.opC)}</td></tr>
+      <tr><td class="lbl">Cash Operator :-</td><td class="num">${num(_ex.mp.opCash)}</td></tr>
+      <tr><td class="lbl">Company Helper :-</td><td class="num">${num(_ex.mp.helC)}</td></tr>
+      <tr><td class="lbl">Cash Helper :-</td><td class="num">${num(_ex.mp.helCash)}</td></tr>
       <tr><td class="lbl" style="font-weight:800">Total :-</td><td class="num" style="font-weight:800">${_mt}</td></tr>
     </table></div>`;
   }
   return `<div class="report-doc dsum" id="reportDoc" style="border:1px solid #cdd7e3;border-radius:12px;padding:22px;background:#fbfcfe"><div class="dsum-cols"><div class="dsum-col">${left}</div><div class="dsum-col">${right}</div></div></div>`;
 }
 function dayExtraPanelHTML(d){
+  const locked=_lock48(d?d+'T00:00:00':null);
+  if(locked){
+    const ex=extraFor(d); const mp=ex.mp||{};
+    const hasProc=ex.proc&&ex.proc.length; const hasMp=!!ex.mp;
+    if(!hasProc && !hasMp) return '';
+    const chips=hasProc?ex.proc.map(it=>`<span style="display:inline-flex;align-items:center;gap:6px;background:#eef4fb;border:1px solid #cdd7e3;border-radius:20px;padding:4px 10px;margin:6px 6px 0 0;font-size:12.5px"><b>${esc(it.name)}</b>&nbsp;\u2014 ${num(it.qty)} Kg</span>`).join(''):'';
+    return `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:stretch">
+      <div style="flex:2;min-width:270px;border:1px solid #cdd7e3;border-radius:12px;padding:14px;background:#f4f6f9">
+        <div style="font-weight:800;margin-bottom:10px;color:#7488a0">Summary Report <span style="font-size:11px;font-weight:700">(locked \u2014 48hrs se zyada purana)</span></div>
+        <div>${chips||'<span class="hint">Koi item nahi tha</span>'}</div>
+      </div>
+      <div style="flex:1;min-width:210px;border:1px solid #cdd7e3;border-radius:12px;padding:14px;background:#f4f6f9">
+        <div style="font-weight:800;margin-bottom:10px;color:#7488a0">Cutting Man Power <span style="font-size:11px;font-weight:700">(locked)</span></div>
+        ${hasMp?`<table style="border-collapse:collapse;font-size:13px;width:100%;color:#556">
+          <tr><td style="padding:4px 0">Incharge</td><td style="text-align:right">${num(mp.inc)}</td></tr>
+          <tr><td style="padding:4px 0">Supervisor</td><td style="text-align:right">${num(mp.sup)}</td></tr>
+          <tr><td style="padding:4px 0">Company Operator</td><td style="text-align:right">${num(mp.opC)}</td></tr>
+          <tr><td style="padding:4px 0">Cash Operator</td><td style="text-align:right">${num(mp.opCash)}</td></tr>
+          <tr><td style="padding:4px 0">Company Helper</td><td style="text-align:right">${num(mp.helC)}</td></tr>
+          <tr><td style="padding:4px 0">Cash Helper</td><td style="text-align:right">${num(mp.helCash)}</td></tr>
+        </table>`:'<span class="hint">Koi data nahi tha</span>'}
+      </div>
+    </div>`;
+  }
   const ex=extraFor(d); const mp=ex.mp||{};
   const chips=(ex.proc&&ex.proc.length)?ex.proc.map((it,i)=>`<span style="display:inline-flex;align-items:center;gap:6px;background:#eef4fb;border:1px solid #cdd7e3;border-radius:20px;padding:4px 10px;margin:6px 6px 0 0;font-size:12.5px"><b>${esc(it.name)}</b>&nbsp;\u2014 ${num(it.qty)} Kg <button type="button" data-exdel="${i}" style="border:none;background:#c62828;color:#fff;border-radius:50%;width:18px;height:18px;line-height:1;cursor:pointer;font-size:11px;padding:0">\u00d7</button></span>`).join(''):'<span class="hint">Abhi koi item add nahi hua \u2014 naam + qty daal ke Add dabao</span>';
   const inp='padding:9px 11px;border:1px solid #cdd7e3;border-radius:8px;font-size:13px;background:#fff';
@@ -2873,9 +2973,11 @@ function dayExtraPanelHTML(d){
       <table style="border-collapse:collapse;font-size:13px;width:100%">
         <tr><td style="padding:4px 10px 4px 0;font-weight:600">Incharge</td><td style="text-align:right"><input id="mpInc" type="number" inputmode="numeric" value="${v(mp.inc)}" style="${nin}"></td></tr>
         <tr><td style="padding:4px 10px 4px 0;font-weight:600">Supervisor</td><td style="text-align:right"><input id="mpSup" type="number" inputmode="numeric" value="${v(mp.sup)}" style="${nin}"></td></tr>
-        <tr><td style="padding:4px 10px 4px 0;font-weight:600">Operator</td><td style="text-align:right"><input id="mpOp" type="number" inputmode="numeric" value="${v(mp.op)}" style="${nin}"></td></tr>
-        <tr><td style="padding:4px 10px 4px 0;font-weight:600">Helper</td><td style="text-align:right"><input id="mpHel" type="number" inputmode="numeric" value="${v(mp.hel)}" style="${nin}"></td></tr>
-        <tr><td style="padding:7px 10px 4px 0;font-weight:800;border-top:1px solid #cdd7e3">Total</td><td id="mpTot" style="font-weight:800;text-align:right;padding-right:26px;border-top:1px solid #cdd7e3">${num(mp.inc)+num(mp.sup)+num(mp.op)+num(mp.hel)}</td></tr>
+        <tr><td style="padding:4px 10px 4px 0;font-weight:600">Company Operator</td><td style="text-align:right"><input id="mpOpC" type="number" inputmode="numeric" value="${v(mp.opC)}" style="${nin}"></td></tr>
+        <tr><td style="padding:4px 10px 4px 0;font-weight:600">Cash Operator</td><td style="text-align:right"><input id="mpOpCash" type="number" inputmode="numeric" value="${v(mp.opCash)}" style="${nin}"></td></tr>
+        <tr><td style="padding:4px 10px 4px 0;font-weight:600">Company Helper</td><td style="text-align:right"><input id="mpHelC" type="number" inputmode="numeric" value="${v(mp.helC)}" style="${nin}"></td></tr>
+        <tr><td style="padding:4px 10px 4px 0;font-weight:600">Cash Helper</td><td style="text-align:right"><input id="mpHelCash" type="number" inputmode="numeric" value="${v(mp.helCash)}" style="${nin}"></td></tr>
+        <tr><td style="padding:7px 10px 4px 0;font-weight:800;border-top:1px solid #cdd7e3">Total</td><td id="mpTot" style="font-weight:800;text-align:right;padding-right:26px;border-top:1px solid #cdd7e3">${num(mp.inc)+num(mp.sup)+num(mp.opC)+num(mp.opCash)+num(mp.helC)+num(mp.helCash)}</td></tr>
       </table>
       <button type="button" class="btn btn-primary" id="mpAdd" style="margin-top:10px;width:100%">Add</button>
     </div>
@@ -2883,14 +2985,15 @@ function dayExtraPanelHTML(d){
 }
 function wireDayExtraPanel(d){
   const panel=document.getElementById('dayExtraPanel'); if(!panel) return;
+  if(_lock48(d?d+'T00:00:00':null)) return;
   const refresh=()=>{
     panel.innerHTML=dayExtraPanelHTML(d);
     const host=document.getElementById('daySumHost');
     if(host){ host.innerHTML=buildDaySummaryHTML(d); try{ scaleReports(host.parentElement||document); }catch(e){} }
     wireDayExtraPanel(d);
   };
-  const upd=()=>{ const g=s=>num((panel.querySelector(s)||{}).value); const e=panel.querySelector('#mpTot'); if(e) e.textContent=g('#mpInc')+g('#mpSup')+g('#mpOp')+g('#mpHel'); };
-  ['#mpInc','#mpSup','#mpOp','#mpHel'].forEach(s=>{ const e=panel.querySelector(s); if(e) e.oninput=upd; });
+  const upd=()=>{ const g=s=>num((panel.querySelector(s)||{}).value); const e=panel.querySelector('#mpTot'); if(e) e.textContent=g('#mpInc')+g('#mpSup')+g('#mpOpC')+g('#mpOpCash')+g('#mpHelC')+g('#mpHelCash'); };
+  ['#mpInc','#mpSup','#mpOpC','#mpOpCash','#mpHelC','#mpHelCash'].forEach(s=>{ const e=panel.querySelector(s); if(e) e.oninput=upd; });
   const add=panel.querySelector('#exAdd');
   if(add) add.onclick=()=>{
     const n=(panel.querySelector('#exName').value||'').trim(); const q=num(panel.querySelector('#exQty').value);
@@ -2903,9 +3006,9 @@ function wireDayExtraPanel(d){
   const mpA=panel.querySelector('#mpAdd');
   if(mpA) mpA.onclick=()=>{
     const g=s=>num((panel.querySelector(s)||{}).value);
-    const inc=g('#mpInc'),sup=g('#mpSup'),op=g('#mpOp'),hel=g('#mpHel');
+    const inc=g('#mpInc'),sup=g('#mpSup'),opC=g('#mpOpC'),opCash=g('#mpOpCash'),helC=g('#mpHelC'),helCash=g('#mpHelCash');
     if(!EXTRA[d]) EXTRA[d]={proc:[],mp:null};
-    EXTRA[d].mp=(inc||sup||op||hel)?{inc:inc,sup:sup,op:op,hel:hel}:null;
+    EXTRA[d].mp=(inc||sup||opC||opCash||helC||helCash)?{inc:inc,sup:sup,opC:opC,opCash:opCash,helC:helC,helCash:helCash}:null;
     saveExtra(); refresh(); toast(EXTRA[d].mp?'Cutting Man Power summary me add ho gaya':'Man Power summary se hata diya','info');
   };
 }
