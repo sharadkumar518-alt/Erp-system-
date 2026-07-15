@@ -5249,14 +5249,18 @@ function _muDlg(idx){
     +'<input type="text" id="muDays" inputmode="numeric" placeholder="Khali = hamesha ke liye (no limit)">'
     +'<div id="muUntil" style="font-size:11px;font-weight:700;color:#7488a0;margin-top:5px"></div>'
     +'<label style="margin-top:14px">PANEL-WISE RIGHTS</label>'
-    +'<div class="mugrid"><table><thead><tr><th>PANEL</th><th style="text-align:center">EDIT</th><th style="text-align:center">DELETE</th></tr></thead><tbody>'
+    +'<div style="font-size:11px;color:#8a99ad;margin:0 0 5px;line-height:1.5">SHOW = panel dikhega \u00b7 EDIT/DEL = right \u00b7 DAYS = entry save hone ki date se kitne din tak button chalega (khali = hamesha)</div>'
+    +'<div class="mugrid"><table><thead><tr><th>PANEL</th><th style="text-align:center">SHOW</th><th style="text-align:center">EDIT</th><th style="text-align:center">DAYS</th><th style="text-align:center">DEL</th><th style="text-align:center">DAYS</th></tr></thead><tbody>'
     + MU_PANELS.map(function(pn){
         return '<tr><td>'+esc(pn[1])+'</td>'
+          +'<td style="text-align:center"><input type="checkbox" class="muTV" data-k="'+pn[0]+'"></td>'
           +'<td style="text-align:center"><input type="checkbox" class="muTE" data-k="'+pn[0]+'"></td>'
-          +'<td style="text-align:center"><input type="checkbox" class="muTD" data-k="'+pn[0]+'"></td></tr>';
+          +'<td style="text-align:center"><input type="text" class="muTED dnum" data-k="'+pn[0]+'" inputmode="numeric" placeholder="\u221e"></td>'
+          +'<td style="text-align:center"><input type="checkbox" class="muTD" data-k="'+pn[0]+'"></td>'
+          +'<td style="text-align:center"><input type="text" class="muTDD dnum" data-k="'+pn[0]+'" inputmode="numeric" placeholder="\u221e"></td></tr>';
       }).join('')
     +'</tbody></table></div>'
-    +'<div style="font-size:11px;color:#8a99ad;margin-top:6px;line-height:1.5">Panel-wise tick nahi karoge to upar wala overall right hi chalega. Din khatam hone par edit/delete apne aap band ho jayenge.</div>'
+    +'<div style="font-size:11px;color:#8a99ad;margin-top:6px;line-height:1.5">Misal: Records ke EDIT me 2 daalo \u2014 entry save hone ke 2 din baad Edit button apne aap halka (disabled) ho jayega. DEL me 7 daalo to 7 din baad Delete band.<br>Koi panel SHOW tick nahi karoge to role ke hisaab se default panels dikhenge.</div>'
     +'</div><div class="bf"><button class="btn btn-ghost" id="muX">Cancel</button><button class="btn btn-primary" id="muS">Save</button></div></div>';
   document.body.appendChild(d);
   if(r){
@@ -5265,6 +5269,10 @@ function _muDlg(idx){
     var tr=r.tab_rights||{};
     d.querySelectorAll('.muTE').forEach(function(cb){ var o=tr[cb.dataset.k]; cb.checked=!!(o&&o.e); });
     d.querySelectorAll('.muTD').forEach(function(cb){ var o=tr[cb.dataset.k]; cb.checked=!!(o&&o.d); });
+    d.querySelectorAll('.muTED').forEach(function(ip){ var o=tr[ip.dataset.k]; ip.value=(o&&o.ed>0)?o.ed:''; });
+    d.querySelectorAll('.muTDD').forEach(function(ip){ var o=tr[ip.dataset.k]; ip.value=(o&&o.dd>0)?o.dd:''; });
+    var vis=(typeof r.tabs==='string'&&r.tabs)?r.tabs.split(',').map(function(x){return x.trim();}):[];
+    d.querySelectorAll('.muTV').forEach(function(cb){ cb.checked=vis.indexOf(cb.dataset.k)>=0; });
     if(r.rights_until){
       var ms=new Date(r.rights_until+'T00:00:00').getTime()-new Date(new Date().toDateString()).getTime();
       var left=Math.round(ms/86400000)+1;
@@ -5292,10 +5300,13 @@ function _muDlg(idx){
     var _tr={}; var _any=false;
     d.querySelectorAll('.muTE').forEach(function(cb){ if(cb.checked){ _tr[cb.dataset.k]=_tr[cb.dataset.k]||{}; _tr[cb.dataset.k].e=true; _any=true; } });
     d.querySelectorAll('.muTD').forEach(function(cb){ if(cb.checked){ _tr[cb.dataset.k]=_tr[cb.dataset.k]||{}; _tr[cb.dataset.k].d=true; _any=true; } });
+    d.querySelectorAll('.muTED').forEach(function(ip){ var n=parseInt(ip.value,10); if(n>0){ _tr[ip.dataset.k]=_tr[ip.dataset.k]||{}; _tr[ip.dataset.k].ed=n; _any=true; } });
+    d.querySelectorAll('.muTDD').forEach(function(ip){ var n=parseInt(ip.value,10); if(n>0){ _tr[ip.dataset.k]=_tr[ip.dataset.k]||{}; _tr[ip.dataset.k].dd=n; _any=true; } });
+    var _vis=[]; d.querySelectorAll('.muTV').forEach(function(cb){ if(cb.checked) _vis.push(cb.dataset.k); });
     var _dv=parseInt(d.querySelector('#muDays').value,10);
     _muRpc('comsyn_user_save',{u:cr.u,p:cr.p,t_user:tu,t_pass:tp,t_role:d.querySelector('#muR').value,
       t_edit:d.querySelector('#muE').checked,t_delete:d.querySelector('#muD').checked,
-      t_tabs:(r&&typeof r.tabs==='string')?r.tabs:null,t_blocked:d.querySelector('#muB').checked,
+      t_tabs:_vis.length?_vis.join(','):null,t_blocked:d.querySelector('#muB').checked,
       t_tab_rights:_any?_tr:null, t_days:(_dv&&_dv>0)?_dv:null}).then(function(j){
       if(j&&j.ok){ toast(isNew?'User ban gaya':'Update ho gaya','ok'); d.remove(); _muLoad(); }
       else { toast((j&&(j.error||j.message))?(j.error||j.message):'Save nahi hua','err'); d.querySelector('#muS').disabled=false; }
@@ -6246,30 +6257,97 @@ function renderTrash(){
     document.addEventListener('keydown',function(e){ var k=(e.key||'').toUpperCase(); if(k==='F12'){ e.preventDefault(); return; } if((e.ctrlKey||e.metaKey)&&e.shiftKey&&(k==='I'||k==='J'||k==='C')){ e.preventDefault(); return; } if((e.ctrlKey||e.metaKey)&&k==='U'){ e.preventDefault(); return; } });
   }catch(e){}
   /* per-user Edit/Delete rights gate (Supabase comsyn_users: can_edit / can_delete / tab_rights / rights_until) */
+  function _trObj(){ try{ var r=sessionStorage.getItem('comsyn_tab_rights')||''; return r?(JSON.parse(r)||{}):{}; }catch(e){ return {}; } }
+  function _globExpired(){
+    try{
+      if(sessionStorage.getItem('comsyn_rights_expired')==='1') return true;
+      var ru=sessionStorage.getItem('comsyn_rights_until')||'';
+      if(ru){ var t=new Date(ru+'T23:59:59').getTime(); if(isFinite(t) && Date.now()>t) return true; }
+    }catch(e){}
+    return false;
+  }
+  /* entry ki savedAt date se kitne din beet gaye */
+  function _ageDays(savedAt){
+    try{
+      var t=(typeof savedAt==='number')?savedAt:new Date(savedAt).getTime();
+      if(!isFinite(t)) return null;
+      var a=new Date(t); a=new Date(a.getFullYear(),a.getMonth(),a.getDate());
+      var n=new Date(); n=new Date(n.getFullYear(),n.getMonth(),n.getDate());
+      return Math.round((n-a)/86400000);
+    }catch(e){ return null; }
+  }
+  /* window khatam? kind='edit'|'delete', savedAt = entry save hone ka time */
+  window._comsynWinOver=function(kind,savedAt){
+    try{
+      if(sessionStorage.getItem('comsyn_role')==='admin') return false;
+      var o=_trObj()[current]; if(!o) return false;
+      var lim=(kind==='delete')?o.dd:o.ed;
+      if(!lim||lim<=0) return false;
+      var ag=_ageDays(savedAt); if(ag===null) return false;
+      return ag >= lim;
+    }catch(e){ return false; }
+  };
   function _rightFor(kind){
     try{
       if(sessionStorage.getItem('comsyn_role')==='admin') return true;
-      if(sessionStorage.getItem('comsyn_rights_expired')==='1') return false;
-      var ru=sessionStorage.getItem('comsyn_rights_until')||'';
-      if(ru){ var t=new Date(ru+'T23:59:59').getTime(); if(isFinite(t) && Date.now()>t) return false; }
-      var raw=sessionStorage.getItem('comsyn_tab_rights')||'';
-      if(raw){
-        var tr=JSON.parse(raw)||{};
-        if(tr && Object.keys(tr).length){
-          var o=tr[current];
-          return !!(o && o[kind==='delete'?'d':'e']);
-        }
+      if(_globExpired()) return false;
+      var tr=_trObj();
+      if(tr && Object.keys(tr).length){
+        var o=tr[current];
+        if(o && (o.e!==undefined || o.d!==undefined)) return !!o[kind==='delete'?'d':'e'];
       }
       return sessionStorage.getItem(kind==='delete'?'comsyn_can_delete':'comsyn_can_edit')!=='0';
     }catch(e){ return true; }
   }
+  /* row ka savedAt dhoondho (RECORDS/ORDERS/BATCHES me id se) */
+  function _findSavedAt(btn){
+    try{
+      var id=btn.dataset&&(btn.dataset.id||btn.dataset.edit||btn.dataset.oedit);
+      if(!id){ var h=btn.closest('[data-id],[data-edit],[data-oedit]'); if(h) id=h.dataset.id||h.dataset.edit||h.dataset.oedit; }
+      if(!id) return null;
+      var arrs=[];
+      try{ if(typeof RECORDS!=='undefined'&&RECORDS) arrs.push(RECORDS); }catch(e){}
+      try{ if(typeof ORDERS!=='undefined'&&ORDERS) arrs.push(ORDERS); }catch(e){}
+      try{ if(typeof BATCHES!=='undefined'&&BATCHES) arrs.push(BATCHES); }catch(e){}
+      for(var i=0;i<arrs.length;i++){
+        var f=(arrs[i]||[]).find(function(x){ return x && String(x.id)===String(id); });
+        if(f) return f.savedAt||f.date||null;
+      }
+    }catch(e){}
+    return null;
+  }
+  /* disabled dikhne wale buttons ko halka kar do */
+  function _paintWindows(){
+    try{
+      if(sessionStorage.getItem('comsyn_role')==='admin') return;
+      var o=_trObj()[current]; if(!o||(!(o.ed>0)&&!(o.dd>0))) return;
+      document.querySelectorAll('[data-act="edit"],[data-act="del"],[data-edit],[data-oedit]').forEach(function(b){
+        var isDel=(b.dataset.act==='del');
+        var lim=isDel?o.dd:o.ed; if(!lim||lim<=0) return;
+        var sa=_findSavedAt(b); if(!sa) return;
+        if(window._comsynWinOver(isDel?'delete':'edit',sa)){
+          b.style.opacity='.35'; b.style.filter='grayscale(1)'; b.style.cursor='not-allowed';
+          b.setAttribute('data-winover',isDel?'delete':'edit');
+          b.title=(isDel?'Delete':'Edit')+' ki '+lim+' din ki limit khatam ho gayi';
+        } else { b.removeAttribute('data-winover'); }
+      });
+    }catch(e){}
+  }
+  window._comsynPaint=_paintWindows;
+  setInterval(_paintWindows, 1200);
   document.addEventListener('click',function(e){
     var t=(e.target && e.target.closest)?e.target.closest('button,[role="button"]'):null;
     if(!t) return;
     if(t.closest && t.closest('.mudlg')) return;
     var txt=((t.textContent||'')+' '+(t.title||'')+' '+(t.className||'')).toLowerCase();
-    var isDel=/\bdelete\b|\bdel\b|btn-danger|btn-del/.test(txt);
-    var isEdit=/\bedit\b/.test(txt);
+    var isDel=/\bdelete\b|\bdel\b|btn-danger|btn-del/.test(txt) || t.dataset.act==='del';
+    var isEdit=/\bedit\b/.test(txt) || t.dataset.act==='edit' || t.dataset.edit!==undefined || t.dataset.oedit!==undefined;
+    var wo=t.getAttribute&&t.getAttribute('data-winover');
+    if(wo){
+      e.preventDefault(); e.stopPropagation();
+      try{toast(t.title||'Is entry pe time limit khatam ho gayi','err');}catch(_e){}
+      return;
+    }
     if(isDel && !_rightFor('delete')){
       e.preventDefault(); e.stopPropagation();
       try{toast(_expTxt('Delete'),'err');}catch(_e){}
@@ -6281,11 +6359,7 @@ function renderTrash(){
     }
   },true);
   function _expTxt(w){
-    try{
-      var ru=sessionStorage.getItem('comsyn_rights_until')||'';
-      if(sessionStorage.getItem('comsyn_rights_expired')==='1' || (ru && Date.now()>new Date(ru+'T23:59:59').getTime()))
-        return 'Aapke rights ki date khatam ho gayi \u2014 admin se baat karo';
-    }catch(e){}
+    if(_globExpired()) return 'Aapke rights ki date khatam ho gayi \u2014 admin se baat karo';
     return 'Is panel me aapko '+w+' ka right nahi hai \u2014 admin se baat karo';
   }
   init();
