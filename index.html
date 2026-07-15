@@ -5161,6 +5161,7 @@ function dshChartSVG(series){
 }
 /* ---- MANAGE USERS PANEL (admin only) ---- */
 var _muRows=[];
+var MU_PANELS=[['entry','Entry'],['records','Records'],['orderentry','Order Entry'],['batch','Batch'],['cuttingstock','Cutting Stock'],['cuttingreport','Cutting Report'],['mtrreport','MTR Report'],['dashboard','Dashboard'],['assign','Assignment'],['orderassign','Order Assign'],['trash','Trash']];
 function _muCreds(){ var u,p; try{ u=sessionStorage.getItem('comsyn_user'); p=sessionStorage.getItem('comsyn_pass'); }catch(e){} return {u:u,p:p}; }
 function _muRpc(fn,body){
   return fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{ method:'POST', headers:SB_HEADERS, body:JSON.stringify(body) })
@@ -5191,6 +5192,12 @@ function renderManageUsers(){
     .mudlg input[type=text],.mudlg input[type=password],.mudlg select{width:100%;padding:9px 11px;border:1.5px solid #dbe3ec;border-radius:9px;font:inherit;font-size:14px;box-sizing:border-box}
     .mudlg .cbrow{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:13px;font-weight:700;color:#33475f}
     .mudlg .bf{display:flex;gap:9px;justify-content:flex-end;padding:12px 18px;border-top:1px solid #edf1f6}
+    .mudlg .mugrid{border:1px solid #dbe3ec;border-radius:9px;overflow:hidden;margin-top:4px}
+    .mudlg .mugrid table{width:100%;border-collapse:collapse;font-size:12.5px}
+    .mudlg .mugrid th{background:#eef2f7;color:#33475f;font-size:10px;letter-spacing:.6px;font-weight:800;padding:7px 9px;text-align:left}
+    .mudlg .mugrid td{padding:6px 9px;border-top:1px solid #edf1f6;font-weight:700;color:#33475f}
+    .mudlg .mugrid tr:nth-child(even) td{background:#fafcfe}
+    .mudlg .mugrid input[type=checkbox]{width:17px;height:17px}
   </style>
   <div class="view"><div class="mu">
     <div class="mhead">
@@ -5235,12 +5242,45 @@ function _muDlg(idx){
     +'<label>USER ID</label><input type="text" id="muU" value="'+(isNew?'':esc(r.username))+'" '+(isNew?'':'readonly style="background:#f2f5f9"')+'>'
     +'<label>PASSWORD '+(isNew?'':'(khali = purana hi rahega)')+'</label><input type="password" id="muP" placeholder="'+(isNew?'Naya password':'Badalna ho to likho')+'">'
     +'<label>ROLE</label><select id="muR"><option value="admin">admin</option><option value="entry">entry</option><option value="view">view</option></select>'
-    +'<div class="cbrow"><input type="checkbox" id="muE"> <span>Edit kar sakta hai</span></div>'
-    +'<div class="cbrow"><input type="checkbox" id="muD"> <span>Delete kar sakta hai</span></div>'
+    +'<div class="cbrow"><input type="checkbox" id="muE"> <span>Edit kar sakta hai (overall)</span></div>'
+    +'<div class="cbrow"><input type="checkbox" id="muD"> <span>Delete kar sakta hai (overall)</span></div>'
     +'<div class="cbrow"><input type="checkbox" id="muB"> <span>Blocked (login band)</span></div>'
+    +'<label style="margin-top:14px">RIGHTS KITNE DIN KE (aaj se)</label>'
+    +'<input type="text" id="muDays" inputmode="numeric" placeholder="Khali = hamesha ke liye (no limit)">'
+    +'<div id="muUntil" style="font-size:11px;font-weight:700;color:#7488a0;margin-top:5px"></div>'
+    +'<label style="margin-top:14px">PANEL-WISE RIGHTS</label>'
+    +'<div class="mugrid"><table><thead><tr><th>PANEL</th><th style="text-align:center">EDIT</th><th style="text-align:center">DELETE</th></tr></thead><tbody>'
+    + MU_PANELS.map(function(pn){
+        return '<tr><td>'+esc(pn[1])+'</td>'
+          +'<td style="text-align:center"><input type="checkbox" class="muTE" data-k="'+pn[0]+'"></td>'
+          +'<td style="text-align:center"><input type="checkbox" class="muTD" data-k="'+pn[0]+'"></td></tr>';
+      }).join('')
+    +'</tbody></table></div>'
+    +'<div style="font-size:11px;color:#8a99ad;margin-top:6px;line-height:1.5">Panel-wise tick nahi karoge to upar wala overall right hi chalega. Din khatam hone par edit/delete apne aap band ho jayenge.</div>'
     +'</div><div class="bf"><button class="btn btn-ghost" id="muX">Cancel</button><button class="btn btn-primary" id="muS">Save</button></div></div>';
   document.body.appendChild(d);
-  if(r){ d.querySelector('#muR').value=r.role||'view'; d.querySelector('#muE').checked=!!r.can_edit; d.querySelector('#muD').checked=!!r.can_delete; d.querySelector('#muB').checked=!!r.blocked; }
+  if(r){
+    d.querySelector('#muR').value=r.role||'view'; d.querySelector('#muE').checked=!!r.can_edit;
+    d.querySelector('#muD').checked=!!r.can_delete; d.querySelector('#muB').checked=!!r.blocked;
+    var tr=r.tab_rights||{};
+    d.querySelectorAll('.muTE').forEach(function(cb){ var o=tr[cb.dataset.k]; cb.checked=!!(o&&o.e); });
+    d.querySelectorAll('.muTD').forEach(function(cb){ var o=tr[cb.dataset.k]; cb.checked=!!(o&&o.d); });
+    if(r.rights_until){
+      var ms=new Date(r.rights_until+'T00:00:00').getTime()-new Date(new Date().toDateString()).getTime();
+      var left=Math.round(ms/86400000)+1;
+      d.querySelector('#muDays').value=left>0?left:0;
+    }
+  }
+  var _muUp=function(){
+    var v=parseInt(d.querySelector('#muDays').value,10);
+    var el=d.querySelector('#muUntil');
+    if(!v||v<=0){ el.textContent='Koi limit nahi \u2014 rights hamesha chalenge'; el.style.color='#7488a0'; return; }
+    var dt=new Date(); dt.setDate(dt.getDate()+(v-1));
+    var p=function(n){return (n<10?'0':'')+n;};
+    el.textContent='Rights chalenge: '+p(dt.getDate())+'/'+p(dt.getMonth()+1)+'/'+dt.getFullYear()+' tak';
+    el.style.color='#1c5e33';
+  };
+  d.querySelector('#muDays').oninput=_muUp; _muUp();
   d.querySelector('#muX').onclick=function(){ d.remove(); };
   d.querySelector('#muS').onclick=function(){
     var cr=_muCreds();
@@ -5249,11 +5289,16 @@ function _muDlg(idx){
     if(!tu){ toast('User ID daalo','err'); return; }
     if(isNew && !tp){ toast('Naye user ka password zaroori hai','err'); return; }
     d.querySelector('#muS').disabled=true;
+    var _tr={}; var _any=false;
+    d.querySelectorAll('.muTE').forEach(function(cb){ if(cb.checked){ _tr[cb.dataset.k]=_tr[cb.dataset.k]||{}; _tr[cb.dataset.k].e=true; _any=true; } });
+    d.querySelectorAll('.muTD').forEach(function(cb){ if(cb.checked){ _tr[cb.dataset.k]=_tr[cb.dataset.k]||{}; _tr[cb.dataset.k].d=true; _any=true; } });
+    var _dv=parseInt(d.querySelector('#muDays').value,10);
     _muRpc('comsyn_user_save',{u:cr.u,p:cr.p,t_user:tu,t_pass:tp,t_role:d.querySelector('#muR').value,
       t_edit:d.querySelector('#muE').checked,t_delete:d.querySelector('#muD').checked,
-      t_tabs:(r&&r.tabs)?r.tabs:'',t_blocked:d.querySelector('#muB').checked}).then(function(j){
+      t_tabs:(r&&typeof r.tabs==='string')?r.tabs:null,t_blocked:d.querySelector('#muB').checked,
+      t_tab_rights:_any?_tr:null, t_days:(_dv&&_dv>0)?_dv:null}).then(function(j){
       if(j&&j.ok){ toast(isNew?'User ban gaya':'Update ho gaya','ok'); d.remove(); _muLoad(); }
-      else { toast((j&&j.error)?j.error:'Save nahi hua','err'); d.querySelector('#muS').disabled=false; }
+      else { toast((j&&(j.error||j.message))?(j.error||j.message):'Save nahi hua','err'); d.querySelector('#muS').disabled=false; }
     }).catch(function(){ toast('Network error','err'); d.querySelector('#muS').disabled=false; });
   };
 }
@@ -5946,7 +5991,10 @@ function renderTrash(){
         catch(e){ role=(res.text||'').replace(/^\"|\"$/g,'')||null; }
         if(j && typeof j==='object' && j.error==='blocked'){ setMsg('Access Denied \u2014 Your account has been blocked by the administrator. Please contact your administrator.'); return; }
         var canE='1', canD='1', tabsStr='';
-        if(j && typeof j==='object'){ if(j.can_edit===false||j.can_edit==='false') canE='0'; if(j.can_delete===false||j.can_delete==='false') canD='0'; if(typeof j.tabs==='string') tabsStr=j.tabs; }
+        if(j && typeof j==='object'){ if(j.can_edit===false||j.can_edit==='false') canE='0'; if(j.can_delete===false||j.can_delete==='false') canD='0'; if(typeof j.tabs==='string') tabsStr=j.tabs;
+          try{ sessionStorage.setItem('comsyn_tab_rights', (j.tab_rights && typeof j.tab_rights==='object')?JSON.stringify(j.tab_rights):'');
+               sessionStorage.setItem('comsyn_rights_until', j.rights_until||'');
+               sessionStorage.setItem('comsyn_rights_expired', j.expired?'1':'0'); }catch(_e){} }
         if(role){
           _setLock({fails:0,until:0,stage:0});
           sessionStorage.setItem('comsyn_role',role); sessionStorage.setItem('comsyn_user',u); sessionStorage.setItem('comsyn_pass',p);
@@ -6197,23 +6245,49 @@ function renderTrash(){
     document.addEventListener('contextmenu',function(e){ e.preventDefault(); });
     document.addEventListener('keydown',function(e){ var k=(e.key||'').toUpperCase(); if(k==='F12'){ e.preventDefault(); return; } if((e.ctrlKey||e.metaKey)&&e.shiftKey&&(k==='I'||k==='J'||k==='C')){ e.preventDefault(); return; } if((e.ctrlKey||e.metaKey)&&k==='U'){ e.preventDefault(); return; } });
   }catch(e){}
-  /* per-user Edit/Delete rights gate (Supabase comsyn_users: can_edit / can_delete) */
+  /* per-user Edit/Delete rights gate (Supabase comsyn_users: can_edit / can_delete / tab_rights / rights_until) */
+  function _rightFor(kind){
+    try{
+      if(sessionStorage.getItem('comsyn_role')==='admin') return true;
+      if(sessionStorage.getItem('comsyn_rights_expired')==='1') return false;
+      var ru=sessionStorage.getItem('comsyn_rights_until')||'';
+      if(ru){ var t=new Date(ru+'T23:59:59').getTime(); if(isFinite(t) && Date.now()>t) return false; }
+      var raw=sessionStorage.getItem('comsyn_tab_rights')||'';
+      if(raw){
+        var tr=JSON.parse(raw)||{};
+        if(tr && Object.keys(tr).length){
+          var o=tr[current];
+          return !!(o && o[kind==='delete'?'d':'e']);
+        }
+      }
+      return sessionStorage.getItem(kind==='delete'?'comsyn_can_delete':'comsyn_can_edit')!=='0';
+    }catch(e){ return true; }
+  }
   document.addEventListener('click',function(e){
     var t=(e.target && e.target.closest)?e.target.closest('button,[role="button"]'):null;
     if(!t) return;
+    if(t.closest && t.closest('.mudlg')) return;
     var txt=((t.textContent||'')+' '+(t.title||'')+' '+(t.className||'')).toLowerCase();
     var isDel=/\bdelete\b|\bdel\b|btn-danger|btn-del/.test(txt);
     var isEdit=/\bedit\b/.test(txt);
-    if(isDel && sessionStorage.getItem('comsyn_can_delete')==='0'){
+    if(isDel && !_rightFor('delete')){
       e.preventDefault(); e.stopPropagation();
-      try{toast('Aapko Delete ka right nahi hai \u2014 admin se baat karo','err');}catch(_e){}
+      try{toast(_expTxt('Delete'),'err');}catch(_e){}
       return;
     }
-    if(isEdit && sessionStorage.getItem('comsyn_can_edit')==='0'){
+    if(isEdit && !_rightFor('edit')){
       e.preventDefault(); e.stopPropagation();
-      try{toast('Aapko Edit ka right nahi hai \u2014 admin se baat karo','err');}catch(_e){}
+      try{toast(_expTxt('Edit'),'err');}catch(_e){}
     }
   },true);
+  function _expTxt(w){
+    try{
+      var ru=sessionStorage.getItem('comsyn_rights_until')||'';
+      if(sessionStorage.getItem('comsyn_rights_expired')==='1' || (ru && Date.now()>new Date(ru+'T23:59:59').getTime()))
+        return 'Aapke rights ki date khatam ho gayi \u2014 admin se baat karo';
+    }catch(e){}
+    return 'Is panel me aapko '+w+' ka right nahi hai \u2014 admin se baat karo';
+  }
   init();
 })();
 </script>
