@@ -1560,6 +1560,10 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Active Users
       </button>
+      <button data-tab="manageusers">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+        Manage Users
+      </button>
     </nav>
     <div class="side-foot">
       <span class="dot"></span> <span id="userChip">—</span><br>
@@ -1770,7 +1774,8 @@ const TAB_META={
   assign:{title:'Assignment',sub:'Build & configure your entry form'},
   orderassign:{title:'Order Entry Assignment',sub:'Build & configure the order entry form'},
   trash:{title:'Trash',sub:'Deleted items \u2014 restore or delete permanently'},
-  users:{title:'Active Users',sub:'Live devices \u2014 kaun connected hai, block/unblock control'}
+  users:{title:'Active Users',sub:'Live devices \u2014 kaun connected hai, block/unblock control'},
+  manageusers:{title:'Manage Users',sub:'User ID banao \u00b7 password badlo \u00b7 role & rights set karo'}
 };
 let current='entry';
 function setTab(tab){
@@ -1797,6 +1802,7 @@ function render(){
   else if(current==='batch') renderBatch();
   else if(current==='trash') renderTrash();
   else if(current==='users') renderUsers();
+  else if(current==='manageusers') renderManageUsers();
   else if(current==='orderassign') renderOrderAssign();
   else renderAssign();
 }
@@ -5153,6 +5159,121 @@ function dshChartSVG(series){
     <path class="area" d="${area}"/><path class="line" d="${line}"/>
   </svg>`;
 }
+/* ---- MANAGE USERS PANEL (admin only) ---- */
+var _muRows=[];
+function _muCreds(){ var u,p; try{ u=sessionStorage.getItem('comsyn_user'); p=sessionStorage.getItem('comsyn_pass'); }catch(e){} return {u:u,p:p}; }
+function _muRpc(fn,body){
+  return fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{ method:'POST', headers:SB_HEADERS, body:JSON.stringify(body) })
+    .then(function(r){ return r.json().catch(function(){ return null; }); });
+}
+function renderManageUsers(){
+  var c=document.getElementById('content');
+  try{ document.getElementById('topActions').innerHTML=''; }catch(e){}
+  c.innerHTML=`<style>
+    .mu{font-variant-numeric:tabular-nums;max-width:1050px}
+    .mu .mhead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:linear-gradient(135deg,#152841,#1f3a5f);color:#fff;border-radius:13px;padding:14px 18px;border-bottom:3px solid #2e86c1}
+    .mu .mhead .t{font-family:Georgia,serif;font-weight:800;font-size:17px;letter-spacing:.4px}
+    .mu .mhead .s{font-size:11px;opacity:.85;margin-top:3px;letter-spacing:.6px;font-weight:700}
+    .mu .mtblw{border:1px solid #dbe3ec;border-radius:12px;overflow:auto;background:#fff;box-shadow:0 1px 4px rgba(18,36,58,.07);margin-top:12px}
+    .mu table{width:100%;border-collapse:collapse;font-size:13px;min-width:680px}
+    .mu th{background:linear-gradient(135deg,#1a3050,#1f3a5f);color:#fff;font-size:10.5px;letter-spacing:.9px;font-weight:800;padding:10px 12px;text-align:left;white-space:nowrap}
+    .mu td{padding:10px 12px;border-top:1px solid #edf1f6;vertical-align:middle;white-space:nowrap}
+    .mu tr:nth-child(even) td{background:#fafcfe}
+    .mu .pill{font-size:10px;font-weight:800;padding:3px 10px;border-radius:10px;letter-spacing:.5px;display:inline-block}
+    .mu .pg{background:#d6efdc;color:#1c5e33} .mu .pr{background:#fbd6e0;color:#8c1f3a} .mu .pb{background:#cfe2f3;color:#1a4a73}
+    .mu .mbtn{border:none;border-radius:8px;padding:6px 12px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;color:#fff;margin-right:5px}
+    .mu .hint2{color:#8a99ad;font-size:12px;margin-top:10px;line-height:1.6}
+    .mudlg{position:fixed;inset:0;background:rgba(10,20,34,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px}
+    .mudlg .box{background:#fff;border-radius:14px;max-width:430px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 18px 50px rgba(0,0,0,.3)}
+    .mudlg .bh{background:linear-gradient(135deg,#152841,#1f3a5f);color:#fff;padding:13px 18px;font-weight:800;font-size:15px;border-radius:14px 14px 0 0}
+    .mudlg .bb{padding:16px 18px}
+    .mudlg label{display:block;font-size:11px;font-weight:800;color:#5a6b80;letter-spacing:.5px;margin:10px 0 4px}
+    .mudlg input[type=text],.mudlg input[type=password],.mudlg select{width:100%;padding:9px 11px;border:1.5px solid #dbe3ec;border-radius:9px;font:inherit;font-size:14px;box-sizing:border-box}
+    .mudlg .cbrow{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:13px;font-weight:700;color:#33475f}
+    .mudlg .bf{display:flex;gap:9px;justify-content:flex-end;padding:12px 18px;border-top:1px solid #edf1f6}
+  </style>
+  <div class="view"><div class="mu">
+    <div class="mhead">
+      <div><div class="t">MANAGE USERS</div><div class="s">USER BANAO \u00b7 PASSWORD BADLO \u00b7 ROLE & RIGHTS \u00b7 BLOCK/UNBLOCK</div></div>
+      <div><button class="btn btn-primary" id="muAdd">+ New User</button> <button class="btn btn-ghost" id="muRef">Refresh</button></div>
+    </div>
+    <div class="mtblw"><table>
+      <thead><tr><th>USER ID</th><th>ROLE</th><th>EDIT</th><th>DELETE</th><th>STATUS</th><th>ACTION</th></tr></thead>
+      <tbody id="muRows"><tr><td colspan="6" style="text-align:center;color:#8a99ad;padding:22px">Loading\u2026</td></tr></tbody>
+    </table></div>
+    <div class="hint2">Password hamesha encrypt (hashed) hokar save hota hai \u2014 kisi ko dikhta nahi, database me bhi nahi.<br>Edit karte waqt password khali chhodoge to purana hi rahega.</div>
+  </div></div>`;
+  document.getElementById('muAdd').onclick=function(){ _muDlg(null); };
+  document.getElementById('muRef').onclick=_muLoad;
+  _muLoad();
+}
+function _muLoad(){
+  var cr=_muCreds(); if(!cr.u||!cr.p) return;
+  _muRpc('comsyn_user_list',{u:cr.u,p:cr.p}).then(function(rows){
+    var tb=document.getElementById('muRows'); if(!tb) return;
+    if(!rows||rows.error||!Array.isArray(rows)){
+      tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:#b03a5b;padding:22px">Sirf admin dekh sakta hai</td></tr>'; return;
+    }
+    _muRows=rows;
+    if(!rows.length){ tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:#8a99ad;padding:22px">Koi user nahi</td></tr>'; return; }
+    tb.innerHTML=rows.map(function(r,i){
+      return '<tr><td style="font-weight:800">'+esc(r.username)+'</td>'
+        +'<td><span class="pill pb">'+esc(String(r.role||'').toUpperCase())+'</span></td>'
+        +'<td>'+(r.can_edit?'<span class="pill pg">YES</span>':'<span class="pill pr">NO</span>')+'</td>'
+        +'<td>'+(r.can_delete?'<span class="pill pg">YES</span>':'<span class="pill pr">NO</span>')+'</td>'
+        +'<td>'+(r.blocked?'<span class="pill pr">BLOCKED</span>':'<span class="pill pg">ACTIVE</span>')+'</td>'
+        +'<td><button class="mbtn" style="background:#2e86c1" onclick="_muDlg('+i+')">Edit</button>'
+        +'<button class="mbtn" style="background:#c0392b" onclick="_muDel('+i+')">Delete</button></td></tr>';
+    }).join('');
+  }).catch(function(){});
+}
+function _muDlg(idx){
+  var r=(idx===null||idx===undefined)?null:_muRows[idx];
+  var isNew=!r;
+  var d=document.createElement('div'); d.className='mudlg';
+  d.innerHTML='<div class="box"><div class="bh">'+(isNew?'New User':'Edit \u2014 '+esc(r.username))+'</div><div class="bb">'
+    +'<label>USER ID</label><input type="text" id="muU" value="'+(isNew?'':esc(r.username))+'" '+(isNew?'':'readonly style="background:#f2f5f9"')+'>'
+    +'<label>PASSWORD '+(isNew?'':'(khali = purana hi rahega)')+'</label><input type="password" id="muP" placeholder="'+(isNew?'Naya password':'Badalna ho to likho')+'">'
+    +'<label>ROLE</label><select id="muR"><option value="admin">admin</option><option value="entry">entry</option><option value="view">view</option></select>'
+    +'<div class="cbrow"><input type="checkbox" id="muE"> <span>Edit kar sakta hai</span></div>'
+    +'<div class="cbrow"><input type="checkbox" id="muD"> <span>Delete kar sakta hai</span></div>'
+    +'<div class="cbrow"><input type="checkbox" id="muB"> <span>Blocked (login band)</span></div>'
+    +'</div><div class="bf"><button class="btn btn-ghost" id="muX">Cancel</button><button class="btn btn-primary" id="muS">Save</button></div></div>';
+  document.body.appendChild(d);
+  if(r){ d.querySelector('#muR').value=r.role||'view'; d.querySelector('#muE').checked=!!r.can_edit; d.querySelector('#muD').checked=!!r.can_delete; d.querySelector('#muB').checked=!!r.blocked; }
+  d.querySelector('#muX').onclick=function(){ d.remove(); };
+  d.querySelector('#muS').onclick=function(){
+    var cr=_muCreds();
+    var tu=d.querySelector('#muU').value.trim();
+    var tp=d.querySelector('#muP').value;
+    if(!tu){ toast('User ID daalo','err'); return; }
+    if(isNew && !tp){ toast('Naye user ka password zaroori hai','err'); return; }
+    d.querySelector('#muS').disabled=true;
+    _muRpc('comsyn_user_save',{u:cr.u,p:cr.p,t_user:tu,t_pass:tp,t_role:d.querySelector('#muR').value,
+      t_edit:d.querySelector('#muE').checked,t_delete:d.querySelector('#muD').checked,
+      t_tabs:(r&&r.tabs)?r.tabs:'',t_blocked:d.querySelector('#muB').checked}).then(function(j){
+      if(j&&j.ok){ toast(isNew?'User ban gaya':'Update ho gaya','ok'); d.remove(); _muLoad(); }
+      else { toast((j&&j.error)?j.error:'Save nahi hua','err'); d.querySelector('#muS').disabled=false; }
+    }).catch(function(){ toast('Network error','err'); d.querySelector('#muS').disabled=false; });
+  };
+}
+function _muDel(idx){
+  var r=_muRows[idx]; if(!r) return;
+  var cr=_muCreds();
+  var d=document.createElement('div'); d.className='mudlg';
+  d.innerHTML='<div class="box"><div class="bh">Delete User</div><div class="bb" style="font-size:14px;line-height:1.6">'
+    +'<b>'+esc(r.username)+'</b> ko delete karna hai? Ye wapas nahi aayega.</div>'
+    +'<div class="bf"><button class="btn btn-ghost" id="mdX">Cancel</button><button class="btn" id="mdY" style="background:#c0392b;color:#fff">Delete</button></div></div>';
+  document.body.appendChild(d);
+  d.querySelector('#mdX').onclick=function(){ d.remove(); };
+  d.querySelector('#mdY').onclick=function(){
+    _muRpc('comsyn_user_delete',{u:cr.u,p:cr.p,t_user:r.username}).then(function(j){
+      if(j&&j.ok){ toast('Delete ho gaya','ok'); d.remove(); _muLoad(); }
+      else { toast((j&&j.error)?j.error:'Delete nahi hua','err'); }
+    }).catch(function(){ toast('Network error','err'); });
+  };
+}
+
 /* ---- ACTIVE USERS PANEL (admin) ---- */
 let _usersTimer=null;
 function _agoTxt(iso){
@@ -5736,7 +5857,7 @@ function renderTrash(){
 
 /* ===== LOGIN + ROLE-BASED ACCESS ===== */
 (function(){
-  const ROLE_HIDE = { view:['entry','orderentry','assign','orderassign','trash','users'], entry:['assign','orderassign','trash','users'], admin:[] };
+  const ROLE_HIDE = { view:['entry','orderentry','assign','orderassign','trash','users','manageusers'], entry:['assign','orderassign','trash','users','manageusers'], admin:[] };
   function applyRole(role){
     const hide=ROLE_HIDE[role]||ROLE_HIDE.view;
     let allowed=null;
