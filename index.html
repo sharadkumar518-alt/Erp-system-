@@ -5142,6 +5142,49 @@ function dshAgg(mode){
   });
   return { recs, mach, totProd, totW, series, xlabs, label };
 }
+/* ===== MACHINE LIVE STATUS (running / stopped) =====
+   Logic: machine ki AAJ ki sabse nayi entry dekho.
+   Wastage + Location abhi nahi bhari => roll chal raha hai => RUNNING (roll save time se)
+   Bhar di => STOPPED (entry ke aakhri update time se), jab tak nayi roll entry na aaye */
+function _dshRecFilled(r){
+  try{
+    var lr; try{ lr=liveRec(r); }catch(e){ lr=r; }
+    var cfg=lr.config||{}; var secs=(cfg.sections||[]);
+    var wSec=secs.find(function(s){ return /wastage/i.test(s.title||''); });
+    var lSec=secs.find(function(s){ return /location/i.test(s.title||''); });
+    var hasVal=function(sec){
+      if(!sec) return false;
+      var rows=(lr.sections&&lr.sections[sec.id])||[];
+      for(var i=0;i<rows.length;i++){ var row=rows[i]||{};
+        for(var kk in row){ var v=row[kk]; if(v!==null&&v!==undefined&&String(v).trim()!==''&&String(v).trim()!=='0') return true; } }
+      return false;
+    };
+    return hasVal(wSec) && hasVal(lSec);
+  }catch(e){ return false; }
+}
+function _dshAgo(ms){
+  if(!isFinite(ms)||ms<0) ms=0;
+  var s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor((s%3600)/60);
+  if(h>=1) return h+'h '+String(m).padStart(2,'0')+'m';
+  return m+'m '+String(s%60).padStart(2,'0')+'s';
+}
+function dshMachineStatus(){
+  var iso=todayISO(); var out={};
+  (RECORDS||[]).forEach(function(r){
+    if(r.date!==iso) return;
+    var mc=recHeaderVal(r,/machine/i)||'\u2014'; var sh=recHeaderVal(r,/shift/i)||'';
+    var k=mc+(sh?(' \u00b7 Shift '+sh):'');
+    var st=r.rollCutStart?new Date(r.rollCutStart).getTime():0;
+    var en=r.rollCutEnd?new Date(r.rollCutEnd).getTime():0;
+    var ref=Math.max(st||0,en||0,num(r.savedAt)&&isFinite(new Date(r.savedAt).getTime())?new Date(r.savedAt).getTime():0);
+    if(!out[k] || ref>out[k].ref) out[k]={ref:ref, running:!!(st&&!en), since:(st&&!en)?st:(en||ref)};
+  });
+  var res={};
+  Object.keys(out).forEach(function(k){
+    if(out[k].since>0) res[k]={ running:out[k].running, since:out[k].since };
+  });
+  return res;
+}
 function dshChartSVG(series){
   const W=600,H=150,P=8;
   const max=Math.max(1,...series);
@@ -5202,7 +5245,7 @@ function renderManageUsers(){
   <div class="view"><div class="mu">
     <div class="mhead">
       <div><div class="t">MANAGE USERS</div><div class="s">USER BANAO \u00b7 PASSWORD BADLO \u00b7 ROLE & RIGHTS \u00b7 BLOCK/UNBLOCK</div></div>
-      <div><button class="btn btn-primary" id="muAdd">+ New User</button> <button class="btn btn-ghost" id="muRef">Refresh</button></div>
+      <div><button class="btn btn-primary" id="muAdd">+ New User</button> <button class="btn btn-ghost" id="muRef">Refresh</button> <button class="btn btn-ghost" id="muDev">\uD83D\uDEE1\uFE0F Devices</button></div>
     </div>
     <div class="mtblw"><table>
       <thead><tr><th>USER ID</th><th>ROLE</th><th>EDIT</th><th>DELETE</th><th>STATUS</th><th>ACTION</th></tr></thead>
@@ -5212,6 +5255,7 @@ function renderManageUsers(){
   </div></div>`;
   document.getElementById('muAdd').onclick=function(){ _muDlg(null); };
   document.getElementById('muRef').onclick=_muLoad;
+  var _db=document.getElementById('muDev'); if(_db) _db.onclick=_muDevices;
   _muLoad();
 }
 function _muLoad(){
@@ -5328,6 +5372,48 @@ function _muDel(idx){
       else { toast((j&&j.error)?j.error:'Delete nahi hua','err'); }
     }).catch(function(){ toast('Network error','err'); });
   };
+}
+
+function _muDevices(){
+  var cr=_muCreds();
+  var d=document.createElement('div'); d.className='mudlg';
+  d.innerHTML='<div class="box"><div class="bh">\uD83D\uDEE1\uFE0F Approved Devices</div><div class="bb">'
+    +'<div style="font-size:12.5px;color:#5a6b80;line-height:1.6;margin-bottom:10px">Admin login sirf in devices se ho sakta hai. Naye device ko jodne ke liye yahan se <b>code banao</b> aur naye device par login karte waqt daalo (code 10 minute chalta hai).</div>'
+    +'<div id="devCodeBox" style="display:none;background:#f7edb8;border:1px solid #e0cf87;border-radius:10px;padding:12px;text-align:center;margin-bottom:10px"><div style="font-size:11px;font-weight:800;color:#6b5d1f;letter-spacing:.8px">NAYA CODE \u2014 10 MIN VALID</div><div id="devCodeVal" style="font-size:28px;font-weight:900;letter-spacing:8px;color:#3d3410;margin-top:4px"></div></div>'
+    +'<button class="btn btn-primary" id="devNew" style="width:100%;margin-bottom:12px">Naya Code banao</button>'
+    +'<div class="mugrid"><table><thead><tr><th>DEVICE</th><th>LAST SEEN</th><th></th></tr></thead><tbody id="devRows"><tr><td colspan="3" style="text-align:center;color:#8a99ad;padding:14px">Loading\u2026</td></tr></tbody></table></div>'
+    +'</div><div class="bf"><button class="btn btn-ghost" id="devClose">Close</button></div></div>';
+  document.body.appendChild(d);
+  d.querySelector('#devClose').onclick=function(){ d.remove(); };
+  function load(){
+    _muRpc('comsyn_device_list',{u:cr.u,p:cr.p}).then(function(rows){
+      var tb=d.querySelector('#devRows'); if(!tb) return;
+      if(!rows||!Array.isArray(rows)){ tb.innerHTML='<tr><td colspan="3" style="text-align:center;color:#b03a5b;padding:14px">Load nahi hua</td></tr>'; return; }
+      var myId=''; try{ myId=localStorage.getItem('comsyn_device_id')||''; }catch(e){}
+      tb.innerHTML=rows.map(function(r){
+        var isMe=(r.id===myId);
+        var ls=''; try{ ls=r.last_seen?new Date(r.last_seen).toLocaleDateString('en-GB'):'\u2014'; }catch(e){ ls='\u2014'; }
+        return '<tr><td style="font-weight:800">'+esc(r.name||'Device')+(isMe?' <span style="font-size:10px;background:#d6efdc;color:#1c5e33;padding:2px 7px;border-radius:8px;font-weight:800">YE DEVICE</span>':'')+'</td>'
+          +'<td>'+ls+'</td>'
+          +'<td style="text-align:right">'+(isMe?'':'<button class="mbtn" style="background:#c0392b" data-devrm="'+esc(r.id)+'">Remove</button>')+'</td></tr>';
+      }).join('')||'<tr><td colspan="3" style="text-align:center;color:#8a99ad;padding:14px">Koi device nahi</td></tr>';
+      tb.querySelectorAll('[data-devrm]').forEach(function(b){
+        b.onclick=function(){
+          _muRpc('comsyn_device_remove',{u:cr.u,p:cr.p,t_id:b.getAttribute('data-devrm')}).then(function(j){
+            if(j&&j.ok){ try{toast('Device hata diya','ok');}catch(e){} load(); }
+            else { try{toast('Remove nahi hua','err');}catch(e){} }
+          });
+        };
+      });
+    });
+  }
+  d.querySelector('#devNew').onclick=function(){
+    _muRpc('comsyn_device_code',{u:cr.u,p:cr.p,d:(function(){try{return localStorage.getItem('comsyn_device_id')||'';}catch(e){return '';}})()}).then(function(j){
+      if(j&&j.code){ d.querySelector('#devCodeBox').style.display='block'; d.querySelector('#devCodeVal').textContent=j.code; }
+      else { try{toast('Code nahi bana \u2014 kya ye device approved hai?','err');}catch(e){} }
+    });
+  };
+  load();
 }
 
 /* ---- ACTIVE USERS PANEL (admin) ---- */
@@ -5622,6 +5708,7 @@ function renderDashboard(){
     const den=(mode==='date'&&window.__dshDate&&window.__dshDate!==todayISO())?24:(new Date().getHours()+1);
     uptime=den?Math.min(100,(Object.keys(hrs).length/den)*100):0; }
   const keys=Object.keys(a.mach);
+  try{ window.__dshMach=dshMachineStatus(); }catch(e){ window.__dshMach={}; }
   let wLm=0,wLa=0,wPr=0; keys.forEach(k=>{ wLm+=a.mach[k].loom; wLa+=a.mach[k].lam; wPr+=a.mach[k].proc; });
   const share=(v)=>a.totProd>0?Math.min(100,(v/a.totProd)*100):0;
   const wcol=(p)=>p>8?'#dc2626':(p>5?'#d97706':'#16a34a');
@@ -5636,8 +5723,19 @@ function renderDashboard(){
   a.recs.forEach(r=>{ try{ bCnt[_bandOf(recPct(r))]++; }catch(e){} });
   const tiles=sorted.length? sorted.map((k,i)=>{
     const m=a.mach[k]; const mp=m.prod>0?((m.w/m.prod)*100):0; const b=BANDS[band(mp)];
+    let stSide='';
+    try{
+      const st=(window.__dshMach||{})[k];
+      if(st){
+        if(st.running){
+          stSide=`<span class="mside mside-run"><span class="mst-dot"></span>\u2192 CHALU <b class="mst-t" data-since="${st.since}">${_dshAgo(Date.now()-st.since)}</b></span>`;
+        } else {
+          stSide=`<span class="mside mside-stop"><span class="mst-dot"></span>\u2192 BAND <b class="mst-t" data-since="${st.since}">${_dshAgo(Date.now()-st.since)}</b></span>`;
+        }
+      }
+    }catch(e){}
     return `<div class="mtile" data-mkey="${encodeURIComponent(k)}" style="background:${b.bg};animation-delay:${(0.04*i).toFixed(2)}s;cursor:pointer">
-      <div class="mtile-h" style="background:${b.hd}"><span>${esc(k)}</span><span class="mtile-tag">${b.label}</span></div>
+      <div class="mtile-h" style="background:${b.hd}"><span>${esc(k)} ${stSide}</span><span class="mtile-tag">${b.label}</span></div>
       <div class="mtile-body">
         <div class="mtile-pct">${mp.toFixed(1)}%</div>
         <div class="mtile-pl">WASTAGE</div>
@@ -5659,6 +5757,13 @@ function renderDashboard(){
     .dsh2 .dsh-headx .s{display:flex;align-items:center;gap:7px;font-size:11px;opacity:.92;margin-top:5px;letter-spacing:1px;font-weight:700}
     .dsh2 .lvdot{width:8px;height:8px;border-radius:50%;background:#35d07f;box-shadow:0 0 0 0 rgba(53,208,127,.7);animation:lvp 1.6s infinite}
     @keyframes lvp{0%{box-shadow:0 0 0 0 rgba(53,208,127,.6)}70%{box-shadow:0 0 0 7px rgba(53,208,127,0)}100%{box-shadow:0 0 0 0 rgba(53,208,127,0)}}
+    .dsh2 .mside{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:900;letter-spacing:.8px;padding:2px 9px;border-radius:9px;margin-left:7px;vertical-align:middle;color:#fff}
+    .dsh2 .mside .mst-t{font-size:10.5px;font-weight:900;letter-spacing:.4px;font-variant-numeric:tabular-nums;margin-left:2px}
+    .dsh2 .mside-run{background:rgba(0,0,0,.28);border:1px solid rgba(125,255,176,.55)}
+    .dsh2 .mside-run .mst-dot{width:7px;height:7px;border-radius:50%;background:#7dffb0;box-shadow:0 0 0 0 rgba(125,255,176,.7);animation:lvp 1.2s infinite}
+    .dsh2 .mside-stop{background:rgba(0,0,0,.38);border:1px solid rgba(255,157,157,.55)}
+    .dsh2 .mside-stop .mst-dot{width:7px;height:7px;border-radius:50%;background:#ff9d9d;animation:mstblink 1.4s infinite}
+    @keyframes mstblink{0%,100%{opacity:1}50%{opacity:.25}}
     .dsh2 .dsh-headx .clk{font-size:15px;font-weight:800;letter-spacing:1.5px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);padding:8px 15px;border-radius:9px}
     .dsh2 .chiprow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
     @media(max-width:700px){.dsh2 .chiprow{grid-template-columns:repeat(2,1fr)}}
@@ -5744,7 +5849,9 @@ function renderDashboard(){
   document.getElementById('dshPm').onclick=()=>{ window.__dshPeriod='month'; window.__dshMonth=window.__dshMonth||todayISO().slice(0,7); renderDashboard(); };
   document.getElementById('dshDateIn').onchange=function(){ if(this.value){ window.__dshDate=this.value; window.__dshPeriod='date'; renderDashboard(); } };
   document.getElementById('dshMonIn').onchange=function(){ if(this.value){ window.__dshMonth=this.value; window.__dshPeriod='month'; renderDashboard(); } };
-  const tickEl=()=>{ const t=new Date().toLocaleTimeString('en-GB'); const e1=document.getElementById('dshClock'); if(e1) e1.textContent=t; const e2=document.getElementById('dshClock2'); if(e2) e2.textContent=t; };
+  const tickEl=()=>{ const t=new Date().toLocaleTimeString('en-GB'); const e1=document.getElementById('dshClock'); if(e1) e1.textContent=t; const e2=document.getElementById('dshClock2'); if(e2) e2.textContent=t;
+    try{ document.querySelectorAll('.mst-t[data-since]').forEach(function(el){ var s=num(el.getAttribute('data-since')); if(s>0) el.textContent=_dshAgo(Date.now()-s); }); }catch(e){}
+  };
   tickEl();
   if(!window.__dshIv) window.__dshIv=setInterval(tickEl,1000);
   const target=Math.round(a.totProd); const el=document.getElementById('dshTotal'); const t0=performance.now();
@@ -5853,8 +5960,23 @@ function renderTrash(){
   function syncFail(k,status,tx){
     try{
       var now=Date.now(); if(now-_lastSyncErr<15000) return; _lastSyncErr=now;
-      var short=String(tx||'').slice(0,120);
-      toast('\u26A0\uFE0F Sync save failed ('+status+') '+short,'info');
+      var raw=String(tx||'').toLowerCase();
+      var msg, kind='info';
+      if(raw.indexOf('unauthorized')>=0){
+        msg='\u26A0\uFE0F Aapka password badal gaya hai \u2014 ek baar logout karke naye password se login karo, phir save chalega';
+        kind='err';
+      } else if(raw.indexOf('blocked')>=0){
+        msg='\u26D4 Aapki ID block kar di gayi hai \u2014 admin se baat karo';
+        kind='err';
+      } else if(raw.indexOf('expired')>=0){
+        msg='\u26A0\uFE0F Cloud save nahi hua \u2014 admin se baat karo';
+        kind='err';
+      } else if(status==='network'){
+        msg='\u26A0\uFE0F Internet nahi mil raha \u2014 net aate hi apne aap save ho jayega';
+      } else {
+        msg='\u26A0\uFE0F Cloud save nahi hua \u2014 dobara koshish ho rahi hai';
+      }
+      toast(msg,kind);
       console.error('SYNC FAIL',k,status,tx);
     }catch(e){}
   }
@@ -5974,6 +6096,49 @@ function renderTrash(){
     };
     tick(); _lockTimer=setInterval(tick,1000);
   }
+  /* ===== APPROVED DEVICES (server-enforced admin device lock) ===== */
+  function _deviceId(){
+    try{
+      var d=localStorage.getItem('comsyn_device_id');
+      if(!d){
+        d=(crypto.randomUUID?crypto.randomUUID():(Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10)+'-'+Math.random().toString(36).slice(2,10)));
+        localStorage.setItem('comsyn_device_id',d);
+      }
+      return d;
+    }catch(e){ return 'nodev'; }
+  }
+  function _deviceClaimUI(u,p){
+    var old=document.getElementById('devClaim'); if(old) old.remove();
+    var d=document.createElement('div'); d.id='devClaim';
+    d.style.cssText='position:fixed;inset:0;background:rgba(10,20,34,.6);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
+    d.innerHTML='<div style="background:#fff;border-radius:14px;max-width:390px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.3);overflow:hidden">'
+      +'<div style="background:linear-gradient(135deg,#152841,#1f3a5f);color:#fff;padding:13px 18px;font-weight:800;font-size:15px">\uD83D\uDEE1\uFE0F Naya Device</div>'
+      +'<div style="padding:16px 18px;font-size:13.5px;line-height:1.7;color:#33475f">Ye device admin ke liye approved nahi hai.<br>Apne <b>purane approved device</b> par Manage Users \u2192 <b>Devices \u2192 Naya Code</b> se 6-digit code banao aur yahan daalo.'
+      +'<label style="display:block;font-size:11px;font-weight:800;color:#5a6b80;letter-spacing:.5px;margin:12px 0 4px">6-DIGIT CODE</label>'
+      +'<input type="text" id="devCode" inputmode="numeric" maxlength="6" style="width:100%;padding:9px 11px;border:1.5px solid #dbe3ec;border-radius:9px;font:inherit;font-size:16px;letter-spacing:4px;box-sizing:border-box">'
+      +'<label style="display:block;font-size:11px;font-weight:800;color:#5a6b80;letter-spacing:.5px;margin:12px 0 4px">IS DEVICE KA NAAM</label>'
+      +'<input type="text" id="devName" placeholder="jaise: Mera naya phone" style="width:100%;padding:9px 11px;border:1.5px solid #dbe3ec;border-radius:9px;font:inherit;font-size:14px;box-sizing:border-box">'
+      +'<div id="devMsg" style="font-size:12px;font-weight:700;color:#b03a5b;margin-top:8px"></div></div>'
+      +'<div style="display:flex;gap:9px;justify-content:flex-end;padding:12px 18px;border-top:1px solid #edf1f6">'
+      +'<button id="devX" style="padding:9px 16px;border:1.5px solid #dbe3ec;background:#fff;border-radius:9px;font:inherit;font-weight:700;cursor:pointer">Cancel</button>'
+      +'<button id="devGo" style="padding:9px 16px;border:none;background:#e67e22;color:#fff;border-radius:9px;font:inherit;font-weight:700;cursor:pointer">Approve karo</button></div></div>';
+    document.body.appendChild(d);
+    d.querySelector('#devX').onclick=function(){ d.remove(); };
+    d.querySelector('#devGo').onclick=function(){
+      var c=(d.querySelector('#devCode').value||'').trim();
+      var n=(d.querySelector('#devName').value||'').trim()||'Device';
+      if(c.length!==6){ d.querySelector('#devMsg').textContent='6-digit code daalo'; return; }
+      d.querySelector('#devGo').disabled=true;
+      fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_device_claim',{ method:'POST', headers:SB_HEADERS,
+        body:JSON.stringify({u:u,p:p,d:_deviceId(),c:c,n:n}) })
+        .then(function(r){ return r.json().catch(function(){return null;}); })
+        .then(function(j){
+          if(j&&j.ok){ d.remove(); try{toast('Device approve ho gaya \u2014 dobara OK dabao','ok');}catch(e){} setMsg('Device approved \u2014 ab dobara OK dabao'); }
+          else { d.querySelector('#devMsg').textContent=(j&&j.error==='badcode')?'Code galat ya expire ho gaya \u2014 naya code banao':'Approve nahi hua \u2014 dobara koshish karo'; d.querySelector('#devGo').disabled=false; }
+        })
+        .catch(function(){ d.querySelector('#devMsg').textContent='Network error'; d.querySelector('#devGo').disabled=false; });
+    };
+  }
   function doLogin(){
     const u=document.getElementById('loginUser').value||'';
     const p=document.getElementById('loginPass').value||'';
@@ -5993,7 +6158,7 @@ function renderTrash(){
           if(_en && _now.getTime()>_en.getTime()){ setMsg('Access Denied \u2014 Selected Financial Year ('+_fyTxt+') has been closed. Please select the current Financial Year and try again. For assistance, contact your administrator.'); return; }
         } } }catch(e){}
     setMsg('Checking\u2026');
-    fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_login',{ method:'POST', headers:SB_HEADERS, body:JSON.stringify({u:u,p:p}) })
+    fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_login',{ method:'POST', headers:SB_HEADERS, body:JSON.stringify({u:u,p:p,d:_deviceId()}) })
       .then(function(r){ return r.text().then(function(t){ return {ok:r.ok,status:r.status,text:t}; }); })
       .then(function(res){
         if(!res.ok){ setMsg('Error '+res.status+': '+(res.text||'').slice(0,120)); return; }
@@ -6007,16 +6172,19 @@ function renderTrash(){
                sessionStorage.setItem('comsyn_rights_until', j.rights_until||'');
                sessionStorage.setItem('comsyn_rights_expired', j.expired?'1':'0'); }catch(_e){} }
         if(role){
-          _setLock({fails:0,until:0,stage:0});
-          sessionStorage.setItem('comsyn_role',role); sessionStorage.setItem('comsyn_user',u); sessionStorage.setItem('comsyn_pass',p);
-          sessionStorage.setItem('comsyn_can_edit',canE); sessionStorage.setItem('comsyn_can_delete',canD); sessionStorage.setItem('comsyn_tabs',tabsStr);
-          try{ var rem=document.getElementById('loginRemember');
-            var accs=[]; try{ accs=JSON.parse(localStorage.getItem('comsyn_accounts')||'[]'); }catch(_e){ accs=[]; }
-            if(!Array.isArray(accs)) accs=[];
-            accs=accs.filter(function(a){ return a && a.u!==u; });
-            if(rem && rem.checked) accs.unshift({u:u,p:p});
-            localStorage.setItem('comsyn_accounts', JSON.stringify(accs)); }catch(e){}
-          applyRole(role); hideLogin(); try{toast('Welcome '+u+' ('+role+')','ok');}catch(e){} try{ _heartbeat(); }catch(e){}
+          var _finish=function(){
+            _setLock({fails:0,until:0,stage:0});
+            sessionStorage.setItem('comsyn_role',role); sessionStorage.setItem('comsyn_user',u); sessionStorage.setItem('comsyn_pass',p);
+            sessionStorage.setItem('comsyn_can_edit',canE); sessionStorage.setItem('comsyn_can_delete',canD); sessionStorage.setItem('comsyn_tabs',tabsStr);
+            try{ var rem=document.getElementById('loginRemember');
+              var accs=[]; try{ accs=JSON.parse(localStorage.getItem('comsyn_accounts')||'[]'); }catch(_e){ accs=[]; }
+              if(!Array.isArray(accs)) accs=[];
+              accs=accs.filter(function(a){ return a && a.u!==u; });
+              if(rem && rem.checked) accs.unshift({u:u,p:p});
+              localStorage.setItem('comsyn_accounts', JSON.stringify(accs)); }catch(e){}
+            applyRole(role); hideLogin(); try{toast('Welcome '+u+' ('+role+')','ok');}catch(e){} try{ _heartbeat(); }catch(e){}
+          };
+          _finish();
         }
         else { var _l2=_getLock(); _l2.stage=_l2.stage||0; _l2.fails=(_l2.fails||0)+1;
           var _allowed=(_l2.stage>=1)?1:5;
@@ -6028,6 +6196,71 @@ function renderTrash(){
           } else { _setLock(_l2); setMsg('Invalid Username or Password. Please check your credentials and try again. ('+(_allowed-_l2.fails)+' attempt'+((_allowed-_l2.fails)===1?'':'s')+' remaining)'); } }
       })
       .catch(function(err){ setMsg('Login fail \u2014 '+((err&&err.message)||'network')); });
+  }
+  /* ===== ADMIN BIOMETRIC LOCK (phone ka fingerprint / face \u2014 is device par) ===== */
+  function _bioSupport(){ return !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext); }
+  function _bioEnabled(){ try{ return !!localStorage.getItem('comsyn_bio_cred'); }catch(e){ return false; } }
+  function _bioB64(buf){ var a=new Uint8Array(buf),s=''; for(var i=0;i<a.length;i++) s+=String.fromCharCode(a[i]); return btoa(s); }
+  function _bioUn(s){ var b=atob(s),a=new Uint8Array(b.length); for(var i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a.buffer; }
+  function _bioRegister(cb){
+    try{
+      navigator.credentials.create({publicKey:{
+        challenge:crypto.getRandomValues(new Uint8Array(32)),
+        rp:{name:'COMSYN ERP'},
+        user:{id:crypto.getRandomValues(new Uint8Array(16)),name:'comsyn-admin',displayName:'COMSYN Admin'},
+        pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+        authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
+        timeout:60000
+      }}).then(function(cred){ try{ localStorage.setItem('comsyn_bio_cred',_bioB64(cred.rawId)); }catch(e){} cb(true); })
+        .catch(function(){ cb(false); });
+    }catch(e){ cb(false); }
+  }
+  function _bioVerify(cb){
+    try{
+      var id=null; try{ id=localStorage.getItem('comsyn_bio_cred'); }catch(e){}
+      if(!id){ cb(true); return; }
+      navigator.credentials.get({publicKey:{
+        challenge:crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials:[{type:'public-key',id:_bioUn(id),transports:['internal']}],
+        userVerification:'required',
+        timeout:60000
+      }}).then(function(){ cb(true); }).catch(function(){ cb(false); });
+    }catch(e){ cb(false); }
+  }
+  window._comsynBioOn=function(){ return _bioEnabled(); };
+  window._comsynBioToggle=function(done){
+    if(!_bioSupport()){ try{toast('Is device/browser me fingerprint/face lock support nahi hai','err');}catch(e){} if(done)done(); return; }
+    if(_bioEnabled()){
+      _bioVerify(function(ok){
+        if(ok){ try{ localStorage.removeItem('comsyn_bio_cred'); }catch(e){} try{toast('Biometric lock OFF (is device par)','ok');}catch(e){} }
+        else { try{toast('Verify fail \u2014 lock OFF nahi hua','err');}catch(e){} }
+        if(done)done();
+      });
+    } else {
+      _bioRegister(function(ok){
+        if(ok){ try{toast('\uD83D\uDD12 Biometric lock ON \u2014 ab admin login par fingerprint/face lagega (is device par)','ok');}catch(e){} }
+        else { try{toast('Setup nahi hua \u2014 phone me screen lock / fingerprint set hai kya?','err');}catch(e){} }
+        if(done)done();
+      });
+    }
+  };
+  function _bioOfferSetup(){
+    try{
+      if(!_bioSupport() || _bioEnabled()) return;
+      if(localStorage.getItem('comsyn_bio_asked')==='1') return;
+      localStorage.setItem('comsyn_bio_asked','1');
+      var d=document.createElement('div');
+      d.style.cssText='position:fixed;inset:0;background:rgba(10,20,34,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
+      d.innerHTML='<div style="background:#fff;border-radius:14px;max-width:390px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.3);overflow:hidden">'
+        +'<div style="background:linear-gradient(135deg,#152841,#1f3a5f);color:#fff;padding:13px 18px;font-weight:800;font-size:15px">\uD83D\uDD12 Admin Security Lock</div>'
+        +'<div style="padding:16px 18px;font-size:14px;line-height:1.7;color:#33475f">Admin login par <b>fingerprint / face lock</b> lagana chahte ho?<br>Password ke baad phone ka fingerprint/face bhi maanga jayega \u2014 <b>is device par</b>.</div>'
+        +'<div style="display:flex;gap:9px;justify-content:flex-end;padding:12px 18px;border-top:1px solid #edf1f6">'
+        +'<button id="bioNo" style="padding:9px 16px;border:1.5px solid #dbe3ec;background:#fff;border-radius:9px;font:inherit;font-weight:700;cursor:pointer">Baad me</button>'
+        +'<button id="bioYes" style="padding:9px 16px;border:none;background:#e67e22;color:#fff;border-radius:9px;font:inherit;font-weight:700;cursor:pointer">Lock ON karo</button></div></div>';
+      document.body.appendChild(d);
+      d.querySelector('#bioNo').onclick=function(){ d.remove(); };
+      d.querySelector('#bioYes').onclick=function(){ d.remove(); window._comsynBioToggle(); };
+    }catch(e){}
   }
   function doLogout(){ sessionStorage.removeItem('comsyn_role'); sessionStorage.removeItem('comsyn_user'); sessionStorage.removeItem('comsyn_pass'); sessionStorage.removeItem('comsyn_can_edit'); sessionStorage.removeItem('comsyn_can_delete'); sessionStorage.removeItem('comsyn_tabs'); location.reload(); }
   /* ---- ACTIVE SESSION HEARTBEAT + ADMIN BLOCK KICK ---- */
@@ -6328,7 +6561,7 @@ function renderTrash(){
         if(window._comsynWinOver(isDel?'delete':'edit',sa)){
           b.style.opacity='.35'; b.style.filter='grayscale(1)'; b.style.cursor='not-allowed';
           b.setAttribute('data-winover',isDel?'delete':'edit');
-          b.title=(isDel?'Delete':'Edit')+' ki '+lim+' din ki limit khatam ho gayi';
+          b.removeAttribute('title');
         } else { b.removeAttribute('data-winover'); }
       });
     }catch(e){}
@@ -6345,17 +6578,14 @@ function renderTrash(){
     var wo=t.getAttribute&&t.getAttribute('data-winover');
     if(wo){
       e.preventDefault(); e.stopPropagation();
-      try{toast(t.title||'Is entry pe time limit khatam ho gayi','err');}catch(_e){}
       return;
     }
     if(isDel && !_rightFor('delete')){
       e.preventDefault(); e.stopPropagation();
-      try{toast(_expTxt('Delete'),'err');}catch(_e){}
       return;
     }
     if(isEdit && !_rightFor('edit')){
       e.preventDefault(); e.stopPropagation();
-      try{toast(_expTxt('Edit'),'err');}catch(_e){}
     }
   },true);
   function _expTxt(w){
