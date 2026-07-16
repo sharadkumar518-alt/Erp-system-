@@ -2508,6 +2508,21 @@ function saveEntry(){
   const rec={ id:uid(), date, savedAt:now,
     headers:clone(DRAFT.headers), sections:clone(DRAFT.sections), config:clone(CFG), summary:s,
     rollCutStart:now, rollCutEnd: complete?now:'', workingMs: complete?0:null, status: complete?'done':'started' };
+  /* ek machine+shift par ek waqt me ek hi roll chal sakta hai */
+  try{
+    const nmMc=String(recHeaderVal(rec,/machine/i)||'').trim().toLowerCase();
+    const nmSh=String(recHeaderVal(rec,/shift/i)||'').trim().toLowerCase();
+    if(nmMc){
+      const running=RECORDS.find(r=>r.date===date && r.rollCutStart && !r.rollCutEnd
+        && String(recHeaderVal(r,/machine/i)||'').trim().toLowerCase()===nmMc
+        && String(recHeaderVal(r,/shift/i)||'').trim().toLowerCase()===nmSh);
+      if(running){
+        const rm=recMeta(running);
+        toast('\u26D4 '+(recHeaderVal(rec,/machine/i)||'Machine')+(nmSh?(' Shift '+recHeaderVal(rec,/shift/i)):'')+' par Roll '+(rm.rollNo||'')+' abhi chal raha hai \u2014 pehle uska Cut PCs & Wastage bhar ke end karo, phir nayi roll entry hogi','err');
+        return;
+      }
+    }
+  }catch(e){}
   RECORDS.unshift(rec); saveRec();
   DRAFT=freshDraft(); renderEntry();
   toast(complete?'Entry saved (complete)':'Entry saved — roll cut started','ok');
@@ -2572,8 +2587,9 @@ function renderRecords(){
 
 /* ===== TAB 1 : ROLL CUTTING (machine-wise, start/end/working hour) ===== */
 function renderRollCutting(body){
-  const recs=RECORDS.filter(r=>r.rollCutStart);
-  if(!recs.length){ body.innerHTML=`<div class="empty-state"><p>Abhi koi roll-cutting entry nahi. Entry tab me Cut PCs & Wastage ke bina save karoge to yahan aayegi.</p></div>`; return; }
+  const _rcToday=todayISO();
+  const recs=RECORDS.filter(r=>r.rollCutStart && !r.rollCutEnd && r.date===_rcToday);
+  if(!recs.length){ body.innerHTML=`<div class="empty-state"><p>Aaj koi roll cutting me nahi hai. Entry save karo (Cut PCs & Wastage ke bina) to yahan aayegi \u2014 end time aate hi Cut Records me chali jayegi.</p></div>`; return; }
   const groups={};
   recs.forEach(r=>{(groups[r.date]=groups[r.date]||[]).push(r);});
   const dates=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
@@ -3803,8 +3819,8 @@ function validISO(s){ return /^\d{4}-\d{2}-\d{2}$/.test(String(s||'')); }
 function isoFromTs(ts){ const d=new Date(ts||Date.now()); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 // fix legacy batches that have an invalid date (recover real add-date from savedAt)
 (function(){ let ch=false; BATCHES.forEach(b=>{ if(!validISO(b.date)){ b.date=isoFromTs(b.savedAt); ch=true; } }); if(ch) saveBatches(); })();
-let batchSub='new', batchQuery='', batchDraft=null, batchExpDate='', batchCompQuery='';
-const BATCH_SUBS=[['new','Add Batch'],['card','Batch Order'],['process','Under Process'],['complete','Complete']];
+let batchSub='card', batchQuery='', batchDraft=null, batchExpDate='', batchCompQuery='';
+const BATCH_SUBS=[['card','Batch Order'],['process','Under Process'],['complete','Complete']];
 function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function _stockDateStr(){ const d=stockDate?new Date(stockDate+'T00:00:00'):new Date(); const mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]; return String(d.getDate()).padStart(2,'0')+' / '+mon+' / '+d.getFullYear(); }
 function ordQtyField(){ return ORDERCFG.fields.find(f=>/\bqty\b|quantit/i.test(f.label)); }
@@ -3946,8 +3962,18 @@ function bindOrderNewEntry(){
       if(name && num(qty)>0) components.push({id:uid(), name, qty:num(qty), cutLen:(String(cut).trim()!==''?num(cut):'')});
     });
     if(!any && !components.length){ toast('Fill the order first','err'); return; }
-    ORDERS.push({id:uid(), vals, components, compCut:{}, status:'new', savedAt:Date.now()});
-    saveOrders(); toast('Order saved → New Order','ok');
+    const _oid=uid();
+    ORDERS.push({id:_oid, vals, components, compCut:{}, status:'new', savedAt:Date.now()});
+    saveOrders();
+    /* order save hote hi batch card bhi apne aap ban jata hai */
+    try{
+      if(!BATCHES.some(b=>b.orderId===_oid)){
+        const nb={ id:uid(), orderId:_oid, type:'', pattern:'', location:'', date:todayISO(), ready:{}, savedAt:Date.now() };
+        nb.log=[{at:nb.savedAt, items:_logItems(nb.ready)}];
+        recomputeBatch(nb); BATCHES.push(nb); saveBatches();
+      }
+    }catch(e){}
+    toast('Order saved \u2192 New Order + Batch Order me bhi add ho gaya','ok');
     document.querySelectorAll('[data-of]').forEach(el=>el.value='');
     resetComps();
   };
@@ -4721,7 +4747,7 @@ function renderBatch(){
   if(batchSub==='new'){ inner = batchPickerHtml() + `<div id="bDetail">${batchDraftHtml()}</div>`; }
   else if(batchSub==='card'){ inner = `<div class="card" style="margin-bottom:14px"><div class="card-body"><div class="bc-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="bcCardSearch" value="${esc(batchQuery)}" placeholder="Search Order No / File No…" autocomplete="off"></div></div></div><div id="bList">${batchOrderDayHtml()}</div>`; }
   else if(batchSub==='process'){ inner = batchExportBar() + `<div id="bList">${batchListHtml('process')}</div>`; }
-  else { inner = batchCompleteSearchHtml() + batchExportBar() + `<div id="bList">${batchListHtml('complete')}</div>`; }
+  else { inner = batchCompleteSearchHtml() + `<div id="bList">${batchListHtml('complete')}</div>`; }
   c.innerHTML=`<div class="view proui">${subbar}${inner}</div>`;
   c.querySelectorAll('[data-bsub]').forEach(btn=>btn.onclick=()=>{ batchSub=btn.dataset.bsub; if(batchSub!=='card') batchQuery=''; renderBatch(); });
   bindBatch();
@@ -5540,9 +5566,11 @@ function recPct(r){
   try{ const s=computeReportSummary(lr); p=num(s.production); w=num(s.totalWaste); }catch(e){}
   return p>0?((w/p)*100):0;
 }
-function dshBandGroups(bi){
+function dshBandGroups(bi,fab){
   const a=window.__dshA; if(!a) return [];
-  const recs=a.recs.filter(r=>_bandOf(recPct(r))===bi);
+  let recs=a.recs.filter(r=>_bandOf(recPct(r))===bi);
+  if(fab==='UL') recs=recs.filter(r=>{ const t=recRollUL(r); return t==='U/L'; });
+  else if(fab==='LF') recs=recs.filter(r=>{ const t=recRollUL(r); return t==='L/F'; });
   const map={};
   recs.forEach(r=>{ const mc=recHeaderVal(r,/machine/i)||'\u2014'; const sh=recHeaderVal(r,/shift/i)||''; const k=mc+(sh?(' \u00b7 Shift '+sh):''); (map[k]=map[k]||[]).push(r); });
   const out=[];
@@ -5632,10 +5660,30 @@ function downloadMachineExcel(mk){
   toast('Excel exported','ok');
 }
 const _BAND_NAMES=['GOOD \u2014 \u2264 3% Wastage','WATCH \u2014 3\u20138% Wastage','HIGH \u2014 > 8% Wastage'];
-function openDshBand(bi){
+function openDshFabPick(fab){
+  const nm=fab==='UL'?'UL ROLLS':'LF ROLLS';
+  const cnt=[0,1,2].map(bi=>{ try{ return dshBandGroups(bi,fab).reduce((n,g)=>n+g.recs.length,0); }catch(e){ return 0; } });
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;inset:0;background:rgba(10,20,34,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px';
+  const btn=(bi,bg,lbl,sub)=>`<button data-fb="${bi}" style="display:flex;align-items:center;gap:12px;width:100%;margin-bottom:10px;padding:13px 16px;border:none;border-radius:11px;background:${bg};color:#fff;font:inherit;font-weight:800;cursor:pointer;text-align:left">
+    <span style="font-size:20px;font-weight:900;min-width:34px;text-align:center">${cnt[bi]}</span>
+    <span style="flex:1"><span style="display:block;font-size:14px;letter-spacing:.5px">${lbl}</span><span style="display:block;font-size:11px;opacity:.85;font-weight:700">${sub}</span></span>
+    <span style="font-size:18px">\u2192</span></button>`;
+  d.innerHTML='<div style="background:#fff;border-radius:14px;max-width:380px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.3);overflow:hidden">'
+    +'<div style="background:linear-gradient(135deg,#152841,#1f3a5f);color:#fff;padding:13px 18px;font-weight:800;font-size:15px">'+nm+' \u2014 wastage-wise</div>'
+    +'<div style="padding:16px 18px">'
+    + btn(0,'#1e9e50','GOOD \u2014 3% se kam','Rolls \u2264 3% wastage')
+    + btn(1,'#e8930c','WATCH \u2014 3% se 8%','Rolls 3\u20138% wastage')
+    + btn(2,'#d93636','HIGH \u2014 8% se upar','Rolls > 8% wastage')
+    +'</div><div style="display:flex;justify-content:flex-end;padding:10px 18px;border-top:1px solid #edf1f6"><button id="fabX" style="padding:8px 16px;border:1.5px solid #dbe3ec;background:#fff;border-radius:9px;font:inherit;font-weight:700;cursor:pointer">Close</button></div></div>';
+  document.body.appendChild(d);
+  d.querySelector('#fabX').onclick=()=>d.remove();
+  d.querySelectorAll('[data-fb]').forEach(b=>b.onclick=()=>{ d.remove(); openDshBand(+b.dataset.fb,fab); });
+}
+function openDshBand(bi,fab){
   const a=window.__dshA; if(!a) return;
-  const groups=dshBandGroups(bi);
-  if(!groups.length){ toast('Is category me abhi koi machine nahi hai','info'); return; }
+  const groups=dshBandGroups(bi,fab);
+  if(!groups.length){ toast('Is category me abhi koi '+(fab?fab+' roll':'machine')+' nahi hai','info'); return; }
   const body=groups.map((g,i)=>`<div${i>0?' style="margin-top:24px;padding-top:24px;border-top:2px dashed var(--line)"':''}>
       <div style="margin-bottom:10px"><span class="hint" style="font-weight:700;color:var(--ink)">${esc(g.label)} \u00b7 ${g.pct.toFixed(1)}% wastage \u00b7 ${Math.round(g.prod)} kg \u00b7 ${g.recs.length} entr${g.recs.length!==1?'ies':'y'}</span></div>
       <div class="rpt-host">${buildGroupReportHTML(g.recs)}</div>
@@ -5643,15 +5691,15 @@ function openDshBand(bi){
   const dlSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>';
   const ov=openModal({ wide:true, full:true, title:_BAND_NAMES[bi]+' \u00b7 '+groups.length+' report'+(groups.length!==1?'s':'')+' \u00b7 '+esc(a.label), body,
     footer:`<button class="btn btn-green" id="bandXls">Export Excel</button><button class="btn btn-primary" id="bandPdf">${dlSvg}Download PDF</button>` });
-  document.getElementById('bandPdf').onclick=()=>downloadBandPDF(bi);
-  document.getElementById('bandXls').onclick=()=>downloadBandExcel(bi);
+  document.getElementById('bandPdf').onclick=()=>downloadBandPDF(bi,fab);
+  document.getElementById('bandXls').onclick=()=>downloadBandExcel(bi,fab);
   try{ scaleReports(ov); }catch(e){}
 }
-async function downloadBandPDF(bi){
+async function downloadBandPDF(bi,fab){
   const ns=window.jspdf;
   if(!ns||!ns.jsPDF){ toast('PDF engine still loading \u2014 try again in a moment','err'); return; }
   const { jsPDF }=ns;
-  const groups=dshBandGroups(bi);
+  const groups=dshBandGroups(bi,fab);
   if(!groups.length){ toast('No data','err'); return; }
   const bname=['GOOD','WATCH','HIGH'][bi];
   if(typeof html2canvas==='function'){
@@ -5678,8 +5726,8 @@ async function downloadBandPDF(bi){
   pdf.save(`Cutting_${bname}_Report.pdf`);
   toast(`${bname} PDF \u00b7 ${_pg} page${_pg!==1?'s':''}`,'ok');
 }
-function downloadBandExcel(bi){
-  const groups=dshBandGroups(bi);
+function downloadBandExcel(bi,fab){
+  const groups=dshBandGroups(bi,fab);
   if(!groups.length){ toast('No data','err'); return; }
   const bname=['GOOD','WATCH','HIGH'][bi];
   let raw='';
@@ -5757,6 +5805,27 @@ function renderDashboard(){
     .dsh2 .dsh-headx .s{display:flex;align-items:center;gap:7px;font-size:11px;opacity:.92;margin-top:5px;letter-spacing:1px;font-weight:700}
     .dsh2 .lvdot{width:8px;height:8px;border-radius:50%;background:#35d07f;box-shadow:0 0 0 0 rgba(53,208,127,.7);animation:lvp 1.6s infinite}
     @keyframes lvp{0%{box-shadow:0 0 0 0 rgba(53,208,127,.6)}70%{box-shadow:0 0 0 7px rgba(53,208,127,0)}100%{box-shadow:0 0 0 0 rgba(53,208,127,0)}}
+    /* ---- LIVE FEEL ANIMATIONS ---- */
+    .dsh2 .dsh-headx{overflow:hidden}
+    .dsh2 .dsh-headx::after{content:'';position:absolute;top:0;left:-60%;width:45%;height:100%;background:linear-gradient(105deg,transparent 0%,rgba(255,255,255,.10) 45%,rgba(255,255,255,.22) 50%,rgba(255,255,255,.10) 55%,transparent 100%);animation:dshSheen 4.5s ease-in-out infinite;pointer-events:none}
+    @keyframes dshSheen{0%{left:-60%}55%{left:120%}100%{left:120%}}
+    .dsh2 .chip{animation:dshUp .45s both}
+    .dsh2 .chip:nth-child(1){animation-delay:.02s}.dsh2 .chip:nth-child(2){animation-delay:.08s}.dsh2 .chip:nth-child(3){animation-delay:.14s}.dsh2 .chip:nth-child(4){animation-delay:.20s}.dsh2 .chip:nth-child(5){animation-delay:.26s}.dsh2 .chip:nth-child(6){animation-delay:.32s}
+    .dsh2 .dstat{animation:dshUp .5s both}
+    .dsh2 .dstat:nth-of-type(1){animation-delay:.05s}.dsh2 .dstat:nth-of-type(2){animation-delay:.12s}.dsh2 .dstat:nth-of-type(3){animation-delay:.19s}.dsh2 .dstat:nth-of-type(4){animation-delay:.26s}
+    @keyframes dshUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .dsh2 .dstat-v{animation:dshNum .7s both .25s}
+    @keyframes dshNum{from{opacity:0;transform:scale(.85)}60%{transform:scale(1.04)}to{opacity:1;transform:scale(1)}}
+    .dsh2 .chip .n{animation:dshGlowPulse 3s ease-in-out infinite}
+    @keyframes dshGlowPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}50%{box-shadow:0 0 12px 1px rgba(0,0,0,.18)}}
+    .dsh2 .mpanel-h{position:relative;overflow:hidden}
+    .dsh2 .mpanel-h::after{content:'';position:absolute;bottom:0;left:0;width:26%;height:2px;background:linear-gradient(90deg,transparent,#4fc3f7,transparent);animation:dshScan 3s linear infinite}
+    @keyframes dshScan{0%{left:-30%}100%{left:105%}}
+    .dsh2 .mpanel-h .mt::before{content:'\\25CF';color:#35d07f;font-size:9px;margin-right:7px;vertical-align:1px;animation:mstblink 1.5s infinite}
+    .dsh2 .mtile{animation:dshUp .45s both,dshBreathe 4s ease-in-out infinite 1s}
+    @keyframes dshBreathe{0%,100%{box-shadow:0 3px 8px rgba(0,0,0,.16)}50%{box-shadow:0 5px 16px rgba(0,0,0,.3)}}
+    .dsh2 .mtile:active{transform:scale(.985)}
+    .dsh2 #dshClock,.dsh2 #dshClock2{transition:opacity .2s}
     .dsh2 .mside{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:900;letter-spacing:.8px;padding:2px 9px;border-radius:9px;margin-left:7px;vertical-align:middle;color:#fff}
     .dsh2 .mside .mst-t{font-size:10.5px;font-weight:900;letter-spacing:.4px;font-variant-numeric:tabular-nums;margin-left:2px}
     .dsh2 .mside-run{background:rgba(0,0,0,.28);border:1px solid rgba(125,255,176,.55)}
@@ -5811,6 +5880,8 @@ function renderDashboard(){
       <div class="chip" data-band="0" style="cursor:pointer"><div class="n" style="background:#1e9e50">${bCnt[0]}</div><div class="d"><b>GOOD</b><small>ROLLS \u2264 3%</small></div></div>
       <div class="chip" data-band="1" style="cursor:pointer"><div class="n" style="background:#e8930c">${bCnt[1]}</div><div class="d"><b>WATCH</b><small>ROLLS 3\u20138%</small></div></div>
       <div class="chip" data-band="2" style="cursor:pointer"><div class="n" style="background:#d93636">${bCnt[2]}</div><div class="d"><b>HIGH</b><small>ROLLS &gt; 8%</small></div></div>
+      <div class="chip" data-fab="UL" style="cursor:pointer"><div class="n" style="background:#1f6ca8">UL</div><div class="d"><b>UL ROLLS</b><small>WASTAGE-WISE DEKHO</small></div></div>
+      <div class="chip" data-fab="LF" style="cursor:pointer"><div class="n" style="background:#6b4fa0">LF</div><div class="d"><b>LF ROLLS</b><small>WASTAGE-WISE DEKHO</small></div></div>
       <div class="chip"><div class="n" style="background:#2e86c1">${keys.length}</div><div class="d"><b>MACHINES</b><small>${a.recs.length} REPORTS</small></div></div>
     </div>
     <div class="dsh-bar" style="margin-top:12px">
@@ -5830,7 +5901,7 @@ function renderDashboard(){
     </div>
     <div class="dstats">
       ${statCell('TOTAL PRODUCTION','<span id="dshTotal">0</span> kg','KG \u00b7 '+esc(a.label).toUpperCase())}
-      ${statCell('TOTAL WASTAGE',Math.round(a.totW)+' kg','LOOM '+Math.round(wLm)+' \u00b7 LAM '+Math.round(wLa)+' \u00b7 PROC '+Math.round(wPr))}
+      ${statCell('TOTAL WASTAGE','<span id="dshTotW">0</span> kg','LOOM '+Math.round(wLm)+' \u00b7 LAM '+Math.round(wLa)+' \u00b7 PROC '+Math.round(wPr))}
       ${statCell('WASTAGE %',pct.toFixed(2)+'%','OF TOTAL PRODUCTION',wcol(pct))}
       ${statCell('EFFICIENCY',eff.toFixed(1)+'%','UPTIME '+uptime.toFixed(1)+'%','#1e9e50')}
     </div>
@@ -5841,6 +5912,7 @@ function renderDashboard(){
   </div></div>`;
   window.__dshA=a;
   c.querySelectorAll('[data-band]').forEach(ch=>ch.onclick=()=>openDshBand(+ch.dataset.band));
+  c.querySelectorAll('[data-fab]').forEach(ch=>ch.onclick=()=>openDshFabPick(ch.dataset.fab));
   c.querySelectorAll('[data-mkey]').forEach(t=>t.onclick=()=>openDshMachine(decodeURIComponent(t.dataset.mkey)));
   document.getElementById('dshTd').onclick=()=>{ window.__dshPeriod='today'; renderDashboard(); };
   document.getElementById('dshMo').onclick=()=>{ window.__dshPeriod='month'; window.__dshMonth=todayISO().slice(0,7); renderDashboard(); };
@@ -5856,6 +5928,8 @@ function renderDashboard(){
   if(!window.__dshIv) window.__dshIv=setInterval(tickEl,1000);
   const target=Math.round(a.totProd); const el=document.getElementById('dshTotal'); const t0=performance.now();
   (function cu(now){ if(!document.getElementById('dshTotal')) return; const p=Math.min(1,(now-t0)/900); const ease=1-Math.pow(1-p,3); el.textContent=Math.round(target*ease); if(p<1) requestAnimationFrame(cu); })(t0);
+  const targW=Math.round(a.totW); const elW=document.getElementById('dshTotW');
+  if(elW){ const tw0=performance.now(); (function cw(now){ if(!document.getElementById('dshTotW')) return; const p=Math.min(1,(now-tw0)/900); const ease=1-Math.pow(1-p,3); elW.textContent=Math.round(targW*ease); if(p<1) requestAnimationFrame(cw); })(tw0); }
 }
 
 /* ---------- boot ---------- */
