@@ -5211,6 +5211,17 @@ function dshMachineStatus(){
   });
   return res;
 }
+function _dshRing(v,col,txt){var deg=Math.min(100,Math.max(0,v))*3.6;return '<span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:76px;height:76px;border-radius:50%;background:conic-gradient('+col+' '+deg+'deg,#dfe5ec 0)"><span style="position:absolute;inset:7px;border-radius:50%;background:#fff"></span><span style="position:relative;font-size:16.5px;font-weight:900;color:#0b0b0b">'+txt+'</span></span>';}
+function _dshTrend(a){var o={p:'',w:''};try{
+ if((window.__dshPeriod||'today')!=='today'||window.__dshDate) return o;
+ var y=new Date();y.setDate(y.getDate()-1);
+ var yi=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
+ var keep=window.__dshDate;window.__dshDate=yi;var ya=dshAgg('today');window.__dshDate=keep;
+ if(!ya||(ya.totProd<=0&&ya.totW<=0)) return o;
+ var up='<span style="font-size:14px;vertical-align:2px;color:#1e9e50"> \u25B2</span>',dn='<span style="font-size:14px;vertical-align:2px;color:#c0392b"> \u25BC</span>';
+ o.p=(a.totProd>=ya.totProd)?up:dn;
+ o.w=(a.totW>=ya.totW)?'<span style="font-size:14px;vertical-align:2px;color:#c0392b"> \u25B2</span>':'<span style="font-size:14px;vertical-align:2px;color:#1e9e50"> \u25BC</span>';
+}catch(e){} return o;}
 function dshChartSVG(series){
   const W=600,H=150,P=8;
   const max=Math.max(1,...series);
@@ -5848,6 +5859,37 @@ function renderDashboard(){
     .dsh2 .mtile{border:1px solid rgba(0,0,0,.18)!important}
     .dsh2 .mtile *{font-weight:800!important}
     .dsh2 select,.dsh2 button{color:#0b0b0b}
+    /* ===== LIVE FLOW LAYER ===== */
+    .dsh2 .dstat{position:relative;overflow:hidden}
+    .dsh2 .dstat::after{content:'';position:absolute;top:0;left:-70%;width:45%;height:100%;background:linear-gradient(105deg,transparent,rgba(120,160,210,.14),transparent);animation:dshSheen 7s ease-in-out infinite;pointer-events:none}
+    .dsh2 .dstat:nth-of-type(2)::after{animation-delay:1.4s}.dsh2 .dstat:nth-of-type(3)::after{animation-delay:2.8s}.dsh2 .dstat:nth-of-type(4)::after{animation-delay:4.2s}
+    .dsh2 .dstat-v>span{animation:ringGlow 3.2s ease-in-out infinite}
+    @keyframes ringGlow{0%,100%{filter:drop-shadow(0 0 0 rgba(60,110,180,0))}50%{filter:drop-shadow(0 2px 7px rgba(60,110,180,.35))}}
+    .dsh2 .dsh-headx .clk{animation:clkPulse 2.6s ease-in-out infinite}
+    @keyframes clkPulse{0%,100%{box-shadow:inset 0 2px 6px rgba(30,45,65,.35),0 1px 0 #fff}50%{box-shadow:inset 0 2px 6px rgba(30,45,65,.35),0 0 14px rgba(46,134,193,.45)}}
+    .dsh2 .chip .n{animation:chipFloat 3.6s ease-in-out infinite}
+    .dsh2 .chip:nth-child(2) .n{animation-delay:.5s}.dsh2 .chip:nth-child(3) .n{animation-delay:1s}.dsh2 .chip:nth-child(4) .n{animation-delay:1.5s}.dsh2 .chip:nth-child(5) .n{animation-delay:2s}.dsh2 .chip:nth-child(6) .n{animation-delay:2.5s}
+    @keyframes chipFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
+    .dsh2 .mtile-pct{animation:pctBeat 2.4s ease-in-out infinite}
+    @keyframes pctBeat{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+    .dsh2 .mside{animation:sidePulse 2s ease-in-out infinite}
+    @keyframes sidePulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}50%{box-shadow:0 0 9px 1px rgba(255,255,255,.35)}}
+    /* ===== 3D INTERACTIVE LAYER ===== */
+    .dsh2 .kchips,.dsh2 .dstats{perspective:900px}
+    .dsh2 .chip{transform-style:preserve-3d;animation:dsh3din .6s both}
+    .dsh2 .dstat{transform-style:preserve-3d;animation:dsh3din .7s both}
+    @keyframes dsh3din{from{opacity:0;transform:rotateX(14deg) translateY(14px)}to{opacity:1;transform:rotateX(0) translateY(0)}}
+    .dsh2 .chip:hover{transform:rotateX(5deg) rotateY(-4deg) translateY(-3px)!important;box-shadow:0 14px 26px rgba(40,60,90,.22)!important}
+    .dsh2 .dstat:hover{transform:rotateX(5deg) rotateY(4deg) translateY(-3px)!important;box-shadow:0 16px 30px rgba(40,60,90,.24)!important}
+    .dsh2 .mtile{transform-style:preserve-3d}
+    .dsh2 .mtile:hover{transform:rotateY(-5deg) rotateX(3deg) translateY(-4px)!important;box-shadow:0 16px 30px rgba(0,0,0,.32)!important}
+    .dsh2 .dstat-v>span::after{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 84%,rgba(255,255,255,.85) 92%,transparent 100%);animation:ringSpin 4.5s linear infinite;pointer-events:none}
+    @keyframes ringSpin{to{transform:rotate(360deg)}}
+    .dsh2 .dsh-headx .clk{transform-style:preserve-3d}
+    .dsh2 .dsh-headx .clk:hover{transform:rotateX(9deg)}
+    .dsh2 .chip,.dsh2 .dstat,.dsh2 .mtile,.dsh2 .dsh-headx .clk{transition:transform .25s ease,box-shadow .25s ease}
+
+
 
     .dsh2 .mside{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:900;letter-spacing:.8px;padding:2px 9px;border-radius:9px;margin-left:7px;vertical-align:middle;color:#fff}
     .dsh2 .mside .mst-t{font-size:10.5px;font-weight:900;letter-spacing:.4px;font-variant-numeric:tabular-nums;margin-left:2px}
@@ -5928,10 +5970,10 @@ function renderDashboard(){
       <label>Month select <input type="month" id="dshMonIn" value="${mode==='month'?selMonVal:''}"></label>
     </div>
     <div class="dstats">
-      ${statCell('TOTAL PRODUCTION','<span id="dshTotal">0</span> kg','KG \u00b7 '+esc(a.label).toUpperCase())}
-      ${statCell('TOTAL WASTAGE','<span id="dshTotW">0</span> kg','LOOM '+Math.round(wLm)+' \u00b7 LAM '+Math.round(wLa)+' \u00b7 PROC '+Math.round(wPr))}
-      ${statCell('WASTAGE %',pct.toFixed(2)+'%','OF TOTAL PRODUCTION',wcol(pct))}
-      ${statCell('EFFICIENCY',eff.toFixed(1)+'%','UPTIME '+uptime.toFixed(1)+'%','#1e9e50')}
+      ${statCell('TOTAL PRODUCTION','<span id="dshTotal">0</span> kg'+_dshTrend(a).p,'KG \u00b7 '+esc(a.label).toUpperCase())}
+      ${statCell('TOTAL WASTAGE','<span id="dshTotW">0</span> kg'+_dshTrend(a).w,'LOOM '+Math.round(wLm)+' \u00b7 LAM '+Math.round(wLa)+' \u00b7 PROC '+Math.round(wPr))}
+      ${statCell('WASTAGE %',_dshRing(pct*5,'#c0392b',pct.toFixed(2)+'%'),'OF TOTAL PRODUCTION',wcol(pct))}
+      ${statCell('EFFICIENCY',_dshRing(eff,'#1e9e50',eff.toFixed(1)+'%'),'UPTIME '+uptime.toFixed(1)+'%','#1e9e50')}
     </div>
     <div class="mpanel">
       <div class="mpanel-h"><span class="mt">MACHINE PERFORMANCE \u00b7 LIVE</span><span class="mc">${keys.length} MACHINE${keys.length!==1?'S':''}</span></div>
