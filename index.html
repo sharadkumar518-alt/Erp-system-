@@ -5789,7 +5789,7 @@ function renderDashboard(){
         if(st.running){
           stSide=`<span class="mside mside-run"><span class="mst-dot"></span>\u2192 CHALU <b class="mst-t" data-since="${st.since}">${_dshAgo(Date.now()-st.since)}</b></span>`;
         } else {
-          stSide=`<span class="mside mside-stop"><span class="mst-dot"></span>\u2192 BAND <b class="mst-t" data-since="${st.since}">${_dshAgo(Date.now()-st.since)}</b></span>`;
+          stSide=`<span class="mside mside-stop"><span class="mst-dot"></span>\u2192 STOP <b class="mst-t" data-since="${st.since}">${_dshAgo(Date.now()-st.since)}</b></span>`;
         }
       }
     }catch(e){}
@@ -5829,8 +5829,7 @@ function renderDashboard(){
     @keyframes dshUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
     .dsh2 .dstat-v{animation:dshNum .7s both .25s}
     @keyframes dshNum{from{opacity:0;transform:scale(.85)}60%{transform:scale(1.04)}to{opacity:1;transform:scale(1)}}
-    .dsh2 .chip .n{animation:dshGlowPulse 3s ease-in-out infinite}
-    @keyframes dshGlowPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}50%{box-shadow:0 0 12px 1px rgba(0,0,0,.18)}}
+        @keyframes dshGlowPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}50%{box-shadow:0 0 12px 1px rgba(0,0,0,.18)}}
     .dsh2 .mpanel-h{position:relative;overflow:hidden}
     .dsh2 .mpanel-h::after{content:'';position:absolute;bottom:0;left:0;width:26%;height:2px;background:linear-gradient(90deg,transparent,#4fc3f7,transparent);animation:dshScan 3s linear infinite}
     @keyframes dshScan{0%{left:-30%}100%{left:105%}}
@@ -5863,17 +5862,14 @@ function renderDashboard(){
     .dsh2 .dstat{position:relative;overflow:hidden}
     .dsh2 .dstat::after{content:'';position:absolute;top:0;left:-70%;width:45%;height:100%;background:linear-gradient(105deg,transparent,rgba(120,160,210,.14),transparent);animation:dshSheen 7s ease-in-out infinite;pointer-events:none}
     .dsh2 .dstat:nth-of-type(2)::after{animation-delay:1.4s}.dsh2 .dstat:nth-of-type(3)::after{animation-delay:2.8s}.dsh2 .dstat:nth-of-type(4)::after{animation-delay:4.2s}
-    .dsh2 .dstat-v>span{animation:ringGlow 3.2s ease-in-out infinite}
-    @keyframes ringGlow{0%,100%{filter:drop-shadow(0 0 0 rgba(60,110,180,0))}50%{filter:drop-shadow(0 2px 7px rgba(60,110,180,.35))}}
-    .dsh2 .dsh-headx .clk{animation:clkPulse 2.6s ease-in-out infinite}
-    @keyframes clkPulse{0%,100%{box-shadow:inset 0 2px 6px rgba(30,45,65,.35),0 1px 0 #fff}50%{box-shadow:inset 0 2px 6px rgba(30,45,65,.35),0 0 14px rgba(46,134,193,.45)}}
+        @keyframes ringGlow{0%,100%{filter:drop-shadow(0 0 0 rgba(60,110,180,0))}50%{filter:drop-shadow(0 2px 7px rgba(60,110,180,.35))}}
+        @keyframes clkPulse{0%,100%{box-shadow:inset 0 2px 6px rgba(30,45,65,.35),0 1px 0 #fff}50%{box-shadow:inset 0 2px 6px rgba(30,45,65,.35),0 0 14px rgba(46,134,193,.45)}}
     .dsh2 .chip .n{animation:chipFloat 3.6s ease-in-out infinite}
     .dsh2 .chip:nth-child(2) .n{animation-delay:.5s}.dsh2 .chip:nth-child(3) .n{animation-delay:1s}.dsh2 .chip:nth-child(4) .n{animation-delay:1.5s}.dsh2 .chip:nth-child(5) .n{animation-delay:2s}.dsh2 .chip:nth-child(6) .n{animation-delay:2.5s}
     @keyframes chipFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
     .dsh2 .mtile-pct{animation:pctBeat 2.4s ease-in-out infinite}
     @keyframes pctBeat{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
-    .dsh2 .mside{animation:sidePulse 2s ease-in-out infinite}
-    @keyframes sidePulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}50%{box-shadow:0 0 9px 1px rgba(255,255,255,.35)}}
+        @keyframes sidePulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}50%{box-shadow:0 0 9px 1px rgba(255,255,255,.35)}}
     /* ===== 3D INTERACTIVE LAYER ===== */
     .dsh2 .kchips,.dsh2 .dstats{perspective:900px}
     .dsh2 .chip{transform-style:preserve-3d;animation:dsh3din .6s both}
@@ -5881,7 +5877,8 @@ function renderDashboard(){
     @keyframes dsh3din{from{opacity:0;transform:rotateX(14deg) translateY(14px)}to{opacity:1;transform:rotateX(0) translateY(0)}}
     .dsh2 .chip:hover{transform:rotateX(5deg) rotateY(-4deg) translateY(-3px)!important;box-shadow:0 14px 26px rgba(40,60,90,.22)!important}
     .dsh2 .dstat:hover{transform:rotateX(5deg) rotateY(4deg) translateY(-3px)!important;box-shadow:0 16px 30px rgba(40,60,90,.24)!important}
-    .dsh2 .mtile{transform-style:preserve-3d}
+    .dsh2 .mtile{transform-style:preserve-3d;animation:mtile360 1.1s cubic-bezier(.25,.7,.3,1) both!important}
+    @keyframes mtile360{from{transform:rotateY(360deg) scale(.55);opacity:0}to{transform:rotateY(0deg) scale(1);opacity:1}}
     .dsh2 .mtile:hover{transform:rotateY(-5deg) rotateX(3deg) translateY(-4px)!important;box-shadow:0 16px 30px rgba(0,0,0,.32)!important}
     .dsh2 .dstat-v>span::after{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 84%,rgba(255,255,255,.85) 92%,transparent 100%);animation:ringSpin 4.5s linear infinite;pointer-events:none}
     @keyframes ringSpin{to{transform:rotate(360deg)}}
@@ -5893,9 +5890,9 @@ function renderDashboard(){
 
     .dsh2 .mside{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:900;letter-spacing:.8px;padding:2px 9px;border-radius:9px;margin-left:7px;vertical-align:middle;color:#fff}
     .dsh2 .mside .mst-t{font-size:10.5px;font-weight:900;letter-spacing:.4px;font-variant-numeric:tabular-nums;margin-left:2px}
-    .dsh2 .mside-run{background:rgba(0,0,0,.28);border:1px solid rgba(125,255,176,.55)}
+    .dsh2 .mside-run{background:#159a4d;border:1px solid #baf3d0}
     .dsh2 .mside-run .mst-dot{width:7px;height:7px;border-radius:50%;background:#7dffb0;box-shadow:0 0 0 0 rgba(125,255,176,.7);animation:lvp 1.2s infinite}
-    .dsh2 .mside-stop{background:rgba(0,0,0,.38);border:1px solid rgba(255,157,157,.55)}
+    .dsh2 .mside-stop{background:#c0392b;border:1px solid #ffc4c4}
     .dsh2 .mside-stop .mst-dot{width:7px;height:7px;border-radius:50%;background:#ff9d9d;animation:mstblink 1.4s infinite}
     @keyframes mstblink{0%,100%{opacity:1}50%{opacity:.25}}
     .dsh2 .dsh-headx .clk{font-size:16px;font-weight:800;letter-spacing:2.5px;background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.05));border:1px solid rgba(130,200,255,.35);padding:9px 17px;border-radius:11px;box-shadow:inset 0 1px 0 rgba(255,255,255,.15),0 0 18px rgba(46,134,193,.35);font-variant-numeric:tabular-nums}
@@ -5923,8 +5920,7 @@ function renderDashboard(){
     .dsh2 .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:11px;padding:14px}
     .dsh2 .mtile{position:relative;border-radius:14px;overflow:hidden;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.15);animation:dshIn .4s both;transition:transform .18s}
     .dsh2 .mtile:hover{transform:translateY(-3px)}
-    .dsh2 .mtile::after{content:'';position:absolute;top:0;left:-70%;width:45%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.13),transparent);animation:dshSheen 5.5s ease-in-out infinite;pointer-events:none}
-    .dsh2 .mtile-h{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:8px 11px;font-weight:800;font-size:12.5px;letter-spacing:.4px}
+        .dsh2 .mtile-h{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:8px 11px;font-weight:800;font-size:12.5px;letter-spacing:.4px}
     .dsh2 .mtile-tag{font-size:9px;background:rgba(255,255,255,.92);color:#333;padding:2.5px 8px;border-radius:10px;letter-spacing:.7px;font-weight:800;white-space:nowrap}
     .dsh2 .mtile-body{padding:11px 11px 12px;text-align:center;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(0,0,0,.05))}
     .dsh2 .mtile-pct{font-size:31px;font-weight:900;line-height:1;text-shadow:0 2px 6px rgba(0,0,0,.3)}
