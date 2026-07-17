@@ -5282,7 +5282,7 @@ function renderManageUsers(){
   <div class="view"><div class="mu">
     <div class="mhead">
       <div><div class="t">MANAGE USERS</div><div class="s">USER BANAO \u00b7 PASSWORD BADLO \u00b7 ROLE & RIGHTS \u00b7 BLOCK/UNBLOCK</div></div>
-      <div><button class="btn btn-primary" id="muAdd">+ New User</button> <button class="btn btn-ghost" id="muRef">Refresh</button> <button class="btn btn-ghost" id="muDev">\uD83D\uDEE1\uFE0F Devices</button></div>
+      <div><button class="btn btn-primary" id="muAdd">+ New User</button> <button class="btn btn-ghost" id="muRef">Refresh</button> <button class="btn btn-ghost" id="muDev">\uD83D\uDEE1\uFE0F Devices</button> <button class="btn btn-ghost" id="muBkp">\uD83D\uDCBE Backup</button> <button class="btn btn-ghost" id="muCfgR">\u267B\uFE0F Config Restore</button></div>
     </div>
     <div class="mtblw"><table>
       <thead><tr><th>USER ID</th><th>ROLE</th><th>EDIT</th><th>DELETE</th><th>STATUS</th><th>ACTION</th></tr></thead>
@@ -5293,6 +5293,8 @@ function renderManageUsers(){
   document.getElementById('muAdd').onclick=function(){ _muDlg(null); };
   document.getElementById('muRef').onclick=_muLoad;
   var _db=document.getElementById('muDev'); if(_db) _db.onclick=_muDevices;
+  var _bk=document.getElementById('muBkp'); if(_bk) _bk.onclick=_muBackup;
+  var _cr=document.getElementById('muCfgR'); if(_cr) _cr.onclick=_muCfgRestore;
   _muLoad();
 }
 function _muLoad(){
@@ -5409,6 +5411,60 @@ function _muDel(idx){
       else { toast((j&&j.error)?j.error:'Delete nahi hua','err'); }
     }).catch(function(){ toast('Network error','err'); });
   };
+}
+
+/* Sirf CONFIG wapas laata hai \u2014 records/orders/batch ko kabhi haath nahi lagata */
+function _muCfgRestore(){
+  var inp=document.createElement('input');
+  inp.type='file'; inp.accept='.json,application/json';
+  inp.onchange=function(){
+    var f=inp.files&&inp.files[0]; if(!f) return;
+    var fr=new FileReader();
+    fr.onload=function(){
+      var j=null;
+      try{ j=JSON.parse(String(fr.result||'')); }
+      catch(e){ toast('Ye file padhi nahi ja saki \u2014 backup file hi chuno','err'); return; }
+      var d=(j&&j.data)||{};
+      var c=d[KEY_CFG], oc=d[KEY_OCFG];
+      if(!c && !oc){ toast('Is file me config nahi mila','err'); return; }
+      var pc=null, po=null;
+      try{ if(c) pc=JSON.parse(c); }catch(e){}
+      try{ if(oc) po=JSON.parse(oc); }catch(e){}
+      if(c && (!pc || !Array.isArray(pc.sections))){ toast('Entry config kharab hai \u2014 restore roka','err'); return; }
+      if(oc && (!po || !Array.isArray(po.fields))){ toast('Order config kharab hai \u2014 restore roka','err'); return; }
+      var when=''; try{ when=j._at?new Date(j._at).toLocaleString('en-GB'):''; }catch(e){}
+      var msg='Sirf CONFIG wapas aayega'+(when?(' (backup: '+when+')'):'')+'. Records, orders, batch \u2014 kisi ko haath nahi lagega. Aage badhein?';
+      confirmModal(msg, function(){
+        try{
+          if(pc){ CFG=pc; saveCfg(); }
+          if(po){ ORDERCFG=po; saveOcfg(); }
+          DRAFT=null;
+          try{ render(); }catch(e){}
+          toast('\u2705 Config wapas aa gaya \u2014 cloud pe bhi save ho raha hai','ok');
+        }catch(e){ toast('Restore nahi hua','err'); }
+      }, false);
+    };
+    fr.readAsText(f);
+  };
+  inp.click();
+}
+
+function _muBackup(){
+  try{
+    var keys=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA];
+    var out={_app:'COMSYN ERP', _at:new Date().toISOString(), data:{}};
+    var n=0, sz=0;
+    keys.forEach(function(k){ var v=null; try{ v=localStorage.getItem(k); }catch(e){}
+      if(v){ out.data[k]=v; n++; sz+=v.length; } });
+    if(!n){ toast('Backup ke liye data nahi mila \u2014 pehle data load hone do','err'); return; }
+    var blob=new Blob([JSON.stringify(out)],{type:'application/json'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url; a.download='comsyn-backup-'+todayISO()+'.json';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ try{ URL.revokeObjectURL(url); a.remove(); }catch(e){} },1500);
+    toast('\u2705 Backup file ban gayi \u2014 '+n+' items, '+Math.round(sz/1024)+' KB. Surakshit jagah rakh lo','ok');
+  }catch(e){ toast('Backup nahi bana \u2014 dobara koshish karo','err'); }
 }
 
 function _muDevices(){
@@ -5878,13 +5934,37 @@ function renderDashboard(){
     .dsh2 .chip:hover{transform:rotateX(5deg) rotateY(-4deg) translateY(-3px)!important;box-shadow:0 14px 26px rgba(40,60,90,.22)!important}
     .dsh2 .dstat:hover{transform:rotateX(5deg) rotateY(4deg) translateY(-3px)!important;box-shadow:0 16px 30px rgba(40,60,90,.24)!important}
     .dsh2 .mtile{transform-style:preserve-3d;animation:mtile360 1.1s cubic-bezier(.25,.7,.3,1) both!important}
-    @keyframes mtile360{from{transform:rotateY(360deg) scale(.55);opacity:0}to{transform:rotateY(0deg) scale(1);opacity:1}}
+    @keyframes mtile360{from{transform:rotateX(360deg) scale(.55);opacity:0}to{transform:rotateX(0deg) scale(1);opacity:1}}
     .dsh2 .mtile:hover{transform:rotateY(-5deg) rotateX(3deg) translateY(-4px)!important;box-shadow:0 16px 30px rgba(0,0,0,.32)!important}
     .dsh2 .dstat-v>span::after{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 84%,rgba(255,255,255,.85) 92%,transparent 100%);animation:ringSpin 4.5s linear infinite;pointer-events:none}
     @keyframes ringSpin{to{transform:rotate(360deg)}}
     .dsh2 .dsh-headx .clk{transform-style:preserve-3d}
     .dsh2 .dsh-headx .clk:hover{transform:rotateX(9deg)}
     .dsh2 .chip,.dsh2 .dstat,.dsh2 .mtile,.dsh2 .dsh-headx .clk{transition:transform .25s ease,box-shadow .25s ease}
+    /* ===== MACHINE CARD POLISH ===== */
+    .dsh2 .mtile-body{animation:mtFloat 4.5s ease-in-out infinite}
+    .dsh2 .mtile:nth-child(2) .mtile-body{animation-delay:.6s}
+    .dsh2 .mtile:nth-child(3) .mtile-body{animation-delay:1.2s}
+    .dsh2 .mtile:nth-child(4) .mtile-body{animation-delay:1.8s}
+    .dsh2 .mtile:nth-child(5) .mtile-body{animation-delay:2.4s}
+    .dsh2 .mtile:nth-child(6) .mtile-body{animation-delay:3s}
+    @keyframes mtFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+    .dsh2 .mtile-h{position:relative;overflow:hidden}
+    .dsh2 .mtile-h::after{content:'';position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.20),transparent);animation:dshSheen 6s ease-in-out infinite;pointer-events:none}
+    .dsh2 .mtile:nth-child(2) .mtile-h::after{animation-delay:1.5s}
+    .dsh2 .mtile:nth-child(3) .mtile-h::after{animation-delay:3s}
+    .dsh2 .mtile:nth-child(4) .mtile-h::after{animation-delay:4.5s}
+    .dsh2 .mtile-tag{animation:mtTag 3s ease-in-out infinite}
+    @keyframes mtTag{0%,100%{transform:scale(1);opacity:.92}50%{transform:scale(1.07);opacity:1}}
+    .dsh2 .mtile-nums div,.dsh2 .mtile-brk span{animation:mtUp .5s both}
+    .dsh2 .mtile-nums div:nth-child(1){animation-delay:.60s}
+    .dsh2 .mtile-nums div:nth-child(2){animation-delay:.72s}
+    .dsh2 .mtile-brk span:nth-child(1){animation-delay:.84s}
+    .dsh2 .mtile-brk span:nth-child(2){animation-delay:.92s}
+    .dsh2 .mtile-brk span:nth-child(3){animation-delay:1s}
+    @keyframes mtUp{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+    .dsh2 .mtile-pl{animation:mtUp .5s both .5s}
+
 
 
 
@@ -6161,8 +6241,12 @@ function renderTrash(){
         if(rows && rows.forEach){ rows.forEach(function(row){ applyRemote(row.k,row.v); });
           try{ if(purgeTrashed() && current!=='entry') render(); }catch(e){}
           if(firstOK){ firstOK=false; ready=true;
-            SYNC_KEYS.forEach(function(k){ let lv=null; try{lv=localStorage.getItem(k);}catch(e){}
-              const has=rows.some(function(r){return r.k===k;}); if(lv && !has) push(k,lv); });
+            /* SAFETY: cloud khali laga to local default kabhi upload mat karo \u2014
+               warna asli config/data par default chadh jata hai */
+            if(rows.length>0){
+              SYNC_KEYS.forEach(function(k){ let lv=null; try{lv=localStorage.getItem(k);}catch(e){}
+                const has=rows.some(function(r){return r.k===k;}); if(lv && !has) push(k,lv); });
+            }
             try{toast('Cloud sync ON \u2014 secure live updates','ok');}catch(e){}
           }
         }
