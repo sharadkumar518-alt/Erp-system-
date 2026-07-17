@@ -5278,6 +5278,10 @@ function renderManageUsers(){
     .mudlg .mugrid td{padding:6px 9px;border-top:1px solid #edf1f6;font-weight:700;color:#33475f}
     .mudlg .mugrid tr:nth-child(even) td{background:#fafcfe}
     .mudlg .mugrid input[type=checkbox]{width:17px;height:17px}
+    /* header ke buttons dark background par saaf dikhein */
+    .mu .mhead>div:last-child{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .mu .mhead .btn-ghost{background:rgba(255,255,255,.14)!important;border:1.5px solid rgba(255,255,255,.55)!important;color:#fff!important;font-weight:800!important;box-shadow:0 2px 6px rgba(0,0,0,.18)!important}
+    .mu .mhead .btn-ghost:hover,.mu .mhead .btn-ghost:active{background:#fff!important;color:#12233c!important;border-color:#fff!important}
   </style>
   <div class="view"><div class="mu">
     <div class="mhead">
@@ -5849,10 +5853,10 @@ function renderDashboard(){
         }
       }
     }catch(e){}
-    return `<div class="mtile" data-mkey="${encodeURIComponent(k)}" style="background:${b.bg};animation-delay:${(0.04*i).toFixed(2)}s;cursor:pointer">
+    return `<div class="mtile" data-mkey="${encodeURIComponent(k)}" style="background:${b.bg};animation-delay:${(0.22*i).toFixed(2)}s;cursor:pointer">
       <div class="mtile-h" style="background:${b.hd}"><span>${esc(k)} ${stSide}</span><span class="mtile-tag">${b.label}</span></div>
       <div class="mtile-body">
-        <div class="mtile-pct">${mp.toFixed(1)}%</div>
+        <div class="mtile-pct" data-v="${mp.toFixed(1)}">0.0%</div>
         <div class="mtile-pl">WASTAGE</div>
         <div class="mtile-nums">
           <div><b>${Math.round(m.prod)}</b><small>PROD KG</small></div>
@@ -5933,8 +5937,8 @@ function renderDashboard(){
     @keyframes dsh3din{from{opacity:0;transform:rotateX(14deg) translateY(14px)}to{opacity:1;transform:rotateX(0) translateY(0)}}
     .dsh2 .chip:hover{transform:rotateX(5deg) rotateY(-4deg) translateY(-3px)!important;box-shadow:0 14px 26px rgba(40,60,90,.22)!important}
     .dsh2 .dstat:hover{transform:rotateX(5deg) rotateY(4deg) translateY(-3px)!important;box-shadow:0 16px 30px rgba(40,60,90,.24)!important}
-    .dsh2 .mtile{transform-style:preserve-3d;animation:mtile360 1.1s cubic-bezier(.25,.7,.3,1) both!important}
-    @keyframes mtile360{from{transform:rotateX(360deg) scale(.55);opacity:0}to{transform:rotateX(0deg) scale(1);opacity:1}}
+    .dsh2 .mtile{transform-style:preserve-3d;backface-visibility:visible;animation:mtile360 1.5s cubic-bezier(.22,.7,.3,1) both!important}
+    @keyframes mtile360{0%{transform:rotateY(-360deg) scale(.55);opacity:0}60%{opacity:1}100%{transform:rotateY(0deg) scale(1);opacity:1}}
     .dsh2 .mtile:hover{transform:rotateY(-5deg) rotateX(3deg) translateY(-4px)!important;box-shadow:0 16px 30px rgba(0,0,0,.32)!important}
     .dsh2 .dstat-v>span::after{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 84%,rgba(255,255,255,.85) 92%,transparent 100%);animation:ringSpin 4.5s linear infinite;pointer-events:none}
     @keyframes ringSpin{to{transform:rotate(360deg)}}
@@ -5964,6 +5968,23 @@ function renderDashboard(){
     .dsh2 .mtile-brk span:nth-child(3){animation-delay:1s}
     @keyframes mtUp{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
     .dsh2 .mtile-pl{animation:mtUp .5s both .5s}
+    /* poore card par chamak ki lehr */
+    .dsh2 .mtile::after{content:'';position:absolute;top:0;left:-70%;width:45%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.16),transparent);animation:dshSheen 5s ease-in-out infinite 1.6s;pointer-events:none;z-index:2}
+    .dsh2 .mtile:nth-child(2)::after{animation-delay:2.2s}
+    .dsh2 .mtile:nth-child(3)::after{animation-delay:2.8s}
+    .dsh2 .mtile:nth-child(4)::after{animation-delay:3.4s}
+    .dsh2 .mtile:nth-child(5)::after{animation-delay:4s}
+    /* ===== FINAL POLISH ===== */
+    .dsh2{animation:dshFade .5s both}
+    @keyframes dshFade{from{opacity:0}to{opacity:1}}
+    .dsh2 .mpanel{animation:dshUp .6s both .35s}
+    .dsh2 .dstat-v>span{animation:ringBreathe 3.6s ease-in-out infinite 1.2s}
+    @keyframes ringBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
+    .dsh2 .dstat div:last-child{animation:mtUp .5s both .55s}
+    .dsh2 .chip .d b{position:relative}
+    .dsh2 .chip .d b::after{content:'';position:absolute;left:0;bottom:-2px;width:0;height:2px;background:currentColor;opacity:.35;animation:chipLine .9s ease-out forwards .6s}
+    @keyframes chipLine{to{width:100%}}
+    .dsh2 .mpanel-h .mt{animation:mtUp .5s both .45s}
 
 
 
@@ -5997,7 +6018,7 @@ function renderDashboard(){
     .dsh2 .mpanel-h{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(120deg,#0f2036,#1c3c63 70%,#153252);color:#fff;padding:12px 17px;border-bottom:2px solid #2e86c1}
     .dsh2 .mpanel-h .mt{font-size:12px;font-weight:800;letter-spacing:1.2px}
     .dsh2 .mpanel-h .mc{font-size:11px;font-weight:800;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);padding:3px 11px;border-radius:12px;letter-spacing:.5px}
-    .dsh2 .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:11px;padding:14px}
+    .dsh2 .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:11px;padding:14px;perspective:1100px;perspective-origin:50% 50%}
     .dsh2 .mtile{position:relative;border-radius:14px;overflow:hidden;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.15);animation:dshIn .4s both;transition:transform .18s}
     .dsh2 .mtile:hover{transform:translateY(-3px)}
         .dsh2 .mtile-h{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:8px 11px;font-weight:800;font-size:12.5px;letter-spacing:.4px}
@@ -6076,6 +6097,20 @@ function renderDashboard(){
   (function cu(now){ if(!document.getElementById('dshTotal')) return; const p=Math.min(1,(now-t0)/900); const ease=1-Math.pow(1-p,3); el.textContent=Math.round(target*ease); if(p<1) requestAnimationFrame(cu); })(t0);
   const targW=Math.round(a.totW); const elW=document.getElementById('dshTotW');
   if(elW){ const tw0=performance.now(); (function cw(now){ if(!document.getElementById('dshTotW')) return; const p=Math.min(1,(now-tw0)/900); const ease=1-Math.pow(1-p,3); elW.textContent=Math.round(targW*ease); if(p<1) requestAnimationFrame(cw); })(tw0); }
+  /* machine cards ka bada % \u2014 0 se apni value tak ginta hua */
+  try{
+    document.querySelectorAll('.mtile-pct[data-v]').forEach(function(el,ix){
+      var tv=parseFloat(el.getAttribute('data-v'))||0;
+      var st=performance.now()+300+ix*220;
+      (function cp(now){
+        if(!el.isConnected) return;
+        if(now<st){ requestAnimationFrame(cp); return; }
+        var p=Math.min(1,(now-st)/900), e=1-Math.pow(1-p,3);
+        el.textContent=(tv*e).toFixed(1)+'%';
+        if(p<1) requestAnimationFrame(cp);
+      })(performance.now());
+    });
+  }catch(e){}
 }
 
 /* ---------- boot ---------- */
