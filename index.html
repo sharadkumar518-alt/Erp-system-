@@ -1456,7 +1456,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v155</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v156</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -1542,6 +1542,10 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
       <button data-tab="batch">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5M16 13h2M8 16h6"/></svg>
         Batch
+      </button>
+      <button data-tab="linep">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l5 4V7l5 4V7l4 3v11"/><path d="M9 17h1M13 17h1"/></svg>
+        Daily Line Production
       </button>
       <div class="nav-label">Setup</div>
       <button data-tab="assign">
@@ -1771,6 +1775,7 @@ const TAB_META={
   cuttingreport:{title:'Cutting Report',sub:'File-wise fabric cutting report'},
   cuttingstock:{title:'Cutting Stock',sub:'Order-wise & location-wise material stock'},
   batch:{title:'Batch',sub:'Batch cards, component readiness & completion'},
+  linep:{title:'Daily Line Production',sub:'Comsyn Daily Finishing Production Report \u2014 line-wise entry & summary'},
   assign:{title:'Assignment',sub:'Build & configure your entry form'},
   orderassign:{title:'Order Entry Assignment',sub:'Build & configure the order entry form'},
   trash:{title:'Trash',sub:'Deleted items \u2014 restore or delete permanently'},
@@ -1800,6 +1805,7 @@ function render(){
   else if(current==='cuttingreport') renderCuttingReport();
   else if(current==='cuttingstock') renderCuttingStock();
   else if(current==='batch') renderBatch();
+  else if(current==='linep') renderLineProd();
   else if(current==='trash') renderTrash();
   else if(current==='users') renderUsers();
   else if(current==='manageusers') renderManageUsers();
@@ -3798,6 +3804,10 @@ const STOCK_SUBS=[['order','Order-wise'],['location','Location-wise']];
 const KEY_BATCH='comsyn_batch_v1';
 let BATCHES=(()=>{ const r=Store.get(KEY_BATCH); if(r){try{return JSON.parse(r);}catch(e){}} return []; })();
 function saveBatches(){ Store.set(KEY_BATCH,JSON.stringify(BATCHES)); }
+/* ---- DAILY LINE PRODUCTION storage ---- */
+const KEY_LINEP='comsyn_linep_v1';
+let LINEP=(()=>{ const r=Store.get(KEY_LINEP); if(r){ try{ return JSON.parse(r)||[]; }catch(e){} } return []; })();
+function saveLinep(){ Store.set(KEY_LINEP,JSON.stringify(LINEP)); }
 /* ---- TRASH TOMBSTONES: jo item Trash me hai wo data me kabhi wapas nahi aa sakta ---- */
 function trashHasId(type,id){ return TRASH.some(t=>t.type===type && t.item && t.item.id===id); }
 function purgeTrashed(){
@@ -3806,6 +3816,7 @@ function purgeTrashed(){
     const rl=RECORDS.length; RECORDS=RECORDS.filter(r=>!trashHasId('record',r.id)); if(RECORDS.length!==rl){ saveRec(); ch=true; }
     const ol=ORDERS.length;  ORDERS=ORDERS.filter(o=>!trashHasId('order',o.id));   if(ORDERS.length!==ol){ saveOrders(); ch=true; }
     const bl=BATCHES.length; BATCHES=BATCHES.filter(b=>!trashHasId('batch',b.id)); if(BATCHES.length!==bl){ saveBatches(); ch=true; }
+    const ll=LINEP.length;   LINEP=LINEP.filter(x=>!trashHasId('linep',x.id));    if(LINEP.length!==ll){ saveLinep(); ch=true; }
   }catch(e){}
   return ch;
 }
@@ -5241,7 +5252,7 @@ function dshChartSVG(series){
 }
 /* ---- MANAGE USERS PANEL (admin only) ---- */
 var _muRows=[];
-var MU_PANELS=[['entry','Entry'],['records','Records'],['orderentry','Order Entry'],['batch','Batch'],['cuttingstock','Cutting Stock'],['cuttingreport','Cutting Report'],['mtrreport','MTR Report'],['dashboard','Dashboard'],['assign','Assignment'],['orderassign','Order Assign'],['trash','Trash']];
+var MU_PANELS=[['entry','Entry'],['records','Records'],['orderentry','Order Entry'],['batch','Batch'],['linep','Line Prod.'],['cuttingstock','Cutting Stock'],['cuttingreport','Cutting Report'],['mtrreport','MTR Report'],['dashboard','Dashboard'],['assign','Assignment'],['orderassign','Order Assign'],['trash','Trash']];
 function _muCreds(){ var u,p; try{ u=sessionStorage.getItem('comsyn_user'); p=sessionStorage.getItem('comsyn_pass'); }catch(e){} return {u:u,p:p}; }
 function _muRpc(fn,body){
   return fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{ method:'POST', headers:SB_HEADERS, body:JSON.stringify(body) })
@@ -5455,7 +5466,7 @@ function _muCfgRestore(){
 
 function _muBackup(){
   try{
-    var keys=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA];
+    var keys=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP];
     var out={_app:'COMSYN ERP', _at:new Date().toISOString(), data:{}};
     var n=0, sz=0;
     keys.forEach(function(k){ var v=null; try{ v=localStorage.getItem(k); }catch(e){}
@@ -6132,8 +6143,272 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const SB_HEADERS = { 'apikey':SUPABASE_ANON_KEY, 'Authorization':'Bearer '+SUPABASE_ANON_KEY, 'Content-Type':'application/json' };
 
 /* ============ TRASH / RECYCLE BIN TAB ============ */
-const TRASH_LABEL={record:'Production Entry',order:'Order',batch:'Batch'};
-const TRASH_FROM={record:'Records',order:'Order Entry',batch:'Batch'};
+/* ============================================================
+   DAILY LINE PRODUCTION  (Comsyn Daily Finishing Production Report)
+   ============================================================ */
+let lpSub='entry', lpDate=todayISO(), lpUnit='', lpEditId=null;
+const LP_SUBS=[['entry','Entry'],['report','Daily Report']];
+
+function lpFmt(n){ n=num(n); return (Math.round(n*1000)/1000).toString(); }
+function lpKey(e){ return (String(e.orderNo||'').trim()+'|'+String(e.fileNo||'').trim()).toLowerCase(); }
+function lpUniq(field){ return [...new Set((LINEP||[]).map(e=>String(e[field]||'').trim()).filter(Boolean))].sort(); }
+
+/* File No picker pool \u2014 Order Entry orders + completed cutting records */
+function lpOrderPool(){
+  const out=[], seen=new Set();
+  try{ (ORDERS||[]).forEach(o=>{
+    const fn=ordVal(o,/file\s*no/i); if(!fn) return;
+    const on=ordVal(o,/order\s*no/i), sf=ordVal(o,/sf\s*no/i), sz=ordVal(o,/bag\s*size/i), oq=ordVal(o,/qty|quantit/i);
+    const k=(on+'|'+fn).toLowerCase(); if(seen.has(k)) return; seen.add(k);
+    out.push({on,fn,sf,sz,oq});
+  }); }catch(e){}
+  try{ (RECORDS||[]).forEach(r=>{
+    const m=recMeta(r); if(!m.fileNo) return;
+    const k=((m.orderNo||'')+'|'+m.fileNo).toLowerCase(); if(seen.has(k)) return; seen.add(k);
+    out.push({on:m.orderNo||'',fn:m.fileNo,sf:m.sfNo||'',sz:m.bagSize||'',oq:''});
+  }); }catch(e){}
+  return out;
+}
+function lpOrderQty(on,fn){
+  on=String(on||'').trim().toLowerCase(); fn=String(fn||'').trim().toLowerCase();
+  const o=(ORDERS||[]).find(o=>{
+    const oon=ordVal(o,/order\s*no/i).toLowerCase(), ofn=ordVal(o,/file\s*no/i).toLowerCase();
+    if(on&&fn) return oon===on&&ofn===fn;
+    if(fn) return ofn===fn;
+    return on&&oon===on;
+  });
+  return o?num(ordVal(o,/qty|quantit/i)):0;
+}
+
+function renderLineProd(){
+  const c=document.getElementById('content');
+  document.getElementById('topActions').innerHTML='';
+  const subbar=`<div class="osub">${LP_SUBS.map(([k,l])=>`<button class="osub-btn ${lpSub===k?'active':''}" data-lpsub="${k}">${l}</button>`).join('')}</div>`;
+  const inner=(lpSub==='report')?lpReportTabHtml():lpEntryTabHtml();
+  c.innerHTML=`<div class="view proui">${subbar}${inner}</div>`;
+  c.querySelectorAll('[data-lpsub]').forEach(b=>b.onclick=()=>{ lpSub=b.dataset.lpsub; hideLpSuggest(); renderLineProd(); });
+  if(lpSub==='report') bindLpReport(); else bindLpEntry();
+}
+
+/* ---------- ENTRY sub-tab ---------- */
+function lpEntryTabHtml(){
+  const ed=lpEditId?(LINEP.find(x=>x.id===lpEditId)||null):null;
+  if(lpEditId&&!ed) lpEditId=null;
+  const v=ed||{date:lpDate||todayISO(),unit:'',location:'',orderNo:'',fileNo:'',sfNo:'',size:'',bageType:'',type:'',qty:'',bagWt:'',totWt:''};
+  const dl=(id,arr)=>`<datalist id="${id}">${arr.map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`;
+  const F=(id,label,val,extra)=>`<div class="cr-field"><label>${label}</label><input id="${id}" value="${esc(val??'')}" autocomplete="off" ${extra||''}></div>`;
+  return `<div class="card" style="margin-bottom:14px"><div class="card-body">
+    <div style="font-weight:800;font-size:15px;margin-bottom:12px">${ed?'\u270F\uFE0F Edit Line Production Entry':'\u2795 New Line Production Entry'}</div>
+    <div class="cut-search" style="display:flex;gap:10px;flex-wrap:wrap">
+      ${F('lpDateIn','Date',v.date,'type="date"')}
+      ${F('lpUnitIn','Unit Name',v.unit,'list="lpDlUnit" placeholder="e.g. Unit-I"')}
+      ${F('lpLoc','Location',v.location,'list="lpDlLoc" placeholder="e.g. Line-1"')}
+    </div>
+    <div class="cut-search" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+      ${F('lpOrd','Order No.',v.orderNo,'placeholder="Order No."')}
+      ${F('lpFile','File No.',v.fileNo,'class="combo" placeholder="File No. type karo \u2014 picker khulega"')}
+      ${F('lpSf','Sf No.',v.sfNo,'placeholder="Sf No."')}
+      ${F('lpSize','Size',v.size,'placeholder="Size"')}
+    </div>
+    <div class="cut-search" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+      ${F('lpBage','Bage Type',v.bageType,'list="lpDlBage" placeholder="Bage Type"')}
+      ${F('lpType','Type',v.type,'list="lpDlType" placeholder="Type"')}
+      ${F('lpQty','Qty.',v.qty,'type="number" min="0" inputmode="decimal" placeholder="0"')}
+      ${F('lpBagWt','Bag Wt.',v.bagWt,'type="number" min="0" step="any" inputmode="decimal" placeholder="0"')}
+      ${F('lpTotWt','Total Wt.',v.totWt,'readonly style="background:#fff8ec;font-weight:700"')}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+      <button class="btn btn-primary" id="lpSaveBtn">${ed?'Update Entry':'Save Entry'}</button>
+      ${ed?'<button class="btn" id="lpCancelBtn">Cancel</button>':''}
+    </div>
+    ${dl('lpDlUnit',lpUniq('unit'))}${dl('lpDlLoc',lpUniq('location'))}${dl('lpDlBage',lpUniq('bageType'))}${dl('lpDlType',lpUniq('type'))}
+  </div></div>
+  <div class="card"><div class="card-body">
+    <div style="font-weight:800;font-size:15px;margin-bottom:10px">\uD83D\uDCCB Entries \u2014 <span id="lpListDate">${esc(fmtDate(v.date))}</span></div>
+    <div id="lpList">${lpEntriesTableHtml(v.date)}</div>
+  </div></div>`;
+}
+function lpEntriesTableHtml(dateISO){
+  const rows=(LINEP||[]).filter(e=>e.date===dateISO);
+  if(!rows.length) return `<div class="empty-state"><p>Is date ki koi entry nahi \u2014 upar form se pehli entry save karo.</p></div>`;
+  let qt=0, wt=0;
+  const body=rows.map((e,i)=>{ qt+=num(e.qty); wt+=num(e.totWt);
+    return `<tr><td>${i+1}</td><td>${esc(e.unit||'\u2014')}</td><td>${esc(e.location||'\u2014')}</td><td>${esc(e.orderNo||'\u2014')}</td><td>${esc(e.fileNo||'\u2014')}</td><td>${esc(e.sfNo||'\u2014')}</td><td>${esc(e.size||'\u2014')}</td><td>${esc(e.bageType||'\u2014')}</td><td>${esc(e.type||'\u2014')}</td><td><b>${lpFmt(e.qty)}</b></td><td>${lpFmt(e.bagWt)}</td><td><b>${lpFmt(e.totWt)}</b></td><td><button class="btn btn-sm" data-lpedit="${e.id}">Edit</button></td><td><button class="btn btn-sm btn-danger" data-lpdel="${e.id}">DELETE</button></td></tr>`; }).join('');
+  return `<div class="mc-scroll"><table class="mc-tbl cut-tbl"><thead><tr><th>S.No</th><th>Unit Name</th><th>Location</th><th>Order No.</th><th>File No.</th><th>Sf No.</th><th>Size</th><th>Bage Type</th><th>Type</th><th>Qty.</th><th>Bag Wt.</th><th>Total Wt.</th><th></th><th></th></tr></thead><tbody>${body}<tr style="font-weight:800;background:#FFF7ED"><td colspan="9" style="text-align:right">TOTAL</td><td>${lpFmt(qt)}</td><td></td><td>${lpFmt(wt)}</td><td></td><td></td></tr></tbody></table></div>`;
+}
+function bindLpEntry(){
+  const $=id=>document.getElementById(id);
+  ['lpQty','lpBagWt'].forEach(id=>$(id).addEventListener('input',()=>{ $('lpTotWt').value=lpFmt(num($('lpQty').value)*num($('lpBagWt').value)); }));
+  $('lpDateIn').addEventListener('change',()=>{ lpDate=$('lpDateIn').value||todayISO(); const s=$('lpListDate'); if(s) s.textContent=fmtDate(lpDate); const l=$('lpList'); if(l){ l.innerHTML=lpEntriesTableHtml(lpDate); bindLpList(); } });
+  const fi=$('lpFile');
+  fi.addEventListener('input',()=>showLpSuggest(fi));
+  fi.addEventListener('focus',()=>showLpSuggest(fi));
+  fi.addEventListener('blur',()=>setTimeout(hideLpSuggest,180));
+  $('lpSaveBtn').onclick=lpSaveEntry;
+  const cx=$('lpCancelBtn'); if(cx) cx.onclick=()=>{ lpEditId=null; renderLineProd(); };
+  bindLpList();
+}
+function bindLpList(){
+  document.querySelectorAll('[data-lpedit]').forEach(b=>b.onclick=()=>{ lpEditId=b.dataset.lpedit; lpSub='entry'; renderLineProd(); });
+  document.querySelectorAll('[data-lpdel]').forEach(b=>b.onclick=()=>{
+    const e=LINEP.find(x=>x.id===b.dataset.lpdel); if(!e) return;
+    confirmModal('Ye line production entry delete karein? (Trash me jayegi \u2014 wahan se restore ho sakti hai)',()=>{
+      trashAdd('linep',e); LINEP=LINEP.filter(x=>x.id!==e.id); saveLinep();
+      if(lpEditId===e.id) lpEditId=null;
+      renderLineProd(); toast('Entry Trash me chali gayi','info');
+    },true);
+  });
+  try{ if(window._comsynPaint) window._comsynPaint(); }catch(e){}
+}
+function lpSaveEntry(){
+  const $=id=>document.getElementById(id);
+  const e={
+    date:($('lpDateIn').value||todayISO()),
+    unit:$('lpUnitIn').value.trim(), location:$('lpLoc').value.trim(),
+    orderNo:$('lpOrd').value.trim(), fileNo:$('lpFile').value.trim(), sfNo:$('lpSf').value.trim(),
+    size:$('lpSize').value.trim(), bageType:$('lpBage').value.trim(), type:$('lpType').value.trim(),
+    qty:num($('lpQty').value), bagWt:num($('lpBagWt').value), totWt:num($('lpTotWt').value)
+  };
+  if(!e.unit){ toast('Unit Name bharo','err'); $('lpUnitIn').focus(); return; }
+  if(!e.location){ toast('Location bharo','err'); $('lpLoc').focus(); return; }
+  if(!e.fileNo && !e.orderNo){ toast('File No. ya Order No. bharo','err'); $('lpFile').focus(); return; }
+  if(!(e.qty>0)){ toast('Qty. bharo','err'); $('lpQty').focus(); return; }
+  if(!e.totWt) e.totWt=e.qty*e.bagWt;
+  if(lpEditId){
+    const old=LINEP.find(x=>x.id===lpEditId);
+    if(old){ Object.assign(old,e); old.editedAt=Date.now(); old.editedBy=(sessionStorage.getItem('comsyn_user')||''); saveLinep(); toast('Entry update ho gayi','ok'); }
+    lpEditId=null;
+  } else {
+    LINEP.unshift(Object.assign({id:uid(),savedAt:Date.now(),by:(sessionStorage.getItem('comsyn_user')||'')},e));
+    saveLinep(); toast('Line production entry save ho gayi','ok');
+  }
+  lpDate=e.date;
+  renderLineProd();
+}
+/* File No live picker (Order Entry + completed cutting) */
+let _lpPop=null;
+function hideLpSuggest(){ if(_lpPop){ _lpPop.remove(); _lpPop=null; } }
+function showLpSuggest(inp){
+  const typed=String(inp.value||'').trim().toLowerCase();
+  hideLpSuggest();
+  if(!typed) return;
+  const matches=lpOrderPool().filter(p=>{ const fn=String(p.fn||'').toLowerCase(); return fn && (fn===typed||fn.includes(typed)||typed.includes(fn)); }).slice(0,12);
+  if(!matches.length) return;
+  const r=inp.getBoundingClientRect();
+  const el=document.createElement('div'); el.className='olk-pop'; _lpPop=el;
+  el.style.left=Math.max(8,r.left)+'px'; el.style.top=(r.bottom+4)+'px'; el.style.minWidth=Math.max(r.width,290)+'px';
+  el.innerHTML=`<div class="olk-head"><span>Order No</span><span>File No</span><span>Sf No</span><span>Size</span></div>`+matches.map((p,i)=>
+    `<button class="olk-row" data-lppick="${i}"><span class="olk-on">${esc(p.on||'\u2014')}</span><span>${esc(p.fn||'\u2014')}</span><span>${esc(p.sf||'\u2014')}</span><span class="olk-oq">${esc(p.sz||'')}</span></button>`).join('');
+  document.body.appendChild(el);
+  el.querySelectorAll('[data-lppick]').forEach(b=>b.addEventListener('pointerdown',ev=>{ ev.preventDefault(); try{ swallowNextClick(); }catch(e){} lpPickOrder(matches[+b.dataset.lppick]); }));
+  window.addEventListener('scroll',hideLpSuggest,{passive:true,once:true,capture:true});
+}
+function lpPickOrder(p){
+  hideLpSuggest();
+  const $=id=>document.getElementById(id);
+  if($('lpOrd')) $('lpOrd').value=p.on||'';
+  if($('lpFile')) $('lpFile').value=p.fn||'';
+  if($('lpSf')) $('lpSf').value=p.sf||'';
+  if($('lpSize')) $('lpSize').value=p.sz||'';
+  toast('Order details filled','ok');
+  const nx=$('lpBage'); if(nx) nx.focus();
+}
+
+/* ---------- DAILY REPORT sub-tab ---------- */
+function lpReportTabHtml(){
+  const units=[...new Set((LINEP||[]).filter(e=>e.date===lpDate).map(e=>String(e.unit||'').trim()).filter(Boolean))].sort();
+  if(lpUnit && units.indexOf(lpUnit)<0) lpUnit='';
+  return `<div class="card" style="margin-bottom:14px"><div class="card-body">
+    <div class="cut-search" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="cr-field"><label>Date</label><input id="lpRDate" type="date" value="${esc(lpDate)}"></div>
+      <div class="cr-field"><label>Unit Name</label><select id="lpRUnit" style="border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:14.5px;color:var(--ink);background:#fff"><option value="">All Units</option>${units.map(u=>`<option value="${esc(u)}" ${lpUnit===u?'selected':''}>${esc(u)}</option>`).join('')}</select></div>
+      <button class="btn btn-green" id="lpXls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13l6 6M15 13l-6 6"/></svg>Export Excel</button>
+      <button class="btn btn-primary" id="lpPdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Download PDF</button>
+    </div>
+  </div></div>
+  <div id="lpRepWrap">${lpReportDoc(lpDate,lpUnit)}</div>`;
+}
+function lpReportData(dateISO,unit){
+  const rows=(LINEP||[]).filter(e=>e.date===dateISO && (!unit || String(e.unit||'').trim()===unit));
+  const keys=[...new Set(rows.map(lpKey).filter(k=>k!=='|'))];
+  const orders=keys.map(k=>{
+    const any=rows.find(e=>lpKey(e)===k);
+    const all=(LINEP||[]).filter(e=>lpKey(e)===k);
+    const bagQty=all.reduce((a,e)=>a+num(e.qty),0);
+    const oq=lpOrderQty(any.orderNo,any.fileNo);
+    return {on:any.orderNo||'',fn:any.fileNo||'',sz:any.size||'',oq,bagQty,bal:oq-bagQty};
+  });
+  const complete=orders.filter(o=>o.oq>0 && o.bagQty>=o.oq);
+  const balance=orders.filter(o=>o.oq>0 && o.bagQty<o.oq);
+  const locs={};
+  rows.forEach(e=>{ const L=String(e.location||'').trim()||'\u2014'; if(!locs[L]) locs[L]={qty:0,wt:0}; locs[L].qty+=num(e.qty); locs[L].wt+=num(e.totWt); });
+  return {rows,complete,balance,locs};
+}
+function lpReportDoc(dateISO,unit){
+  const d=lpReportData(dateISO,unit);
+  let dd=dateISO; try{ dd=new Date(dateISO+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase(); }catch(e){}
+  if(!d.rows.length) return `<div class="empty-state"><p>${esc(dd)}${unit?(' \u2014 '+esc(unit)):''} ki koi line production entry nahi.</p></div>`;
+  let qt=0, wt=0;
+  const main=d.rows.map((e,i)=>{ qt+=num(e.qty); wt+=num(e.totWt);
+    return `<tr><td>${i+1}</td><td style="text-align:left">${esc(e.unit||'-')}</td><td style="text-align:left">${esc(e.location||'-')}</td><td>${esc(e.orderNo||'-')}</td><td>${esc(e.fileNo||'-')}</td><td>${esc(e.sfNo||'-')}</td><td>${esc(e.size||'-')}</td><td>${esc(e.bageType||'-')}</td><td>${esc(e.type||'-')}</td><td>${lpFmt(e.qty)}</td><td>${lpFmt(e.bagWt)}</td><td>${lpFmt(e.totWt)}</td></tr>`; }).join('');
+  const compRows=d.complete.length? d.complete.map(o=>`<tr><td>${esc(o.on||'-')}</td><td>${esc(o.fn||'-')}</td><td>${esc(o.sz||'-')}</td><td>${lpFmt(o.oq)}</td><td>${lpFmt(o.bagQty)}</td><td>${o.bagQty>o.oq?lpFmt(o.bagQty-o.oq):'0'}</td></tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:#888">Abhi koi order complete nahi hua</td></tr>`;
+  const balRows=d.balance.length? d.balance.map(o=>`<tr><td>${esc(o.on||'-')}</td><td>${esc(o.fn||'-')}</td><td>${esc(o.sz||'-')}</td><td>${lpFmt(o.oq)}</td><td>${lpFmt(o.bagQty)}</td><td><b>${lpFmt(o.bal)}</b></td></tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:#888">Koi balance nahi \u2014 sab orders complete</td></tr>`;
+  let sq=0, sw=0;
+  const sumRows=Object.keys(d.locs).map(L=>{ sq+=d.locs[L].qty; sw+=d.locs[L].wt; return `<tr><td style="text-align:left">${esc(L)}</td><td>${lpFmt(d.locs[L].qty)}</td><td>${lpFmt(d.locs[L].wt)}</td></tr>`; }).join('');
+  return `<div class="report-doc fab-doc" id="lpDoc">
+    <div class="fab-title">Comsyn Daily Finishing Production Report</div>
+    <div class="fab-info">
+      <div class="fab-info-col"><div class="fab-irow"><span>Unit Name</span><b>${esc(unit||'All Units')}</b></div></div>
+      <div class="fab-info-col"><div class="fab-irow"><span>Date</span><b>${esc(dd)}</b></div></div>
+    </div>
+    <div class="fab-tblwrap"><table class="fab-tbl"><thead><tr><th>S.No</th><th>Unit Name</th><th>Location</th><th>Order No.</th><th>File No.</th><th>Sf No.</th><th>Size</th><th>Bage Type</th><th>Type</th><th>Qty.</th><th>Bag Wt.</th><th>Total Wt.</th></tr></thead><tbody>${main}<tr class="grand"><td colspan="9" style="text-align:right">GRAND TOTAL</td><td>${lpFmt(qt)}</td><td></td><td>${lpFmt(wt)}</td></tr></tbody></table></div>
+    <div class="fab-section-title">Complete Bag</div>
+    <div class="fab-tblwrap"><table class="fab-tbl"><thead><tr><th>Order No.</th><th>File No.</th><th>Size</th><th>Order Qty</th><th>Bag Qty</th><th>Extra</th></tr></thead><tbody>${compRows}</tbody></table></div>
+    <div class="fab-section-title">Balance Bag</div>
+    <div class="fab-tblwrap"><table class="fab-tbl"><thead><tr><th>Order No.</th><th>File No.</th><th>Size</th><th>Order Qty</th><th>Bag Qty</th><th>Balance</th></tr></thead><tbody>${balRows}</tbody></table></div>
+    <div class="fab-section-title">Summary \u2014 Location Wise</div>
+    <div class="fab-tblwrap"><table class="fab-tbl" style="min-width:340px;max-width:520px;margin:0 auto"><thead><tr><th>Location</th><th>Qty.</th><th>Total Wt.</th></tr></thead><tbody>${sumRows}<tr class="grand"><td>GRAND TOTAL</td><td>${lpFmt(sq)}</td><td>${lpFmt(sw)}</td></tr></tbody></table></div>
+  </div>`;
+}
+function bindLpReport(){
+  const $=id=>document.getElementById(id);
+  $('lpRDate').onchange=()=>{ lpDate=$('lpRDate').value||todayISO(); lpUnit=''; renderLineProd(); };
+  $('lpRUnit').onchange=()=>{ lpUnit=$('lpRUnit').value; document.getElementById('lpRepWrap').innerHTML=lpReportDoc(lpDate,lpUnit); };
+  $('lpXls').onclick=lpExcel;
+  $('lpPdf').onclick=lpPDF;
+}
+async function lpPDF(){
+  const ns=window.jspdf;
+  if(!ns||!ns.jsPDF){ toast('PDF engine load ho raha hai \u2014 thodi der me try karo','err'); return; }
+  const d=lpReportData(lpDate,lpUnit);
+  if(!d.rows.length){ toast('Is date ki koi entry nahi','err'); return; }
+  try{
+    toast('PDF ban raha hai...','ok');
+    const {jsPDF}=ns;
+    const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    const canvas=await _captureDocToCanvas(lpReportDoc(lpDate,lpUnit));
+    const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight(), margin=6;
+    const ratio=Math.min((pw-margin*2)/canvas.width,(ph-margin*2)/canvas.height);
+    const dw=canvas.width*ratio, dh=canvas.height*ratio;
+    pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-dw)/2,margin,dw,dh);
+    pdf.save(`Daily_Line_Production_${lpDate}${lpUnit?('_'+lpUnit.replace(/[^\w-]/g,'')):''}.pdf`);
+  }catch(e){ toast('PDF nahi bana \u2014 dobara try karo','err'); }
+}
+function lpExcel(){
+  const d=lpReportData(lpDate,lpUnit);
+  if(!d.rows.length){ toast('Is date ki koi entry nahi','err'); return; }
+  const doc=lpReportDoc(lpDate,lpUnit);
+  const html=`<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>table{border-collapse:collapse;margin-bottom:14px}td,th{border:1px solid #999;padding:6px 8px;font-family:'Times New Roman',Times,serif;font-size:13px;text-align:center}th{background:#1f3a5f;color:#fff}.fab-title{font-size:20px;font-weight:bold;text-align:center;font-family:'Times New Roman',Times,serif}.fab-section-title{font-size:15px;font-weight:bold;text-align:center;font-family:'Times New Roman',Times,serif}</style></head><body>${doc}</body></html>`;
+  const blob=new Blob([html],{type:'application/vnd.ms-excel'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=`Daily_Line_Production_${lpDate}${lpUnit?('_'+lpUnit.replace(/[^\w-]/g,'')):''}.xls`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+const TRASH_LABEL={record:'Production Entry',order:'Order',batch:'Batch',linep:'Line Production'};
+const TRASH_FROM={record:'Records',order:'Order Entry',batch:'Batch',linep:'Daily Line Production'};
 function trashSummary(t){
   try{
     if(t.type==='record'){
@@ -6163,6 +6438,10 @@ function trashSummary(t){
       if(o){ const f={}; (ORDERCFG.fields||[]).forEach(x=>f[x.id]=x.label||''); Object.keys(o.vals||{}).forEach(k=>{ if(/order no/i.test(f[k]||'')) lbl=o.vals[k]; }); }
       return 'Batch'+(lbl?' of Order '+lbl:'')+' | Location: '+(b.location||'-')+' | Date: '+(b.date||'-');
     }
+    if(t.type==='linep'){
+      const e=t.item||{};
+      return 'Date: '+(e.date||'-')+' | Unit: '+(e.unit||'-')+' | Location: '+(e.location||'-')+' | Order: '+(e.orderNo||'-')+' | File: '+(e.fileNo||'-')+' | Qty: '+(e.qty||0);
+    }
   }catch(e){}
   return t.type||'item';
 }
@@ -6173,6 +6452,7 @@ function restoreTrash(tid){
   if(t.type==='record'){ if(RECORDS.some(r=>r.id===it.id)) dup=true; else { RECORDS.unshift(it); saveRec(); ok=true; } }
   else if(t.type==='order'){ if(ORDERS.some(o=>o.id===it.id)) dup=true; else { ORDERS.unshift(it); saveOrders(); ok=true; } }
   else if(t.type==='batch'){ if(BATCHES.some(b=>b.id===it.id)) dup=true; else { BATCHES.unshift(it); saveBatches(); ok=true; } }
+  else if(t.type==='linep'){ if(LINEP.some(x=>x.id===it.id)) dup=true; else { LINEP.unshift(it); saveLinep(); ok=true; } }
   if(ok||dup){ TRASH=TRASH.filter(x=>x.tid!==tid); saveTrash(); }
   renderTrash();
   if(ok) toast('\u267B\uFE0F Restore ho gaya \u2014 '+(TRASH_FROM[t.type]||'')+' me wapas aa gaya','ok');
@@ -6211,7 +6491,7 @@ function renderTrash(){
 /* ===== REAL-TIME SYNC (plain fetch + 3s polling) ===== */
 (function(){
   if(!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
-  const SYNC_KEYS=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA];
+  const SYNC_KEYS=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP];
   let ready=false, suppress=false; const timers={}; const lastLocal={};
   const origSet=Store.set.bind(Store);
   Store.set=function(k,v){ origSet(k,v); if(ready && !suppress && SYNC_KEYS.indexOf(k)>=0){ lastLocal[k]=Date.now(); push(k,v); } };
@@ -6267,9 +6547,10 @@ function renderTrash(){
       else if(k===KEY_BATCH) BATCHES=parsed;
       else if(k===KEY_TRASH) TRASH=parsed;
       else if(k===KEY_EXTRA) EXTRA=parsed;
+      else if(k===KEY_LINEP) LINEP=parsed;
       origSet(k,v);
     } finally { suppress=false; }
-    try{ if(current!=='entry') render(); }catch(e){}
+    try{ if(current!=='entry' && !(current==='linep' && lpSub==='entry')) render(); }catch(e){}
   }
   let firstOK=true;
   function pull(){
@@ -6799,13 +7080,14 @@ function renderTrash(){
   /* row ka savedAt dhoondho (RECORDS/ORDERS/BATCHES me id se) */
   function _findSavedAt(btn){
     try{
-      var id=btn.dataset&&(btn.dataset.id||btn.dataset.edit||btn.dataset.oedit);
-      if(!id){ var h=btn.closest('[data-id],[data-edit],[data-oedit]'); if(h) id=h.dataset.id||h.dataset.edit||h.dataset.oedit; }
+      var id=btn.dataset&&(btn.dataset.id||btn.dataset.edit||btn.dataset.oedit||btn.dataset.lpedit||btn.dataset.lpdel);
+      if(!id){ var h=btn.closest('[data-id],[data-edit],[data-oedit],[data-lpedit],[data-lpdel]'); if(h) id=h.dataset.id||h.dataset.edit||h.dataset.oedit||h.dataset.lpedit||h.dataset.lpdel; }
       if(!id) return null;
       var arrs=[];
       try{ if(typeof RECORDS!=='undefined'&&RECORDS) arrs.push(RECORDS); }catch(e){}
       try{ if(typeof ORDERS!=='undefined'&&ORDERS) arrs.push(ORDERS); }catch(e){}
       try{ if(typeof BATCHES!=='undefined'&&BATCHES) arrs.push(BATCHES); }catch(e){}
+      try{ if(typeof LINEP!=='undefined'&&LINEP) arrs.push(LINEP); }catch(e){}
       for(var i=0;i<arrs.length;i++){
         var f=(arrs[i]||[]).find(function(x){ return x && String(x.id)===String(id); });
         if(f) return f.savedAt||f.date||null;
@@ -6818,8 +7100,8 @@ function renderTrash(){
     try{
       if(sessionStorage.getItem('comsyn_role')==='admin') return;
       var o=_trObj()[current]; if(!o||(!(o.ed>0)&&!(o.dd>0))) return;
-      document.querySelectorAll('[data-act="edit"],[data-act="del"],[data-edit],[data-oedit]').forEach(function(b){
-        var isDel=(b.dataset.act==='del');
+      document.querySelectorAll('[data-act="edit"],[data-act="del"],[data-edit],[data-oedit],[data-lpedit],[data-lpdel]').forEach(function(b){
+        var isDel=(b.dataset.act==='del')||(b.dataset.lpdel!==undefined);
         var lim=isDel?o.dd:o.ed; if(!lim||lim<=0) return;
         var sa=_findSavedAt(b); if(!sa) return;
         if(window._comsynWinOver(isDel?'delete':'edit',sa)){
