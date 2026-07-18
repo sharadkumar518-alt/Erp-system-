@@ -1456,7 +1456,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v157</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v158</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -3849,7 +3849,7 @@ function isoFromTs(ts){ const d=new Date(ts||Date.now()); return d.getFullYear()
 // fix legacy batches that have an invalid date (recover real add-date from savedAt)
 (function(){ let ch=false; BATCHES.forEach(b=>{ if(!validISO(b.date)){ b.date=isoFromTs(b.savedAt); ch=true; } }); if(ch) saveBatches(); })();
 let batchSub='card', batchQuery='', batchDraft=null, batchExpDate='', batchCompQuery='';
-const BATCH_SUBS=[['card','Batch Order'],['process','Under Process'],['complete','Complete']];
+const BATCH_SUBS=[['card','Batch Order'],['process','Under Process'],['complete','Complete'],['report','Batch Report']];
 function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function _stockDateStr(){ const d=stockDate?new Date(stockDate+'T00:00:00'):new Date(); const mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]; return String(d.getDate()).padStart(2,'0')+' / '+mon+' / '+d.getFullYear(); }
 function ordQtyField(){ return ORDERCFG.fields.find(f=>/\bqty\b|quantit/i.test(f.label)); }
@@ -4775,7 +4775,8 @@ function renderBatch(){
   let inner='';
   if(batchSub==='new'){ inner = batchPickerHtml() + `<div id="bDetail">${batchDraftHtml()}</div>`; }
   else if(batchSub==='card'){ inner = `<div class="card" style="margin-bottom:14px"><div class="card-body"><div class="bc-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="bcCardSearch" value="${esc(batchQuery)}" placeholder="Search Order No / File No…" autocomplete="off"></div></div></div><div id="bList">${batchOrderDayHtml()}</div>`; }
-  else if(batchSub==='process'){ inner = batchExportBar() + `<div id="bList">${batchListHtml('process')}</div>`; }
+  else if(batchSub==='process'){ inner = `<div id="bList">${batchListHtml('process')}</div>`; }
+  else if(batchSub==='report'){ inner = batchReportListHtml(); }
   else { inner = batchCompleteSearchHtml() + `<div id="bList">${batchListHtml('complete')}</div>`; }
   c.innerHTML=`<div class="view proui">${subbar}${inner}</div>`;
   c.querySelectorAll('[data-bsub]').forEach(btn=>btn.onclick=()=>{ batchSub=btn.dataset.bsub; if(batchSub!=='card') batchQuery=''; renderBatch(); });
@@ -4812,6 +4813,7 @@ function bindBatch(){
   const cf=document.getElementById('bcCompFile');
   if(cf){ cf.oninput=()=>{ batchCompQuery=cf.value; const s=document.getElementById('bcCompSuggest'); if(s) s.innerHTML=batchCompleteSuggest(); const l=document.getElementById('bList'); if(l) l.innerHTML=batchListHtml('complete'); bindBatchCardActions(); bindBatchCompletePick(); }; bindBatchCompletePick(); }
   const ccl=document.getElementById('bcCompClear'); if(ccl) ccl.onclick=()=>{ batchCompQuery=''; renderBatch(); };
+  bindBatchReportList();
   bindBatchCardActions();
 }
 function bindBatchPick(){
@@ -4891,6 +4893,62 @@ function batchDayExcel(dateStr){
   h+='</table>';
   const blob=new Blob(['\ufeff<html><head><meta charset="utf-8"></head><body>'+h+'</body></html>'],{type:'application/vnd.ms-excel'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`Batch_${dateStr}.xls`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+/* ---------- BATCH REPORT: date-wise cards (Records-style), report = us din ke sab batch ---------- */
+function batchReportListHtml(){
+  const dates=[...new Set((BATCHES||[]).map(b=>b.date||'\u2014'))].sort((a,b)=>String(b).localeCompare(String(a)));
+  if(!dates.length) return `<div class="empty-state"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5M16 13h2M8 16h6"/></svg></div><h3>Koi batch nahi</h3><p>Batch add hote hi yahan date-wise report ban kar aayegi.</p></div>`;
+  let html='';
+  dates.forEach(d=>{
+    const cnt=batchesOfDay(d).length; const label=cnt+' batch'+(cnt!==1?'es':'');
+    const dl=(d==='\u2014')?'No date':fmtDate(d);
+    html+=`<div class="rec-day"><div class="rec-day-label"><span class="d">${esc(dl)}</span><span class="ln"></span><span class="ct">${label}</span></div><div class="rec-grid">
+      <div class="rec-card" data-bview="${esc(d)}">
+        <div class="rc-top"><div><div class="rc-machine">Batch Order Report</div><div class="rc-time">${esc(dl)} \u00b7 ${label}</div></div></div>
+        <div class="rc-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-sm btn-blue" data-bview="${esc(d)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>Day View</button>
+          <button class="btn btn-sm btn-primary" data-bpdf="${esc(d)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Day PDF</button>
+        </div>
+      </div>
+    </div></div>`;
+  });
+  return html;
+}
+function bindBatchReportList(){
+  document.querySelectorAll('[data-bview]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); openBatchDayReport(b.dataset.bview); });
+  document.querySelectorAll('[data-bpdf]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); batchDayPDF(b.dataset.bpdf); });
+}
+function batchDayHTML(dateStr){
+  const items=batchesOfDay(dateStr);
+  if(!items.length) return `<div class="empty-state"><p>Is din koi batch nahi.</p></div>`;
+  const dl=(dateStr==='\u2014')?'No date':fmtDate(dateStr);
+  let h=`<div class="report-doc fab-doc"><div class="fab-title">Batch Order \u2014 ${esc(dl)}</div>`;
+  items.forEach(b=>{
+    const o=batchOrder(b); if(!o) return; const m=batchOrderMeta(o); const comps=orderComponents(o);
+    const info=[['Order No.',m.on||'\u2014'],['Order Qty.',m.oq||'\u2014'],['File No.',m.fn||'\u2014'],['Printing',m.printing||'\u2014'],['Sf No.',m.sf||'\u2014'],['Type',b.type||'\u2014'],['Bag Size',m.bag||'\u2014'],['Pattern',b.pattern||'\u2014'],['Gsm',m.gsm||'\u2014'],['Date',b.date?fmtDate(b.date):'\u2014']];
+    const half=Math.ceil(info.length/2), colA=info.slice(0,half), colB=info.slice(half);
+    const compRows=comps.length? comps.map(c=>{ const rd=num((b.ready||{})[c.key]||0); const gv=_givenOnDay(b,c.key,dateStr); const bal=Math.max(0,c.qty-rd);
+      return `<tr><td style="text-align:left">${esc(c.name)}</td><td>${c.qty}</td><td>${gv}</td><td>${rd}</td><td>${bal>0?bal:'Done'}</td></tr>`; }).join('')
+      : `<tr><td colspan="5" style="text-align:center;color:#888">Koi component nahi</td></tr>`;
+    h+=`<div style="margin:14px 0 6px;font-weight:700;color:#1f3a5f;display:flex;justify-content:space-between"><span>BATCH CARD</span><span>LOCATION : ${esc(b.location||'\u2014')}</span></div>
+      <div class="fab-info">
+        <div class="fab-info-col">${colA.map(([k,v])=>`<div class="fab-irow"><span>${esc(k)}</span><b>${esc(String(v))}</b></div>`).join('')}</div>
+        <div class="fab-info-col">${colB.map(([k,v])=>`<div class="fab-irow"><span>${esc(k)}</span><b>${esc(String(v))}</b></div>`).join('')}</div>
+      </div>
+      <div class="fab-tblwrap"><table class="fab-tbl"><thead><tr><th>Component</th><th>Order Total</th><th>GIVEN (${esc(dl)})</th><th>Total Ready</th><th>Balance</th></tr></thead><tbody>${compRows}</tbody></table></div>`;
+  });
+  h+='</div>';
+  return h;
+}
+function openBatchDayReport(dateStr){
+  const dlSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>';
+  const dl=(dateStr==='\u2014')?'No date':fmtDate(dateStr);
+  openModal({ wide:true, full:true, title:`Batch Report \u00b7 ${dl}`,
+    body:`<div class="rpt-host">${batchDayHTML(dateStr)}</div>`,
+    footer:`<button class="btn btn-green" id="bDayXls">Export Excel</button><button class="btn btn-primary" id="bDayPdf">${dlSvg}Download PDF</button>` });
+  const px=document.getElementById('bDayPdf'); if(px) px.onclick=()=>batchDayPDF(dateStr);
+  const ex=document.getElementById('bDayXls'); if(ex) ex.onclick=()=>batchDayExcel(dateStr);
 }
 
 function fcell(r,sec,col,ri){ if(!col) return 0; const row=(r.sections[sec.id]||[])[ri]; if(col.type==='formula') return num(fRec(col.formula,r,sec,ri,col)); return num(row?row[col.id]:0); }
@@ -6167,8 +6225,8 @@ const SB_HEADERS = { 'apikey':SUPABASE_ANON_KEY, 'Authorization':'Bearer '+SUPAB
 /* ============================================================
    DAILY LINE PRODUCTION  (Comsyn Daily Finishing Production Report)
    ============================================================ */
-let lpSub='entry', lpDate=todayISO(), lpUnit='', lpEditId=null;
-const LP_SUBS=[['entry','Entry'],['report','Daily Report']];
+let lpSub='entry', lpDate=todayISO(), lpUnit='', lpEditId=null, lpBalQuery='', lpCompQuery='';
+const LP_SUBS=[['entry','Entry'],['balance','Balance Bag'],['complete','Complete Bag'],['report','Daily Report']];
 
 function lpFmt(n){ n=num(n); return (Math.round(n*1000)/1000).toString(); }
 function lpNumericField(f){ return f&&(f.type==='number'||f.type==='formula'); }
@@ -6247,10 +6305,98 @@ function renderLineProd(){
   const c=document.getElementById('content');
   document.getElementById('topActions').innerHTML='';
   const subbar=`<div class="osub">${LP_SUBS.map(([k,l])=>`<button class="osub-btn ${lpSub===k?'active':''}" data-lpsub="${k}">${l}</button>`).join('')}</div>`;
-  const inner=(lpSub==='report')?lpReportTabHtml():lpEntryTabHtml();
+  let inner;
+  if(lpSub==='report') inner=lpReportListHtml();
+  else if(lpSub==='balance') inner=lpBalanceTabHtml();
+  else if(lpSub==='complete') inner=lpCompleteTabHtml();
+  else inner=lpEntryTabHtml();
   c.innerHTML=`<div class="view proui">${subbar}${inner}</div>`;
   c.querySelectorAll('[data-lpsub]').forEach(b=>b.onclick=()=>{ lpSub=b.dataset.lpsub; hideLpSuggest(); renderLineProd(); });
-  if(lpSub==='report') bindLpReport(); else bindLpEntry();
+  if(lpSub==='report') bindLpReportList();
+  else if(lpSub==='balance') bindLpBalance();
+  else if(lpSub==='complete') bindLpComplete();
+  else bindLpEntry();
+}
+
+/* ---------- cumulative order aggregation (across all line entries) ---------- */
+function lpOrderAgg(){
+  const roles=lpRoles(); const map=new Map();
+  (LINEP||[]).forEach(e=>{
+    const on=roles.order?String(lpGet(e,roles.order)||'').trim():'';
+    const fn=roles.file?String(lpGet(e,roles.file)||'').trim():'';
+    const key=(on+'|'+fn).toLowerCase(); if(key==='|') return;
+    if(!map.has(key)) map.set(key,{on,fn,sz:'',bagQty:0});
+    const g=map.get(key);
+    if(roles.qty) g.bagQty+=num(lpGet(e,roles.qty));
+    if(!g.sz && roles.size){ const s=String(lpGet(e,roles.size)||'').trim(); if(s) g.sz=s; }
+  });
+  const out=[]; map.forEach(g=>{ g.oq=lpOrderQty(g.on,g.fn); g.bal=g.oq-g.bagQty; out.push(g); });
+  out.sort((a,b)=>String(a.on).localeCompare(String(b.on),undefined,{numeric:true,sensitivity:'base'}));
+  return out;
+}
+function lpBalanceTabHtml(){
+  const q=lpBalQuery.trim().toLowerCase();
+  let rows=lpOrderAgg().filter(o=>o.oq>0 && o.bagQty<o.oq);
+  if(q) rows=rows.filter(o=>(o.on+' '+o.fn).toLowerCase().includes(q));
+  const body=rows.length? rows.map(o=>`<tr><td>${esc(o.on||'\u2014')}</td><td>${esc(o.fn||'\u2014')}</td><td>${esc(o.sz||'\u2014')}</td><td>${lpFmt(o.oq)}</td><td>${lpFmt(o.bagQty)}</td><td style="text-align:right"><b style="color:#8c1e32">${lpFmt(o.bal)}</b></td></tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">Koi balance nahi \u2014 sab orders complete ho gaye \u2705</td></tr>`;
+  return `<div class="card" style="margin-bottom:14px"><div class="card-body"><div class="bc-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="lpBalSearch" value="${esc(lpBalQuery)}" placeholder="Search Order No / File No\u2026" autocomplete="off"></div></div></div>
+  <div class="card"><div class="card-body">
+    <div style="font-weight:800;font-size:15px;margin-bottom:10px">\u23F3 Balance Bag \u2014 jinki order qty abhi baaki hai</div>
+    <div class="mc-scroll"><table class="mc-tbl cut-tbl"><thead><tr><th>Order No.</th><th>File No.</th><th>Size</th><th>Order Qty</th><th>Bag Qty</th><th>Balance</th></tr></thead><tbody>${body}</tbody></table></div>
+  </div></div>`;
+}
+function bindLpBalance(){
+  const s=document.getElementById('lpBalSearch');
+  if(s) s.oninput=()=>{ lpBalQuery=s.value; const pos=s.selectionStart; renderLineProd(); const n=document.getElementById('lpBalSearch'); if(n){ n.focus(); try{n.setSelectionRange(pos,pos);}catch(e){} } };
+}
+function lpCompleteTabHtml(){
+  const q=lpCompQuery.trim().toLowerCase();
+  let rows=lpOrderAgg().filter(o=>o.oq>0 && o.bagQty>=o.oq);
+  if(q) rows=rows.filter(o=>(o.on+' '+o.fn).toLowerCase().includes(q));
+  const body=rows.length? rows.map(o=>`<tr><td>${esc(o.on||'\u2014')}</td><td>${esc(o.fn||'\u2014')}</td><td>${esc(o.sz||'\u2014')}</td><td>${lpFmt(o.oq)}</td><td>${lpFmt(o.bagQty)}</td><td style="text-align:right"><b style="color:#1e7a3c">${o.bagQty>o.oq?lpFmt(o.bagQty-o.oq):'0'}</b></td></tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">Abhi koi order complete nahi hua</td></tr>`;
+  return `<div class="card" style="margin-bottom:14px"><div class="card-body"><div class="bc-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="lpCompSearch" value="${esc(lpCompQuery)}" placeholder="Search Order No / File No\u2026" autocomplete="off"></div></div></div>
+  <div class="card"><div class="card-body">
+    <div style="font-weight:800;font-size:15px;margin-bottom:10px">\u2705 Complete Bag \u2014 jinki order qty poori ho gayi</div>
+    <div class="mc-scroll"><table class="mc-tbl cut-tbl"><thead><tr><th>Order No.</th><th>File No.</th><th>Size</th><th>Order Qty</th><th>Bag Qty</th><th>Extra</th></tr></thead><tbody>${body}</tbody></table></div>
+  </div></div>`;
+}
+function bindLpComplete(){
+  const s=document.getElementById('lpCompSearch');
+  if(s) s.oninput=()=>{ lpCompQuery=s.value; const pos=s.selectionStart; renderLineProd(); const n=document.getElementById('lpCompSearch'); if(n){ n.focus(); try{n.setSelectionRange(pos,pos);}catch(e){} } };
+}
+
+/* ---------- DAILY REPORT: date-wise cards (Records-style) ---------- */
+function lpReportListHtml(){
+  const dates=[...new Set((LINEP||[]).map(e=>e.date).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+  if(!dates.length) return `<div class="empty-state"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v4H4z"/><path d="M4 10h16v10H4z"/><path d="M8 14h8M8 17h5"/></svg></div><h3>No reports yet</h3><p>Entry tab me line production save karo \u2014 wo yahan date-wise report ban kar aayegi.</p></div>`;
+  let html='';
+  dates.forEach(d=>{
+    const cnt=(LINEP||[]).filter(e=>e.date===d).length; const label=cnt+' entr'+(cnt!==1?'ies':'y');
+    html+=`<div class="rec-day"><div class="rec-day-label"><span class="d">${fmtDate(d)}</span><span class="ln"></span><span class="ct">${label}</span></div><div class="rec-grid">
+      <div class="rec-card" data-lpview="${d}">
+        <div class="rc-top"><div><div class="rc-machine">Comsyn Daily Finishing Production Report</div><div class="rc-time">${esc(fmtDate(d))} \u00b7 ${label}</div></div></div>
+        <div class="rc-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-sm btn-blue" data-lpview="${d}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>Day View</button>
+          <button class="btn btn-sm btn-primary" data-lppdf="${d}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Day PDF</button>
+        </div>
+      </div>
+    </div></div>`;
+  });
+  return html;
+}
+function bindLpReportList(){
+  document.querySelectorAll('[data-lpview]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); lpOpenDayReport(b.dataset.lpview); });
+  document.querySelectorAll('[data-lppdf]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); lpDayPDF(b.dataset.lppdf); });
+}
+function lpOpenDayReport(dateStr){
+  const dlSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>';
+  openModal({ wide:true, full:true, title:`Day Report \u00b7 ${fmtDate(dateStr)}`,
+    body:`<div class="rpt-host">${lpReportDoc(dateStr,'')}</div>`,
+    footer:`<button class="btn btn-green" id="lpDayXls">Export Excel</button><button class="btn btn-primary" id="lpDayPdfBtn">${dlSvg}Download PDF</button>` });
+  const px=document.getElementById('lpDayPdfBtn'); if(px) px.onclick=()=>lpDayPDF(dateStr);
+  const ex=document.getElementById('lpDayXls'); if(ex) ex.onclick=()=>lpDayExcel(dateStr);
 }
 
 /* ---------- ENTRY sub-tab (config-driven) ---------- */
@@ -6383,20 +6529,6 @@ function lpPickOrder(p){
 }
 
 /* ---------- DAILY REPORT sub-tab ---------- */
-function lpReportTabHtml(){
-  const roles=lpRoles(); const uf=roles.unit;
-  const units=uf?[...new Set((LINEP||[]).filter(e=>e.date===lpDate).map(e=>String(lpGet(e,uf)||'').trim()).filter(Boolean))].sort():[];
-  if(lpUnit && units.indexOf(lpUnit)<0) lpUnit='';
-  return `<div class="card" style="margin-bottom:14px"><div class="card-body">
-    <div class="cut-search" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-      <div class="cr-field"><label>Date</label><input id="lpRDate" type="date" value="${esc(lpDate)}"></div>
-      <div class="cr-field"><label>Unit Name</label><select id="lpRUnit" style="border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:14.5px;color:var(--ink);background:#fff"><option value="">All Units</option>${units.map(u=>`<option value="${esc(u)}" ${lpUnit===u?'selected':''}>${esc(u)}</option>`).join('')}</select></div>
-      <button class="btn btn-green" id="lpXls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13l6 6M15 13l-6 6"/></svg>Export Excel</button>
-      <button class="btn btn-primary" id="lpPdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Download PDF</button>
-    </div>
-  </div></div>
-  <div id="lpRepWrap">${lpReportDoc(lpDate,lpUnit)}</div>`;
-}
 function lpReportData(dateISO,unit){
   const roles=lpRoles(); const uf=roles.unit;
   const rows=(LINEP||[]).filter(e=> e.date===dateISO && (!unit || (uf?String(lpGet(e,uf)||'').trim():'')===unit) );
@@ -6451,38 +6583,31 @@ function lpReportDoc(dateISO,unit){
     <div class="fab-tblwrap"><table class="fab-tbl" style="min-width:340px;max-width:520px;margin:0 auto"><thead><tr><th>Location</th><th>Qty.</th><th>Total Wt.</th></tr></thead><tbody>${sumRows}<tr class="grand"><td>GRAND TOTAL</td><td>${lpFmt(sq)}</td><td>${lpFmt(sw)}</td></tr></tbody></table></div>
   </div>`;
 }
-function bindLpReport(){
-  const $=id=>document.getElementById(id);
-  $('lpRDate').onchange=()=>{ lpDate=$('lpRDate').value||todayISO(); lpUnit=''; renderLineProd(); };
-  $('lpRUnit').onchange=()=>{ lpUnit=$('lpRUnit').value; document.getElementById('lpRepWrap').innerHTML=lpReportDoc(lpDate,lpUnit); };
-  $('lpXls').onclick=lpExcel;
-  $('lpPdf').onclick=lpPDF;
-}
-async function lpPDF(){
+async function lpDayPDF(dateStr){
   const ns=window.jspdf;
-  if(!ns||!ns.jsPDF){ toast('PDF engine load ho raha hai — thodi der me try karo','err'); return; }
-  const d=lpReportData(lpDate,lpUnit);
+  if(!ns||!ns.jsPDF){ toast('PDF engine load ho raha hai \u2014 thodi der me try karo','err'); return; }
+  const d=lpReportData(dateStr,'');
   if(!d.rows.length){ toast('Is date ki koi entry nahi','err'); return; }
   try{
     toast('PDF ban raha hai...','ok');
     const {jsPDF}=ns;
     const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-    const canvas=await _captureDocToCanvas(lpReportDoc(lpDate,lpUnit));
+    const canvas=await _captureDocToCanvas(lpReportDoc(dateStr,''));
     const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight(), margin=6;
     const ratio=Math.min((pw-margin*2)/canvas.width,(ph-margin*2)/canvas.height);
     const dw=canvas.width*ratio, dh=canvas.height*ratio;
     pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-dw)/2,margin,dw,dh);
-    pdf.save(`Daily_Line_Production_${lpDate}${lpUnit?('_'+lpUnit.replace(/[^\w-]/g,'')):''}.pdf`);
-  }catch(e){ toast('PDF nahi bana — dobara try karo','err'); }
+    pdf.save(`Daily_Line_Production_${dateStr}.pdf`);
+  }catch(e){ toast('PDF nahi bana \u2014 dobara try karo','err'); }
 }
-function lpExcel(){
-  const d=lpReportData(lpDate,lpUnit);
+function lpDayExcel(dateStr){
+  const d=lpReportData(dateStr,'');
   if(!d.rows.length){ toast('Is date ki koi entry nahi','err'); return; }
-  const doc=lpReportDoc(lpDate,lpUnit);
+  const doc=lpReportDoc(dateStr,'');
   const html=`<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>table{border-collapse:collapse;margin-bottom:14px}td,th{border:1px solid #999;padding:6px 8px;font-family:'Times New Roman',Times,serif;font-size:13px;text-align:center}th{background:#1f3a5f;color:#fff}.fab-title{font-size:20px;font-weight:bold;text-align:center;font-family:'Times New Roman',Times,serif}.fab-section-title{font-size:15px;font-weight:bold;text-align:center;font-family:'Times New Roman',Times,serif}</style></head><body>${doc}</body></html>`;
   const blob=new Blob([html],{type:'application/vnd.ms-excel'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a');
-  a.href=url; a.download=`Daily_Line_Production_${lpDate}${lpUnit?('_'+lpUnit.replace(/[^\w-]/g,'')):''}.xls`;
+  a.href=url; a.download=`Daily_Line_Production_${dateStr}.xls`;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
 
