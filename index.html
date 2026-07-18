@@ -1456,7 +1456,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v156</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v157</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -1555,6 +1555,10 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
       <button data-tab="orderassign">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
         Order Entry Assignment
+      </button>
+      <button data-tab="linepassign">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/><path d="M6.5 6.5h.01M17.5 6.5h.01"/></svg>
+        Line Assignment
       </button>
       <button data-tab="trash">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>
@@ -1778,6 +1782,7 @@ const TAB_META={
   linep:{title:'Daily Line Production',sub:'Comsyn Daily Finishing Production Report \u2014 line-wise entry & summary'},
   assign:{title:'Assignment',sub:'Build & configure your entry form'},
   orderassign:{title:'Order Entry Assignment',sub:'Build & configure the order entry form'},
+  linepassign:{title:'Line Assignment',sub:'Build & configure the Daily Line Production form \u2014 text / number / dropdown / formula'},
   trash:{title:'Trash',sub:'Deleted items \u2014 restore or delete permanently'},
   users:{title:'Active Users',sub:'Live devices \u2014 kaun connected hai, block/unblock control'},
   manageusers:{title:'Manage Users',sub:'User ID banao \u00b7 password badlo \u00b7 role & rights set karo'}
@@ -1806,6 +1811,7 @@ function render(){
   else if(current==='cuttingstock') renderCuttingStock();
   else if(current==='batch') renderBatch();
   else if(current==='linep') renderLineProd();
+  else if(current==='linepassign') renderLinepAssign();
   else if(current==='trash') renderTrash();
   else if(current==='users') renderUsers();
   else if(current==='manageusers') renderManageUsers();
@@ -3808,6 +3814,18 @@ function saveBatches(){ Store.set(KEY_BATCH,JSON.stringify(BATCHES)); }
 const KEY_LINEP='comsyn_linep_v1';
 let LINEP=(()=>{ const r=Store.get(KEY_LINEP); if(r){ try{ return JSON.parse(r)||[]; }catch(e){} } return []; })();
 function saveLinep(){ Store.set(KEY_LINEP,JSON.stringify(LINEP)); }
+/* ---- LINE ASSIGNMENT: configurable entry form (text/number/dropdown/date/formula) ---- */
+const KEY_LINEPCFG='comsyn_linepcfg_v1';
+function defaultLinepCfg(){
+  const f=(label,type,opts)=>({id:uid(),label,type:type||'text',options:opts||[]});
+  const tot={id:uid(),label:'Total Wt.',type:'formula',options:[],formula:'Qty. * Bag Wt.'};
+  return { title:'Daily Line Production', fields:[
+    f('Unit Name'), f('Location'), f('Order No.'), f('File No.'), f('Sf No.'),
+    f('Size'), f('Bage Type'), f('Type'), f('Qty.','number'), f('Bag Wt.','number'), tot
+  ]};
+}
+let LINEPCFG=(()=>{ const r=Store.get(KEY_LINEPCFG); if(r){ try{ const p=JSON.parse(r); if(p&&Array.isArray(p.fields)) return p; }catch(e){} } const d=defaultLinepCfg(); Store.set(KEY_LINEPCFG,JSON.stringify(d)); return d; })();
+function saveLinepCfg(){ Store.set(KEY_LINEPCFG,JSON.stringify(LINEPCFG)); }
 /* ---- TRASH TOMBSTONES: jo item Trash me hai wo data me kabhi wapas nahi aa sakta ---- */
 function trashHasId(type,id){ return TRASH.some(t=>t.type===type && t.item && t.item.id===id); }
 function purgeTrashed(){
@@ -5252,7 +5270,7 @@ function dshChartSVG(series){
 }
 /* ---- MANAGE USERS PANEL (admin only) ---- */
 var _muRows=[];
-var MU_PANELS=[['entry','Entry'],['records','Records'],['orderentry','Order Entry'],['batch','Batch'],['linep','Line Prod.'],['cuttingstock','Cutting Stock'],['cuttingreport','Cutting Report'],['mtrreport','MTR Report'],['dashboard','Dashboard'],['assign','Assignment'],['orderassign','Order Assign'],['trash','Trash']];
+var MU_PANELS=[['entry','Entry'],['records','Records'],['orderentry','Order Entry'],['batch','Batch'],['linep','Line Prod.'],['cuttingstock','Cutting Stock'],['cuttingreport','Cutting Report'],['mtrreport','MTR Report'],['dashboard','Dashboard'],['assign','Assignment'],['orderassign','Order Assign'],['linepassign','Line Assign'],['trash','Trash']];
 function _muCreds(){ var u,p; try{ u=sessionStorage.getItem('comsyn_user'); p=sessionStorage.getItem('comsyn_pass'); }catch(e){} return {u:u,p:p}; }
 function _muRpc(fn,body){
   return fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{ method:'POST', headers:SB_HEADERS, body:JSON.stringify(body) })
@@ -5440,19 +5458,22 @@ function _muCfgRestore(){
       try{ j=JSON.parse(String(fr.result||'')); }
       catch(e){ toast('Ye file padhi nahi ja saki \u2014 backup file hi chuno','err'); return; }
       var d=(j&&j.data)||{};
-      var c=d[KEY_CFG], oc=d[KEY_OCFG];
-      if(!c && !oc){ toast('Is file me config nahi mila','err'); return; }
-      var pc=null, po=null;
+      var c=d[KEY_CFG], oc=d[KEY_OCFG], lc=d[KEY_LINEPCFG];
+      if(!c && !oc && !lc){ toast('Is file me config nahi mila','err'); return; }
+      var pc=null, po=null, pl=null;
       try{ if(c) pc=JSON.parse(c); }catch(e){}
       try{ if(oc) po=JSON.parse(oc); }catch(e){}
+      try{ if(lc) pl=JSON.parse(lc); }catch(e){}
       if(c && (!pc || !Array.isArray(pc.sections))){ toast('Entry config kharab hai \u2014 restore roka','err'); return; }
       if(oc && (!po || !Array.isArray(po.fields))){ toast('Order config kharab hai \u2014 restore roka','err'); return; }
+      if(lc && (!pl || !Array.isArray(pl.fields))){ toast('Line config kharab hai \u2014 restore roka','err'); return; }
       var when=''; try{ when=j._at?new Date(j._at).toLocaleString('en-GB'):''; }catch(e){}
       var msg='Sirf CONFIG wapas aayega'+(when?(' (backup: '+when+')'):'')+'. Records, orders, batch \u2014 kisi ko haath nahi lagega. Aage badhein?';
       confirmModal(msg, function(){
         try{
           if(pc){ CFG=pc; saveCfg(); }
           if(po){ ORDERCFG=po; saveOcfg(); }
+          if(pl){ LINEPCFG=pl; saveLinepCfg(); }
           DRAFT=null;
           try{ render(); }catch(e){}
           toast('\u2705 Config wapas aa gaya \u2014 cloud pe bhi save ho raha hai','ok');
@@ -5466,7 +5487,7 @@ function _muCfgRestore(){
 
 function _muBackup(){
   try{
-    var keys=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP];
+    var keys=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG];
     var out={_app:'COMSYN ERP', _at:new Date().toISOString(), data:{}};
     var n=0, sz=0;
     keys.forEach(function(k){ var v=null; try{ v=localStorage.getItem(k); }catch(e){}
@@ -6150,33 +6171,75 @@ let lpSub='entry', lpDate=todayISO(), lpUnit='', lpEditId=null;
 const LP_SUBS=[['entry','Entry'],['report','Daily Report']];
 
 function lpFmt(n){ n=num(n); return (Math.round(n*1000)/1000).toString(); }
-function lpKey(e){ return (String(e.orderNo||'').trim()+'|'+String(e.fileNo||'').trim()).toLowerCase(); }
-function lpUniq(field){ return [...new Set((LINEP||[]).map(e=>String(e[field]||'').trim()).filter(Boolean))].sort(); }
+function lpNumericField(f){ return f&&(f.type==='number'||f.type==='formula'); }
+function lpGet(e,f){ if(!f||!e) return ''; if(e.vals && (f.id in e.vals)) return e.vals[f.id]; return ''; }
+function lpFieldUniq(fid){ return [...new Set((LINEP||[]).map(e=>String((e.vals&&e.vals[fid])||'').trim()).filter(Boolean))].sort(); }
+/* role detection by label (specific first, each field claimed once) */
+function lpRoles(){
+  const fs=LINEPCFG.fields||[]; const used={};
+  const pick=re=>{ for(const f of fs){ if(used[f.id]) continue; if(re.test(f.label)){ used[f.id]=1; return f; } } return null; };
+  return { totwt:pick(/total\s*w/i), bagwt:pick(/bag\s*w/i), bage:pick(/bage/i),
+    order:pick(/order\s*no/i), file:pick(/file\s*no/i), sf:pick(/sf\s*no/i),
+    size:pick(/\bsize\b/i), qty:pick(/qty|quantit/i), unit:pick(/unit/i),
+    location:pick(/location|^\s*line/i), type:pick(/type/i) };
+}
+/* legacy v156 entries (fixed keys) -> vals shape, once */
+const LP_LEGACY={unit:'unit',location:'location',order:'orderNo',file:'fileNo',sf:'sfNo',size:'size',bage:'bageType',type:'type',qty:'qty',bagwt:'bagWt',totwt:'totWt'};
+function lpMigrate(){
+  let ch=false; const roles=lpRoles();
+  (LINEP||[]).forEach(e=>{
+    if(e.vals && typeof e.vals==='object') return;
+    const vals={};
+    Object.keys(LP_LEGACY).forEach(rk=>{ const f=roles[rk]; const lv=e[LP_LEGACY[rk]]; if(f && lv!==undefined && lv!=='' && lv!==null) vals[f.id]=lv; });
+    e.vals=vals; ch=true;
+  });
+  if(ch) saveLinep();
+}
+try{ lpMigrate(); }catch(e){}
 
-/* File No picker pool \u2014 Order Entry orders + completed cutting records */
+/* flat formula evaluator over the line-production fields */
+function lpEvalFlat(formula, valsById){
+  if(!formula) return '';
+  let e=String(formula).trim().replace(/^\+/,'');
+  (LINEPCFG.fields||[]).slice().sort((a,b)=>b.label.length-a.label.length).forEach(f=>{
+    const src=looseReSrc(f.label); if(!src) return; const re=new RegExp(src,'i');
+    if(re.test(e)){ const raw=valsById[f.id]; const isN=lpNumericField(f);
+      const rep=isN?('('+num(raw)+')'):JSON.stringify(String(raw==null?'':raw).toUpperCase());
+      e=e.replace(new RegExp(src,'gi'), rep); }
+  });
+  e=e.replace(/\bAND\b/gi,'&&').replace(/\bOR\b/gi,'||');
+  e=e.replace(/==|!=|>=|<=/g,m=>({'==':'\u0001','!=':'\u0002','>=':'\u0003','<=':'\u0004'}[m]));
+  e=e.replace(/=/g,'==');
+  e=e.replace(/[\u0001\u0002\u0003\u0004]/g,m=>({'\u0001':'==','\u0002':'!=','\u0003':'>=','\u0004':'<='}[m]));
+  e=e.replace(/"([^"]*)"/g,(m,p1)=>JSON.stringify(p1.toUpperCase()));
+  const stripped=e.replace(/"(?:[^"\\]|\\.)*"/g,'');
+  if(/[A-Za-z]/.test(stripped)) return '';
+  if(/[^0-9+\-*/().<>=!&|?:%\s]/.test(stripped)) return '';
+  try{ const v=Function('"use strict";return ('+e+')')(); if(typeof v==='number') return isFinite(v)?+(+v).toFixed(3):''; if(typeof v==='boolean') return v?1:0; return v==null?'':v; }
+  catch(err){ return ''; }
+}
+function lpComputeVals(valsById){ for(let p=0;p<3;p++){ (LINEPCFG.fields||[]).forEach(f=>{ if(f.type==='formula') valsById[f.id]=lpEvalFlat(f.formula||'',valsById); }); } return valsById; }
+
+/* File No picker pool — Order Entry orders + completed cutting records */
 function lpOrderPool(){
   const out=[], seen=new Set();
   try{ (ORDERS||[]).forEach(o=>{
     const fn=ordVal(o,/file\s*no/i); if(!fn) return;
-    const on=ordVal(o,/order\s*no/i), sf=ordVal(o,/sf\s*no/i), sz=ordVal(o,/bag\s*size/i), oq=ordVal(o,/qty|quantit/i);
+    const on=ordVal(o,/order\s*no/i), sf=ordVal(o,/sf\s*no/i), sz=ordVal(o,/bag\s*size/i);
     const k=(on+'|'+fn).toLowerCase(); if(seen.has(k)) return; seen.add(k);
-    out.push({on,fn,sf,sz,oq});
+    out.push({on,fn,sf,sz});
   }); }catch(e){}
   try{ (RECORDS||[]).forEach(r=>{
     const m=recMeta(r); if(!m.fileNo) return;
     const k=((m.orderNo||'')+'|'+m.fileNo).toLowerCase(); if(seen.has(k)) return; seen.add(k);
-    out.push({on:m.orderNo||'',fn:m.fileNo,sf:m.sfNo||'',sz:m.bagSize||'',oq:''});
+    out.push({on:m.orderNo||'',fn:m.fileNo,sf:m.sfNo||'',sz:m.bagSize||''});
   }); }catch(e){}
   return out;
 }
 function lpOrderQty(on,fn){
   on=String(on||'').trim().toLowerCase(); fn=String(fn||'').trim().toLowerCase();
-  const o=(ORDERS||[]).find(o=>{
-    const oon=ordVal(o,/order\s*no/i).toLowerCase(), ofn=ordVal(o,/file\s*no/i).toLowerCase();
-    if(on&&fn) return oon===on&&ofn===fn;
-    if(fn) return ofn===fn;
-    return on&&oon===on;
-  });
+  const o=(ORDERS||[]).find(o=>{ const oon=ordVal(o,/order\s*no/i).toLowerCase(), ofn=ordVal(o,/file\s*no/i).toLowerCase();
+    if(on&&fn) return oon===on&&ofn===fn; if(fn) return ofn===fn; return on&&oon===on; });
   return o?num(ordVal(o,/qty|quantit/i)):0;
 }
 
@@ -6190,60 +6253,71 @@ function renderLineProd(){
   if(lpSub==='report') bindLpReport(); else bindLpEntry();
 }
 
-/* ---------- ENTRY sub-tab ---------- */
+/* ---------- ENTRY sub-tab (config-driven) ---------- */
+function lpFieldInput(f,val,roles){
+  const idAttr=`data-lpf="${f.id}"`;
+  if(f.type==='formula') return `<div class="cr-field"><label>${esc(f.label)} <span style="font-size:9px;background:#eadcff;color:#6a1b9a;padding:1px 6px;border-radius:8px;font-weight:700">formula</span></label><input ${idAttr} value="${esc(val??'')}" readonly style="background:#fff8ec;font-weight:700"></div>`;
+  if(roles && roles.file && f.id===roles.file.id) return `<div class="cr-field"><label>${esc(f.label)}</label><input ${idAttr} class="combo" value="${esc(val??'')}" autocomplete="off" placeholder="File No. type karo — picker khulega"></div>`;
+  if(f.type==='dropdown'){ const dl='lpdl_'+f.id; return `<div class="cr-field"><label>${esc(f.label)}</label><input ${idAttr} value="${esc(val??'')}" list="${dl}" autocomplete="off" placeholder="Select…"><datalist id="${dl}">${(f.options||[]).map(o=>`<option value="${esc(o)}">`).join('')}</datalist></div>`; }
+  if(f.type==='date') return `<div class="cr-field"><label>${esc(f.label)}</label><input ${idAttr} type="date" value="${esc(val??'')}"></div>`;
+  if(f.type==='number') return `<div class="cr-field"><label>${esc(f.label)}</label><input ${idAttr} type="number" step="any" inputmode="decimal" value="${esc(val??'')}" placeholder="0"></div>`;
+  const dl='lpdl_'+f.id;
+  return `<div class="cr-field"><label>${esc(f.label)}</label><input ${idAttr} value="${esc(val??'')}" list="${dl}" autocomplete="off" placeholder="${esc(f.label)}"><datalist id="${dl}">${lpFieldUniq(f.id).map(o=>`<option value="${esc(o)}">`).join('')}</datalist></div>`;
+}
 function lpEntryTabHtml(){
   const ed=lpEditId?(LINEP.find(x=>x.id===lpEditId)||null):null;
   if(lpEditId&&!ed) lpEditId=null;
-  const v=ed||{date:lpDate||todayISO(),unit:'',location:'',orderNo:'',fileNo:'',sfNo:'',size:'',bageType:'',type:'',qty:'',bagWt:'',totWt:''};
-  const dl=(id,arr)=>`<datalist id="${id}">${arr.map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`;
-  const F=(id,label,val,extra)=>`<div class="cr-field"><label>${label}</label><input id="${id}" value="${esc(val??'')}" autocomplete="off" ${extra||''}></div>`;
+  const roles=lpRoles();
+  const curDate=ed?(ed.date||lpDate):(lpDate||todayISO());
+  const fs=LINEPCFG.fields||[];
+  const fieldsHtml=fs.map(f=>lpFieldInput(f, ed?lpGet(ed,f):'', roles)).join('');
   return `<div class="card" style="margin-bottom:14px"><div class="card-body">
     <div style="font-weight:800;font-size:15px;margin-bottom:12px">${ed?'\u270F\uFE0F Edit Line Production Entry':'\u2795 New Line Production Entry'}</div>
-    <div class="cut-search" style="display:flex;gap:10px;flex-wrap:wrap">
-      ${F('lpDateIn','Date',v.date,'type="date"')}
-      ${F('lpUnitIn','Unit Name',v.unit,'list="lpDlUnit" placeholder="e.g. Unit-I"')}
-      ${F('lpLoc','Location',v.location,'list="lpDlLoc" placeholder="e.g. Line-1"')}
+    <div class="cut-search" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:2px">
+      <div class="cr-field"><label>Date</label><input id="lpDateIn" type="date" value="${esc(curDate)}"></div>
     </div>
-    <div class="cut-search" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
-      ${F('lpOrd','Order No.',v.orderNo,'placeholder="Order No."')}
-      ${F('lpFile','File No.',v.fileNo,'class="combo" placeholder="File No. type karo \u2014 picker khulega"')}
-      ${F('lpSf','Sf No.',v.sfNo,'placeholder="Sf No."')}
-      ${F('lpSize','Size',v.size,'placeholder="Size"')}
-    </div>
-    <div class="cut-search" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
-      ${F('lpBage','Bage Type',v.bageType,'list="lpDlBage" placeholder="Bage Type"')}
-      ${F('lpType','Type',v.type,'list="lpDlType" placeholder="Type"')}
-      ${F('lpQty','Qty.',v.qty,'type="number" min="0" inputmode="decimal" placeholder="0"')}
-      ${F('lpBagWt','Bag Wt.',v.bagWt,'type="number" min="0" step="any" inputmode="decimal" placeholder="0"')}
-      ${F('lpTotWt','Total Wt.',v.totWt,'readonly style="background:#fff8ec;font-weight:700"')}
-    </div>
+    <div class="ofields" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">${fieldsHtml||'<div class="hint">Line Assignment tab me jaakar fields add karo.</div>'}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
       <button class="btn btn-primary" id="lpSaveBtn">${ed?'Update Entry':'Save Entry'}</button>
       ${ed?'<button class="btn" id="lpCancelBtn">Cancel</button>':''}
     </div>
-    ${dl('lpDlUnit',lpUniq('unit'))}${dl('lpDlLoc',lpUniq('location'))}${dl('lpDlBage',lpUniq('bageType'))}${dl('lpDlType',lpUniq('type'))}
   </div></div>
   <div class="card"><div class="card-body">
-    <div style="font-weight:800;font-size:15px;margin-bottom:10px">\uD83D\uDCCB Entries \u2014 <span id="lpListDate">${esc(fmtDate(v.date))}</span></div>
-    <div id="lpList">${lpEntriesTableHtml(v.date)}</div>
+    <div style="font-weight:800;font-size:15px;margin-bottom:10px">\uD83D\uDCCB Entries — <span id="lpListDate">${esc(fmtDate(curDate))}</span></div>
+    <div id="lpList">${lpEntriesTableHtml(curDate)}</div>
   </div></div>`;
 }
 function lpEntriesTableHtml(dateISO){
+  const fs=LINEPCFG.fields||[];
   const rows=(LINEP||[]).filter(e=>e.date===dateISO);
-  if(!rows.length) return `<div class="empty-state"><p>Is date ki koi entry nahi \u2014 upar form se pehli entry save karo.</p></div>`;
-  let qt=0, wt=0;
-  const body=rows.map((e,i)=>{ qt+=num(e.qty); wt+=num(e.totWt);
-    return `<tr><td>${i+1}</td><td>${esc(e.unit||'\u2014')}</td><td>${esc(e.location||'\u2014')}</td><td>${esc(e.orderNo||'\u2014')}</td><td>${esc(e.fileNo||'\u2014')}</td><td>${esc(e.sfNo||'\u2014')}</td><td>${esc(e.size||'\u2014')}</td><td>${esc(e.bageType||'\u2014')}</td><td>${esc(e.type||'\u2014')}</td><td><b>${lpFmt(e.qty)}</b></td><td>${lpFmt(e.bagWt)}</td><td><b>${lpFmt(e.totWt)}</b></td><td><button class="btn btn-sm" data-lpedit="${e.id}">Edit</button></td><td><button class="btn btn-sm btn-danger" data-lpdel="${e.id}">DELETE</button></td></tr>`; }).join('');
-  return `<div class="mc-scroll"><table class="mc-tbl cut-tbl"><thead><tr><th>S.No</th><th>Unit Name</th><th>Location</th><th>Order No.</th><th>File No.</th><th>Sf No.</th><th>Size</th><th>Bage Type</th><th>Type</th><th>Qty.</th><th>Bag Wt.</th><th>Total Wt.</th><th></th><th></th></tr></thead><tbody>${body}<tr style="font-weight:800;background:#FFF7ED"><td colspan="9" style="text-align:right">TOTAL</td><td>${lpFmt(qt)}</td><td></td><td>${lpFmt(wt)}</td><td></td><td></td></tr></tbody></table></div>`;
+  if(!rows.length) return `<div class="empty-state"><p>Is date ki koi entry nahi — upar form se pehli entry save karo.</p></div>`;
+  const totals={}; fs.forEach(f=>{ if(lpNumericField(f)) totals[f.id]=0; });
+  const body=rows.map((e,i)=>{
+    let tds=`<td>${i+1}</td>`;
+    fs.forEach(f=>{ const v=lpGet(e,f); if(lpNumericField(f)) totals[f.id]+=num(v);
+      const disp=(v===''||v==null)?'\u2014':(lpNumericField(f)?lpFmt(v):esc(v));
+      tds+=`<td${lpNumericField(f)?' style="text-align:right"':''}>${lpNumericField(f)?`<b>${disp}</b>`:disp}</td>`; });
+    tds+=`<td><button class="btn btn-sm" data-lpedit="${e.id}">Edit</button></td><td><button class="btn btn-sm btn-danger" data-lpdel="${e.id}">DELETE</button></td>`;
+    return `<tr>${tds}</tr>`;
+  }).join('');
+  const th=`<th>S.No</th>`+fs.map(f=>`<th>${esc(f.label)}</th>`).join('')+`<th></th><th></th>`;
+  const totrow=`<tr style="font-weight:800;background:#FFF7ED"><td>TOTAL</td>`+fs.map(f=>`<td style="text-align:right">${lpNumericField(f)?lpFmt(totals[f.id]):''}</td>`).join('')+`<td></td><td></td></tr>`;
+  return `<div class="mc-scroll"><table class="mc-tbl cut-tbl"><thead><tr>${th}</tr></thead><tbody>${body}${totrow}</tbody></table></div>`;
+}
+function lpCollectVals(){ const v={}; document.querySelectorAll('[data-lpf]').forEach(el=>{ v[el.dataset.lpf]=el.value; }); return v; }
+function lpRecalc(){
+  const v=lpCollectVals(); lpComputeVals(v);
+  (LINEPCFG.fields||[]).forEach(f=>{ if(f.type==='formula'){ const el=document.querySelector(`[data-lpf="${f.id}"]`); if(el) el.value=(v[f.id]===''||v[f.id]==null)?'':v[f.id]; } });
 }
 function bindLpEntry(){
   const $=id=>document.getElementById(id);
-  ['lpQty','lpBagWt'].forEach(id=>$(id).addEventListener('input',()=>{ $('lpTotWt').value=lpFmt(num($('lpQty').value)*num($('lpBagWt').value)); }));
+  const roles=lpRoles();
+  document.querySelectorAll('[data-lpf]').forEach(el=>{ if(el.readOnly) return; el.addEventListener('input',lpRecalc); });
   $('lpDateIn').addEventListener('change',()=>{ lpDate=$('lpDateIn').value||todayISO(); const s=$('lpListDate'); if(s) s.textContent=fmtDate(lpDate); const l=$('lpList'); if(l){ l.innerHTML=lpEntriesTableHtml(lpDate); bindLpList(); } });
-  const fi=$('lpFile');
-  fi.addEventListener('input',()=>showLpSuggest(fi));
-  fi.addEventListener('focus',()=>showLpSuggest(fi));
-  fi.addEventListener('blur',()=>setTimeout(hideLpSuggest,180));
+  if(roles.file){ const fi=document.querySelector(`[data-lpf="${roles.file.id}"]`); if(fi){
+    fi.addEventListener('input',()=>showLpSuggest(fi));
+    fi.addEventListener('focus',()=>showLpSuggest(fi));
+    fi.addEventListener('blur',()=>setTimeout(hideLpSuggest,180)); } }
   $('lpSaveBtn').onclick=lpSaveEntry;
   const cx=$('lpCancelBtn'); if(cx) cx.onclick=()=>{ lpEditId=null; renderLineProd(); };
   bindLpList();
@@ -6252,7 +6326,7 @@ function bindLpList(){
   document.querySelectorAll('[data-lpedit]').forEach(b=>b.onclick=()=>{ lpEditId=b.dataset.lpedit; lpSub='entry'; renderLineProd(); });
   document.querySelectorAll('[data-lpdel]').forEach(b=>b.onclick=()=>{
     const e=LINEP.find(x=>x.id===b.dataset.lpdel); if(!e) return;
-    confirmModal('Ye line production entry delete karein? (Trash me jayegi \u2014 wahan se restore ho sakti hai)',()=>{
+    confirmModal('Ye line production entry delete karein? (Trash me jayegi — wahan se restore ho sakti hai)',()=>{
       trashAdd('linep',e); LINEP=LINEP.filter(x=>x.id!==e.id); saveLinep();
       if(lpEditId===e.id) lpEditId=null;
       renderLineProd(); toast('Entry Trash me chali gayi','info');
@@ -6262,35 +6336,30 @@ function bindLpList(){
 }
 function lpSaveEntry(){
   const $=id=>document.getElementById(id);
-  const e={
-    date:($('lpDateIn').value||todayISO()),
-    unit:$('lpUnitIn').value.trim(), location:$('lpLoc').value.trim(),
-    orderNo:$('lpOrd').value.trim(), fileNo:$('lpFile').value.trim(), sfNo:$('lpSf').value.trim(),
-    size:$('lpSize').value.trim(), bageType:$('lpBage').value.trim(), type:$('lpType').value.trim(),
-    qty:num($('lpQty').value), bagWt:num($('lpBagWt').value), totWt:num($('lpTotWt').value)
-  };
-  if(!e.unit){ toast('Unit Name bharo','err'); $('lpUnitIn').focus(); return; }
-  if(!e.location){ toast('Location bharo','err'); $('lpLoc').focus(); return; }
-  if(!e.fileNo && !e.orderNo){ toast('File No. ya Order No. bharo','err'); $('lpFile').focus(); return; }
-  if(!(e.qty>0)){ toast('Qty. bharo','err'); $('lpQty').focus(); return; }
-  if(!e.totWt) e.totWt=e.qty*e.bagWt;
+  const roles=lpRoles();
+  const vals={};
+  document.querySelectorAll('[data-lpf]').forEach(el=>{ vals[el.dataset.lpf]=(typeof el.value==='string')?el.value.trim():el.value; });
+  lpComputeVals(vals);
+  const date=$('lpDateIn').value||todayISO();
+  const rv=rk=>{ const f=roles[rk]; return f?String(vals[f.id]||'').trim():''; };
+  if(roles.unit && !rv('unit')){ toast('Unit Name bharo','err'); const el=document.querySelector(`[data-lpf="${roles.unit.id}"]`); if(el) el.focus(); return; }
+  if(!rv('file') && !rv('order')){ toast('File No. ya Order No. bharo','err'); const f=roles.file||roles.order; const el=f&&document.querySelector(`[data-lpf="${f.id}"]`); if(el) el.focus(); return; }
+  if(roles.qty && !(num(rv('qty'))>0)){ toast('Qty. bharo','err'); const el=document.querySelector(`[data-lpf="${roles.qty.id}"]`); if(el) el.focus(); return; }
   if(lpEditId){
     const old=LINEP.find(x=>x.id===lpEditId);
-    if(old){ Object.assign(old,e); old.editedAt=Date.now(); old.editedBy=(sessionStorage.getItem('comsyn_user')||''); saveLinep(); toast('Entry update ho gayi','ok'); }
+    if(old){ old.vals=vals; old.date=date; old.editedAt=Date.now(); old.editedBy=(sessionStorage.getItem('comsyn_user')||''); saveLinep(); toast('Entry update ho gayi','ok'); }
     lpEditId=null;
   } else {
-    LINEP.unshift(Object.assign({id:uid(),savedAt:Date.now(),by:(sessionStorage.getItem('comsyn_user')||'')},e));
+    LINEP.unshift({id:uid(),date:date,vals:vals,savedAt:Date.now(),by:(sessionStorage.getItem('comsyn_user')||'')});
     saveLinep(); toast('Line production entry save ho gayi','ok');
   }
-  lpDate=e.date;
-  renderLineProd();
+  lpDate=date; renderLineProd();
 }
-/* File No live picker (Order Entry + completed cutting) */
+/* File No live picker */
 let _lpPop=null;
 function hideLpSuggest(){ if(_lpPop){ _lpPop.remove(); _lpPop=null; } }
 function showLpSuggest(inp){
-  const typed=String(inp.value||'').trim().toLowerCase();
-  hideLpSuggest();
+  const typed=String(inp.value||'').trim().toLowerCase(); hideLpSuggest();
   if(!typed) return;
   const matches=lpOrderPool().filter(p=>{ const fn=String(p.fn||'').toLowerCase(); return fn && (fn===typed||fn.includes(typed)||typed.includes(fn)); }).slice(0,12);
   if(!matches.length) return;
@@ -6305,18 +6374,18 @@ function showLpSuggest(inp){
 }
 function lpPickOrder(p){
   hideLpSuggest();
-  const $=id=>document.getElementById(id);
-  if($('lpOrd')) $('lpOrd').value=p.on||'';
-  if($('lpFile')) $('lpFile').value=p.fn||'';
-  if($('lpSf')) $('lpSf').value=p.sf||'';
-  if($('lpSize')) $('lpSize').value=p.sz||'';
+  const roles=lpRoles();
+  const set=(rk,val)=>{ const f=roles[rk]; if(!f) return; const el=document.querySelector(`[data-lpf="${f.id}"]`); if(el) el.value=(val==null?'':val); };
+  set('order',p.on); set('file',p.fn); set('sf',p.sf); set('size',p.sz);
+  lpRecalc();
   toast('Order details filled','ok');
-  const nx=$('lpBage'); if(nx) nx.focus();
+  const nx=roles.bage&&document.querySelector(`[data-lpf="${roles.bage.id}"]`); if(nx) nx.focus();
 }
 
 /* ---------- DAILY REPORT sub-tab ---------- */
 function lpReportTabHtml(){
-  const units=[...new Set((LINEP||[]).filter(e=>e.date===lpDate).map(e=>String(e.unit||'').trim()).filter(Boolean))].sort();
+  const roles=lpRoles(); const uf=roles.unit;
+  const units=uf?[...new Set((LINEP||[]).filter(e=>e.date===lpDate).map(e=>String(lpGet(e,uf)||'').trim()).filter(Boolean))].sort():[];
   if(lpUnit && units.indexOf(lpUnit)<0) lpUnit='';
   return `<div class="card" style="margin-bottom:14px"><div class="card-body">
     <div class="cut-search" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
@@ -6329,46 +6398,56 @@ function lpReportTabHtml(){
   <div id="lpRepWrap">${lpReportDoc(lpDate,lpUnit)}</div>`;
 }
 function lpReportData(dateISO,unit){
-  const rows=(LINEP||[]).filter(e=>e.date===dateISO && (!unit || String(e.unit||'').trim()===unit));
-  const keys=[...new Set(rows.map(lpKey).filter(k=>k!=='|'))];
+  const roles=lpRoles(); const uf=roles.unit;
+  const rows=(LINEP||[]).filter(e=> e.date===dateISO && (!unit || (uf?String(lpGet(e,uf)||'').trim():'')===unit) );
+  const keyOf=e=>((roles.order?String(lpGet(e,roles.order)||'').trim():'')+'|'+(roles.file?String(lpGet(e,roles.file)||'').trim():'')).toLowerCase();
+  const keys=[...new Set(rows.map(keyOf).filter(k=>k!=='|'))];
   const orders=keys.map(k=>{
-    const any=rows.find(e=>lpKey(e)===k);
-    const all=(LINEP||[]).filter(e=>lpKey(e)===k);
-    const bagQty=all.reduce((a,e)=>a+num(e.qty),0);
-    const oq=lpOrderQty(any.orderNo,any.fileNo);
-    return {on:any.orderNo||'',fn:any.fileNo||'',sz:any.size||'',oq,bagQty,bal:oq-bagQty};
+    const any=rows.find(e=>keyOf(e)===k);
+    const all=(LINEP||[]).filter(e=>keyOf(e)===k);
+    const bagQty=roles.qty?all.reduce((a,e)=>a+num(lpGet(e,roles.qty)),0):0;
+    const on=roles.order?lpGet(any,roles.order):'', fn=roles.file?lpGet(any,roles.file):'', sz=roles.size?lpGet(any,roles.size):'';
+    const oq=lpOrderQty(on,fn);
+    return {on,fn,sz,oq,bagQty,bal:oq-bagQty};
   });
   const complete=orders.filter(o=>o.oq>0 && o.bagQty>=o.oq);
   const balance=orders.filter(o=>o.oq>0 && o.bagQty<o.oq);
   const locs={};
-  rows.forEach(e=>{ const L=String(e.location||'').trim()||'\u2014'; if(!locs[L]) locs[L]={qty:0,wt:0}; locs[L].qty+=num(e.qty); locs[L].wt+=num(e.totWt); });
-  return {rows,complete,balance,locs};
+  if(roles.location){ rows.forEach(e=>{ const L=String(lpGet(e,roles.location)||'').trim()||'\u2014'; if(!locs[L]) locs[L]={qty:0,wt:0};
+    locs[L].qty+=roles.qty?num(lpGet(e,roles.qty)):0; locs[L].wt+=roles.totwt?num(lpGet(e,roles.totwt)):0; }); }
+  return {rows,complete,balance,locs,roles};
 }
 function lpReportDoc(dateISO,unit){
-  const d=lpReportData(dateISO,unit);
+  const d=lpReportData(dateISO,unit); const fs=LINEPCFG.fields||[];
   let dd=dateISO; try{ dd=new Date(dateISO+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase(); }catch(e){}
-  if(!d.rows.length) return `<div class="empty-state"><p>${esc(dd)}${unit?(' \u2014 '+esc(unit)):''} ki koi line production entry nahi.</p></div>`;
-  let qt=0, wt=0;
-  const main=d.rows.map((e,i)=>{ qt+=num(e.qty); wt+=num(e.totWt);
-    return `<tr><td>${i+1}</td><td style="text-align:left">${esc(e.unit||'-')}</td><td style="text-align:left">${esc(e.location||'-')}</td><td>${esc(e.orderNo||'-')}</td><td>${esc(e.fileNo||'-')}</td><td>${esc(e.sfNo||'-')}</td><td>${esc(e.size||'-')}</td><td>${esc(e.bageType||'-')}</td><td>${esc(e.type||'-')}</td><td>${lpFmt(e.qty)}</td><td>${lpFmt(e.bagWt)}</td><td>${lpFmt(e.totWt)}</td></tr>`; }).join('');
+  if(!d.rows.length) return `<div class="empty-state"><p>${esc(dd)}${unit?(' — '+esc(unit)):''} ki koi line production entry nahi.</p></div>`;
+  const totals={}; fs.forEach(f=>{ if(lpNumericField(f)) totals[f.id]=0; });
+  const main=d.rows.map((e,i)=>{ let tds=`<td>${i+1}</td>`;
+    fs.forEach(f=>{ const v=lpGet(e,f); if(lpNumericField(f)) totals[f.id]+=num(v);
+      const disp=(v===''||v==null)?'-':(lpNumericField(f)?lpFmt(v):esc(v));
+      tds+=`<td${lpNumericField(f)?'':' style="text-align:left"'}>${disp}</td>`; });
+    return `<tr>${tds}</tr>`; }).join('');
+  const grand=`<tr class="grand"><td>GRAND TOTAL</td>`+fs.map(f=>`<td>${lpNumericField(f)?lpFmt(totals[f.id]):''}</td>`).join('')+`</tr>`;
+  const mainHead=`<th>S.No</th>`+fs.map(f=>`<th>${esc(f.label)}</th>`).join('');
   const compRows=d.complete.length? d.complete.map(o=>`<tr><td>${esc(o.on||'-')}</td><td>${esc(o.fn||'-')}</td><td>${esc(o.sz||'-')}</td><td>${lpFmt(o.oq)}</td><td>${lpFmt(o.bagQty)}</td><td>${o.bagQty>o.oq?lpFmt(o.bagQty-o.oq):'0'}</td></tr>`).join('')
     : `<tr><td colspan="6" style="text-align:center;color:#888">Abhi koi order complete nahi hua</td></tr>`;
   const balRows=d.balance.length? d.balance.map(o=>`<tr><td>${esc(o.on||'-')}</td><td>${esc(o.fn||'-')}</td><td>${esc(o.sz||'-')}</td><td>${lpFmt(o.oq)}</td><td>${lpFmt(o.bagQty)}</td><td><b>${lpFmt(o.bal)}</b></td></tr>`).join('')
-    : `<tr><td colspan="6" style="text-align:center;color:#888">Koi balance nahi \u2014 sab orders complete</td></tr>`;
+    : `<tr><td colspan="6" style="text-align:center;color:#888">Koi balance nahi — sab orders complete</td></tr>`;
   let sq=0, sw=0;
-  const sumRows=Object.keys(d.locs).map(L=>{ sq+=d.locs[L].qty; sw+=d.locs[L].wt; return `<tr><td style="text-align:left">${esc(L)}</td><td>${lpFmt(d.locs[L].qty)}</td><td>${lpFmt(d.locs[L].wt)}</td></tr>`; }).join('');
+  const sumRows=Object.keys(d.locs).map(L=>{ sq+=d.locs[L].qty; sw+=d.locs[L].wt; return `<tr><td style="text-align:left">${esc(L)}</td><td>${lpFmt(d.locs[L].qty)}</td><td>${lpFmt(d.locs[L].wt)}</td></tr>`; }).join('')
+    || `<tr><td colspan="3" style="text-align:center;color:#888">Location field nahi mila</td></tr>`;
   return `<div class="report-doc fab-doc" id="lpDoc">
     <div class="fab-title">Comsyn Daily Finishing Production Report</div>
     <div class="fab-info">
       <div class="fab-info-col"><div class="fab-irow"><span>Unit Name</span><b>${esc(unit||'All Units')}</b></div></div>
       <div class="fab-info-col"><div class="fab-irow"><span>Date</span><b>${esc(dd)}</b></div></div>
     </div>
-    <div class="fab-tblwrap"><table class="fab-tbl"><thead><tr><th>S.No</th><th>Unit Name</th><th>Location</th><th>Order No.</th><th>File No.</th><th>Sf No.</th><th>Size</th><th>Bage Type</th><th>Type</th><th>Qty.</th><th>Bag Wt.</th><th>Total Wt.</th></tr></thead><tbody>${main}<tr class="grand"><td colspan="9" style="text-align:right">GRAND TOTAL</td><td>${lpFmt(qt)}</td><td></td><td>${lpFmt(wt)}</td></tr></tbody></table></div>
+    <div class="fab-tblwrap"><table class="fab-tbl"><thead><tr>${mainHead}</tr></thead><tbody>${main}${grand}</tbody></table></div>
     <div class="fab-section-title">Complete Bag</div>
     <div class="fab-tblwrap"><table class="fab-tbl"><thead><tr><th>Order No.</th><th>File No.</th><th>Size</th><th>Order Qty</th><th>Bag Qty</th><th>Extra</th></tr></thead><tbody>${compRows}</tbody></table></div>
     <div class="fab-section-title">Balance Bag</div>
     <div class="fab-tblwrap"><table class="fab-tbl"><thead><tr><th>Order No.</th><th>File No.</th><th>Size</th><th>Order Qty</th><th>Bag Qty</th><th>Balance</th></tr></thead><tbody>${balRows}</tbody></table></div>
-    <div class="fab-section-title">Summary \u2014 Location Wise</div>
+    <div class="fab-section-title">Summary — Location Wise</div>
     <div class="fab-tblwrap"><table class="fab-tbl" style="min-width:340px;max-width:520px;margin:0 auto"><thead><tr><th>Location</th><th>Qty.</th><th>Total Wt.</th></tr></thead><tbody>${sumRows}<tr class="grand"><td>GRAND TOTAL</td><td>${lpFmt(sq)}</td><td>${lpFmt(sw)}</td></tr></tbody></table></div>
   </div>`;
 }
@@ -6381,7 +6460,7 @@ function bindLpReport(){
 }
 async function lpPDF(){
   const ns=window.jspdf;
-  if(!ns||!ns.jsPDF){ toast('PDF engine load ho raha hai \u2014 thodi der me try karo','err'); return; }
+  if(!ns||!ns.jsPDF){ toast('PDF engine load ho raha hai — thodi der me try karo','err'); return; }
   const d=lpReportData(lpDate,lpUnit);
   if(!d.rows.length){ toast('Is date ki koi entry nahi','err'); return; }
   try{
@@ -6394,7 +6473,7 @@ async function lpPDF(){
     const dw=canvas.width*ratio, dh=canvas.height*ratio;
     pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-dw)/2,margin,dw,dh);
     pdf.save(`Daily_Line_Production_${lpDate}${lpUnit?('_'+lpUnit.replace(/[^\w-]/g,'')):''}.pdf`);
-  }catch(e){ toast('PDF nahi bana \u2014 dobara try karo','err'); }
+  }catch(e){ toast('PDF nahi bana — dobara try karo','err'); }
 }
 function lpExcel(){
   const d=lpReportData(lpDate,lpUnit);
@@ -6405,6 +6484,78 @@ function lpExcel(){
   const url=URL.createObjectURL(blob); const a=document.createElement('a');
   a.href=url; a.download=`Daily_Line_Production_${lpDate}${lpUnit?('_'+lpUnit.replace(/[^\w-]/g,'')):''}.xls`;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+/* ============================================================
+   LINE ASSIGNMENT  (configurable builder for the line-production form)
+   ============================================================ */
+function renderLinepAssign(){
+  const c=document.getElementById('content');
+  document.getElementById('topActions').innerHTML='';
+  const fields=LINEPCFG.fields;
+  c.innerHTML=`<div class="view">
+    <div class="card"><div class="card-head"><h3><span class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg></span>Line Production Form Fields</h3><span class="tag">${fields.length} fields</span></div>
+      <div class="card-body">
+        <div class="hint" style="margin-bottom:14px">Ye fields <b>Daily Line Production \u2192 Entry</b> form me dikhenge. Text / Number / Dropdown / Date / <b>Formula</b> \u2014 sab yahan se control karo. Order badalne ke liye drag ya \u2191\u2193.<br>Naam pehchaan ke liye zaroori: <b>Order No.</b>, <b>File No.</b>, <b>Size</b>, <b>Qty.</b>, <b>Location</b>, <b>Total Wt.</b> \u2014 inhi labels se report ke Complete/Balance/Summary bante hain aur File No. picker chalta hai.</div>
+        <div class="hd-list">${fields.map((h,i)=>headerBuilderItem(h,'linep',i,fields.length)).join('')}</div>
+        <div class="add-bar" style="margin-top:14px">
+          <input id="add_linep_name" placeholder="Field name (e.g. Bage Type)">
+          <select id="add_linep_type"><option value="text">Text</option><option value="number">Number</option><option value="dropdown">Dropdown</option><option value="date">Date</option><option value="formula">Formula</option></select>
+          <button class="btn btn-primary" id="add_linep_btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  const after=()=>{ saveLinepCfg(); renderLinepAssign(); };
+  document.getElementById('add_linep_btn').onclick=()=>{
+    const nm=document.getElementById('add_linep_name').value.trim(), ty=document.getElementById('add_linep_type').value;
+    if(!nm){ toast('Enter a field name','err'); return; }
+    const nf={id:uid(),label:nm,type:ty,options:[]}; if(ty==='formula') nf.formula='';
+    LINEPCFG.fields.push(nf); saveLinepCfg();
+    if(ty==='formula') editLpFormula(nf,after); else { renderLinepAssign(); toast('Field added','ok'); }
+  };
+  document.querySelectorAll('.hd-item[data-scope="linep"]').forEach(item=>{
+    item.querySelectorAll('[data-act]').forEach(btn=>{ btn.onclick=()=>{
+      const h=LINEPCFG.fields.find(x=>x.id===btn.dataset.id); if(!h) return;
+      if(btn.dataset.act==='list') editOptions(h,after);
+      else if(btn.dataset.act==='edit') editLpField(h,after);
+      else if(btn.dataset.act==='up') moveItem(LINEPCFG.fields,h,-1,after);
+      else if(btn.dataset.act==='down') moveItem(LINEPCFG.fields,h,1,after);
+      else if(btn.dataset.act==='del'){ confirmModal(`Delete field "${h.label}"?`,()=>{ const i=LINEPCFG.fields.indexOf(h); LINEPCFG.fields.splice(i,1); after(); toast('Field deleted','info'); },true); }
+    };});
+    enableDrag(item,LINEPCFG.fields,after);
+  });
+}
+function editLpField(f,after){
+  const ov=openModal({
+    title:'Edit field',
+    body:`<div class="form-row"><label>Field name</label><input id="lpfName" value="${esc(f.label)}"></div>
+      <div class="form-row"><label>Field type</label><select id="lpfType">
+        ${['text','number','dropdown','date','formula'].map(t=>`<option value="${t}" ${f.type===t?'selected':''}>${t[0].toUpperCase()+t.slice(1)}</option>`).join('')}
+      </select></div>`,
+    footer:`<button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="lpfSave">Save</button>`
+  });
+  ov.querySelector('#lpfSave').onclick=()=>{
+    const nm=ov.querySelector('#lpfName').value.trim(); if(!nm){ toast('Name required','err'); return; }
+    const nt=ov.querySelector('#lpfType').value;
+    f.label=nm; if(nt==='formula'&&f.formula===undefined) f.formula=''; f.type=nt;
+    closeModal(); after(); toast('Field updated','ok');
+    if(nt==='formula') editLpFormula(f,after);
+  };
+}
+function editLpFormula(f,after){
+  const others=(LINEPCFG.fields||[]).filter(x=>x.id!==f.id);
+  const chips=others.length? others.map(c=>`<button class="chip" data-ins="${esc(c.label)}" style="cursor:pointer;border-color:var(--blue);color:var(--blue)">${esc(c.label)}</button>`).join('') : '<span class="hint">Pehle kuch fields add karo.</span>';
+  const ov=openModal({
+    title:`Formula \u00b7 ${f.label}`,
+    body:`<div class="form-row"><label>Expression</label><input id="lpfExpr" value="${esc(f.formula||'')}" placeholder="e.g. Qty. * Bag Wt.">
+      <div class="hint">Doosre fields ke naam use karo (case-insensitive). Operators: <b>+ - * / ( )</b>. Conditions: <b>= OR AND</b> aur <b>condition ? a : b</b>.</div></div>
+      <div class="form-row"><label>Tap to insert a field</label><div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div></div>`,
+    footer:`<button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="lpfFSave">Save formula</button>`
+  });
+  const inp=ov.querySelector('#lpfExpr');
+  ov.querySelectorAll('[data-ins]').forEach(b=>b.onclick=()=>{ inp.value+=(inp.value&&!/\s$/.test(inp.value)?' ':'')+b.dataset.ins+' '; inp.focus(); });
+  ov.querySelector('#lpfFSave').onclick=()=>{ f.formula=inp.value.trim(); f.type='formula'; closeModal(); after(); toast('Formula saved','ok'); };
 }
 
 const TRASH_LABEL={record:'Production Entry',order:'Order',batch:'Batch',linep:'Line Production'};
@@ -6491,7 +6642,7 @@ function renderTrash(){
 /* ===== REAL-TIME SYNC (plain fetch + 3s polling) ===== */
 (function(){
   if(!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
-  const SYNC_KEYS=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP];
+  const SYNC_KEYS=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG];
   let ready=false, suppress=false; const timers={}; const lastLocal={};
   const origSet=Store.set.bind(Store);
   Store.set=function(k,v){ origSet(k,v); if(ready && !suppress && SYNC_KEYS.indexOf(k)>=0){ lastLocal[k]=Date.now(); push(k,v); } };
@@ -6548,9 +6699,10 @@ function renderTrash(){
       else if(k===KEY_TRASH) TRASH=parsed;
       else if(k===KEY_EXTRA) EXTRA=parsed;
       else if(k===KEY_LINEP) LINEP=parsed;
+      else if(k===KEY_LINEPCFG) LINEPCFG=parsed;
       origSet(k,v);
     } finally { suppress=false; }
-    try{ if(current!=='entry' && !(current==='linep' && lpSub==='entry')) render(); }catch(e){}
+    try{ if(current!=='entry' && !(current==='linep' && lpSub==='entry') && current!=='linepassign') render(); }catch(e){}
   }
   let firstOK=true;
   function pull(){
@@ -6580,7 +6732,7 @@ function renderTrash(){
 
 /* ===== LOGIN + ROLE-BASED ACCESS ===== */
 (function(){
-  const ROLE_HIDE = { view:['entry','orderentry','assign','orderassign','trash','users','manageusers'], entry:['assign','orderassign','trash','users','manageusers'], admin:[] };
+  const ROLE_HIDE = { view:['entry','orderentry','assign','orderassign','linepassign','trash','users','manageusers'], entry:['assign','orderassign','linepassign','trash','users','manageusers'], admin:[] };
   function applyRole(role){
     const hide=ROLE_HIDE[role]||ROLE_HIDE.view;
     let allowed=null;
@@ -6593,7 +6745,7 @@ function renderTrash(){
       b.style.display=hid?'none':'';
       if(!hid && !firstVisible) firstVisible=b.dataset.tab;
     });
-    const setupHidden = isHidden('assign') && isHidden('orderassign');
+    const setupHidden = isHidden('assign') && isHidden('orderassign') && isHidden('linepassign');
     document.querySelectorAll('.nav .nav-label').forEach(function(lbl){ if(/setup/i.test(lbl.textContent)) lbl.style.display=setupHidden?'none':''; });
     const chip=document.getElementById('userChip'); if(chip) chip.textContent=(sessionStorage.getItem('comsyn_user')||'')+' \u00b7 '+role;
     if(isHidden(current) && firstVisible) setTab(firstVisible);
