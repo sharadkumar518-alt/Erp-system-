@@ -1456,7 +1456,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v158</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v159</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -4827,6 +4827,18 @@ function bindBatchCardActions(){
   document.querySelectorAll('.b-dayxls').forEach(btn=>btn.onclick=()=>batchDayExcel(btn.dataset.date));
 }
 function batchesOfDay(dateStr){ return BATCHES.filter(b=>(b.date||'—')===dateStr).sort(_batchSortByOrder); }
+/* dates on which a batch actually ISSUED components (log entries with qty>0); legacy no-log batch falls back to its date if it has ready qty */
+function _batchGaveDates(b){
+  const set=new Set();
+  if(b && b.log && b.log.length){
+    b.log.forEach(e=>{ if(e && e.at){ const any=e.items && Object.keys(e.items).some(k=>num(e.items[k])>0); if(any) set.add(isoFromTs(e.at)); } });
+  } else if(b && b.date){
+    const anyReady=b.ready && Object.keys(b.ready).some(k=>num(b.ready[k])>0); if(anyReady) set.add(b.date);
+  }
+  return set;
+}
+function batchReportDates(){ const set=new Set(); (BATCHES||[]).forEach(b=>_batchGaveDates(b).forEach(d=>set.add(d))); return [...set].sort((a,b)=>String(b).localeCompare(String(a))); }
+function batchesGaveOnDay(dateStr){ return (BATCHES||[]).filter(b=>_batchGaveDates(b).has(dateStr)).sort(_batchSortByOrder); }
 function _givenOnDay(b, key, dateStr){
   if(!b.log || !b.log.length){ return (b.date===dateStr) ? num((b.ready||{})[key]||0) : 0; }
   return b.log.reduce((a,e)=>{
@@ -4839,7 +4851,7 @@ async function batchDayPDF(dateStr){
   const ns=window.jspdf; if(!ns||!ns.jsPDF){ toast('PDF engine load ho raha — thodi der baad try karo','err'); return; }
   const { jsPDF }=ns; const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   if(typeof pdf.autoTable!=='function'){ toast('PDF plugin load ho raha — phir try karo','err'); return; }
-  const items=batchesOfDay(dateStr); if(!items.length){ toast('Is din koi batch nahi','err'); return; }
+  const items=batchesGaveOnDay(dateStr); if(!items.length){ toast('Is din koi batch component issue nahi hua','err'); return; }
   const pageW=pdf.internal.pageSize.getWidth(), M=10; let y=14;
   pdf.setFont('times','bold'); pdf.setFontSize(15); pdf.setTextColor(18,36,58);
   pdf.text('BATCH ORDER — '+(dateStr==='—'?'No date':fmtDate(dateStr)), pageW/2, y, {align:'center'}); y+=8;
@@ -4870,7 +4882,7 @@ async function batchDayPDF(dateStr){
   pdf.save(`Batch_${dateStr}.pdf`);
 }
 function batchDayExcel(dateStr){
-  const items=batchesOfDay(dateStr); if(!items.length){ toast('Is din koi batch nahi','err'); return; }
+  const items=batchesGaveOnDay(dateStr); if(!items.length){ toast('Is din koi batch component issue nahi hua','err'); return; }
   const thS='style="background:#12243a;color:#fff;font-weight:bold;border:1px solid #12243a;padding:5px;text-align:left"';
   const lblS='style="background:#fffbeb;font-weight:bold;color:#504014;border:1px solid #6e87a5;padding:5px 8px"';
   const valS='style="border:1px solid #6e87a5;padding:5px 8px;color:#111"';
@@ -4897,11 +4909,11 @@ function batchDayExcel(dateStr){
 
 /* ---------- BATCH REPORT: date-wise cards (Records-style), report = us din ke sab batch ---------- */
 function batchReportListHtml(){
-  const dates=[...new Set((BATCHES||[]).map(b=>b.date||'\u2014'))].sort((a,b)=>String(b).localeCompare(String(a)));
-  if(!dates.length) return `<div class="empty-state"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5M16 13h2M8 16h6"/></svg></div><h3>Koi batch nahi</h3><p>Batch add hote hi yahan date-wise report ban kar aayegi.</p></div>`;
+  const dates=batchReportDates();
+  if(!dates.length) return `<div class="empty-state"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5M16 13h2M8 16h6"/></svg></div><h3>Koi batch report nahi</h3><p>Jis din kisi order ke component diye jayenge, sirf us din ki report yahan date-wise banegi.</p></div>`;
   let html='';
   dates.forEach(d=>{
-    const cnt=batchesOfDay(d).length; const label=cnt+' batch'+(cnt!==1?'es':'');
+    const cnt=batchesGaveOnDay(d).length; const label=cnt+' batch'+(cnt!==1?'es':'');
     const dl=(d==='\u2014')?'No date':fmtDate(d);
     html+=`<div class="rec-day"><div class="rec-day-label"><span class="d">${esc(dl)}</span><span class="ln"></span><span class="ct">${label}</span></div><div class="rec-grid">
       <div class="rec-card" data-bview="${esc(d)}">
@@ -4920,7 +4932,7 @@ function bindBatchReportList(){
   document.querySelectorAll('[data-bpdf]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); batchDayPDF(b.dataset.bpdf); });
 }
 function batchDayHTML(dateStr){
-  const items=batchesOfDay(dateStr);
+  const items=batchesGaveOnDay(dateStr);
   if(!items.length) return `<div class="empty-state"><p>Is din koi batch nahi.</p></div>`;
   const dl=(dateStr==='\u2014')?'No date':fmtDate(dateStr);
   let h=`<div class="report-doc fab-doc"><div class="fab-title">Batch Order \u2014 ${esc(dl)}</div>`;
@@ -6549,38 +6561,28 @@ function lpReportData(dateISO,unit){
     locs[L].qty+=roles.qty?num(lpGet(e,roles.qty)):0; locs[L].wt+=roles.totwt?num(lpGet(e,roles.totwt)):0; }); }
   return {rows,complete,balance,locs,roles};
 }
+function lpDateDash(dateISO){ try{ const d=new Date(dateISO+'T00:00:00'); return d.getDate()+'-'+(d.getMonth()+1)+'-'+d.getFullYear(); }catch(e){ return dateISO; } }
 function lpReportDoc(dateISO,unit){
-  const d=lpReportData(dateISO,unit); const fs=LINEPCFG.fields||[];
-  let dd=dateISO; try{ dd=new Date(dateISO+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase(); }catch(e){}
-  if(!d.rows.length) return `<div class="empty-state"><p>${esc(dd)}${unit?(' — '+esc(unit)):''} ki koi line production entry nahi.</p></div>`;
-  const totals={}; fs.forEach(f=>{ if(lpNumericField(f)) totals[f.id]=0; });
-  const main=d.rows.map((e,i)=>{ let tds=`<td>${i+1}</td>`;
-    fs.forEach(f=>{ const v=lpGet(e,f); if(lpNumericField(f)) totals[f.id]+=num(v);
-      const disp=(v===''||v==null)?'-':(lpNumericField(f)?lpFmt(v):esc(v));
-      tds+=`<td${lpNumericField(f)?'':' style="text-align:left"'}>${disp}</td>`; });
-    return `<tr>${tds}</tr>`; }).join('');
-  const grand=`<tr class="grand"><td>GRAND TOTAL</td>`+fs.map(f=>`<td>${lpNumericField(f)?lpFmt(totals[f.id]):''}</td>`).join('')+`</tr>`;
-  const mainHead=`<th>S.No</th>`+fs.map(f=>`<th>${esc(f.label)}</th>`).join('');
-  const compRows=d.complete.length? d.complete.map(o=>`<tr><td>${esc(o.on||'-')}</td><td>${esc(o.fn||'-')}</td><td>${esc(o.sz||'-')}</td><td>${lpFmt(o.oq)}</td><td>${lpFmt(o.bagQty)}</td><td>${o.bagQty>o.oq?lpFmt(o.bagQty-o.oq):'0'}</td></tr>`).join('')
-    : `<tr><td colspan="6" style="text-align:center;color:#888">Abhi koi order complete nahi hua</td></tr>`;
-  const balRows=d.balance.length? d.balance.map(o=>`<tr><td>${esc(o.on||'-')}</td><td>${esc(o.fn||'-')}</td><td>${esc(o.sz||'-')}</td><td>${lpFmt(o.oq)}</td><td>${lpFmt(o.bagQty)}</td><td><b>${lpFmt(o.bal)}</b></td></tr>`).join('')
-    : `<tr><td colspan="6" style="text-align:center;color:#888">Koi balance nahi — sab orders complete</td></tr>`;
-  let sq=0, sw=0;
-  const sumRows=Object.keys(d.locs).map(L=>{ sq+=d.locs[L].qty; sw+=d.locs[L].wt; return `<tr><td style="text-align:left">${esc(L)}</td><td>${lpFmt(d.locs[L].qty)}</td><td>${lpFmt(d.locs[L].wt)}</td></tr>`; }).join('')
-    || `<tr><td colspan="3" style="text-align:center;color:#888">Location field nahi mila</td></tr>`;
+  const d=lpReportData(dateISO,unit); const roles=lpRoles();
+  const cols=(LINEPCFG.fields||[]).filter(f=> !(roles.unit && f.id===roles.unit.id));
+  const dd=lpDateDash(dateISO);
+  if(!d.rows.length) return `<div class="empty-state"><p>${esc(fmtDate(dateISO))} ki koi line production entry nahi.</p></div>`;
+  const mainHead=cols.map(f=>`<th>${esc(f.label)}</th>`).join('');
+  const main=d.rows.map(e=>`<tr>${cols.map(f=>{ const v=lpGet(e,f); const disp=(v===''||v==null)?'-':(lpNumericField(f)?lpFmt(v):esc(v)); return `<td${lpNumericField(f)?'':' style="text-align:left"'}>${disp}</td>`; }).join('')}</tr>`).join('');
+  let sq=0, sw=0, si=0;
+  const sumRows=Object.keys(d.locs).map(L=>{ si++; sq+=d.locs[L].qty; sw+=d.locs[L].wt; return `<tr><td>${si}</td><td style="text-align:left">${esc(L)}</td><td>${lpFmt(d.locs[L].qty)}</td><td>${lpFmt(d.locs[L].wt)}</td></tr>`; }).join('')
+    || `<tr><td colspan="4" style="text-align:center;color:#888">Location field nahi mila</td></tr>`;
   return `<div class="report-doc fab-doc" id="lpDoc">
-    <div class="fab-title">Comsyn Daily Finishing Production Report</div>
-    <div class="fab-info">
-      <div class="fab-info-col"><div class="fab-irow"><span>Unit Name</span><b>${esc(unit||'All Units')}</b></div></div>
-      <div class="fab-info-col"><div class="fab-irow"><span>Date</span><b>${esc(dd)}</b></div></div>
-    </div>
-    <div class="fab-tblwrap"><table class="fab-tbl"><thead><tr>${mainHead}</tr></thead><tbody>${main}${grand}</tbody></table></div>
-    <div class="fab-section-title">Complete Bag</div>
-    <div class="fab-tblwrap"><table class="fab-tbl"><thead><tr><th>Order No.</th><th>File No.</th><th>Size</th><th>Order Qty</th><th>Bag Qty</th><th>Extra</th></tr></thead><tbody>${compRows}</tbody></table></div>
-    <div class="fab-section-title">Balance Bag</div>
-    <div class="fab-tblwrap"><table class="fab-tbl"><thead><tr><th>Order No.</th><th>File No.</th><th>Size</th><th>Order Qty</th><th>Bag Qty</th><th>Balance</th></tr></thead><tbody>${balRows}</tbody></table></div>
-    <div class="fab-section-title">Summary — Location Wise</div>
-    <div class="fab-tblwrap"><table class="fab-tbl" style="min-width:340px;max-width:520px;margin:0 auto"><thead><tr><th>Location</th><th>Qty.</th><th>Total Wt.</th></tr></thead><tbody>${sumRows}<tr class="grand"><td>GRAND TOTAL</td><td>${lpFmt(sq)}</td><td>${lpFmt(sw)}</td></tr></tbody></table></div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+      <tr>
+        <td style="border:none;width:26%"></td>
+        <td style="border:none;text-align:center"><div style="font-size:17px;color:#1f3a5f;font-weight:700;letter-spacing:.5px">Comsyn</div><div style="font-size:21px;color:#1f3a5f;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Daily Finishing Production Report</div></td>
+        <td style="border:none;width:26%;text-align:right;color:#1f3a5f;font-weight:700;white-space:nowrap;vertical-align:middle">Date :- ${esc(dd)}</td>
+      </tr>
+    </table>
+    <div class="fab-tblwrap"><table class="fab-tbl"><thead><tr>${mainHead}</tr></thead><tbody>${main}</tbody></table></div>
+    <div class="fab-section-title" style="margin-top:16px">Summary</div>
+    <div class="fab-tblwrap"><table class="fab-tbl" style="min-width:360px;max-width:560px;margin:0 auto"><thead><tr><th>S No.</th><th>Location</th><th>Qty.</th><th>Total Wt.</th></tr></thead><tbody>${sumRows}<tr class="grand"><td colspan="2">Grand Total</td><td>${lpFmt(sq)}</td><td>${lpFmt(sw)}</td></tr></tbody></table></div>
   </div>`;
 }
 async function lpDayPDF(dateStr){
