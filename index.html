@@ -1474,7 +1474,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v161</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v162</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -6629,17 +6629,53 @@ function lpReportDoc(dateISO,unit){
 async function lpDayPDF(dateStr){
   const ns=window.jspdf;
   if(!ns||!ns.jsPDF){ toast('PDF engine load ho raha hai \u2014 thodi der me try karo','err'); return; }
+  const { jsPDF }=ns; const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  if(typeof pdf.autoTable!=='function'){ toast('PDF plugin load ho raha \u2014 phir try karo','err'); return; }
   const d=lpReportData(dateStr,'');
   if(!d.rows.length){ toast('Is date ki koi entry nahi','err'); return; }
   try{
-    toast('PDF ban raha hai...','ok');
-    const {jsPDF}=ns;
-    const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-    const canvas=await _captureDocToCanvas(lpReportDoc(dateStr,''));
-    const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight(), margin=6;
-    const ratio=Math.min((pw-margin*2)/canvas.width,(ph-margin*2)/canvas.height);
-    const dw=canvas.width*ratio, dh=canvas.height*ratio;
-    pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-dw)/2,margin,dw,dh);
+    const roles=lpRoles();
+    const cols=(LINEPCFG.fields||[]).filter(f=> !(roles.unit && f.id===roles.unit.id));
+    const pageW=pdf.internal.pageSize.getWidth(), M=10; let y=12;
+    /* header band */
+    pdf.setFillColor(18,56,107); pdf.setDrawColor(12,42,82); pdf.setLineWidth(.4);
+    pdf.rect(M,y,pageW-2*M,13,'FD');
+    pdf.setFont('times','bold'); pdf.setFontSize(15); pdf.setTextColor(255,255,255);
+    pdf.text('DAILY FINISHING PRODUCTION REPORT   UNIT-1', pageW/2, y+6.2, {align:'center'});
+    pdf.setFontSize(9.5); pdf.setTextColor(255,236,180);
+    pdf.text('Date :- '+lpDateDash(dateStr), pageW/2, y+10.8, {align:'center'});
+    y+=18;
+    /* per-column tints (match on-screen colours) */
+    const colFill={};
+    cols.forEach((f,idx)=>{ const cc=lpColClass(f,roles);
+      if(cc==='lpc-loc') colFill[idx]={fillColor:[243,237,255],textColor:[74,44,134],fontStyle:'bold'};
+      else if(cc==='lpc-qty') colFill[idx]={fillColor:[226,242,220],textColor:[30,90,50],fontStyle:'bold'};
+      else if(cc==='lpc-bag') colFill[idx]={fillColor:[230,240,251],textColor:[18,58,107]};
+      else if(cc==='lpc-tot') colFill[idx]={fillColor:[255,240,211],textColor:[138,90,0],fontStyle:'bold'};
+    });
+    pdf.autoTable({ startY:y, margin:{left:M,right:M}, theme:'grid', tableWidth:pageW-2*M,
+      headStyles:{font:'times',fillColor:[18,56,107],textColor:[255,255,255],fontSize:9,fontStyle:'bold',halign:'center',valign:'middle',lineColor:[12,42,82],lineWidth:.3,cellPadding:2.4},
+      styles:{font:'times',fontSize:9,cellPadding:2.2,lineColor:[120,150,185],lineWidth:.28,halign:'center',valign:'middle',textColor:[30,45,66],overflow:'linebreak'},
+      alternateRowStyles:{fillColor:[238,245,255]},
+      columnStyles:colFill,
+      head:[cols.map(f=>f.label)],
+      body:d.rows.map(e=>cols.map(f=>{ const v=lpGet(e,f); return (v===''||v==null)?'-':(lpNumericField(f)?lpFmt(v):String(v)); })) });
+    y=pdf.lastAutoTable.finalY+9;
+    /* summary */
+    if(y>170){ pdf.addPage(); y=16; }
+    pdf.setFont('times','bold'); pdf.setFontSize(12); pdf.setTextColor(13,110,122);
+    pdf.text('Summary', pageW/2, y, {align:'center'});
+    let sq=0,sw=0,si=0;
+    const sumBody=Object.keys(d.locs).map(L=>{ si++; sq+=d.locs[L].qty; sw+=d.locs[L].wt; return [String(si), L, lpFmt(d.locs[L].qty), lpFmt(d.locs[L].wt)]; });
+    const sumW=Math.min(160, pageW-2*M), sumX=(pageW-sumW)/2;
+    const goldC={fillColor:[255,230,168],textColor:[122,74,10],fontStyle:'bold'};
+    pdf.autoTable({ startY:y+3, margin:{left:sumX,right:pageW-(sumX+sumW)}, tableWidth:sumW, theme:'grid',
+      headStyles:{font:'times',fillColor:[13,110,122],textColor:[255,255,255],fontSize:9.5,fontStyle:'bold',halign:'center',lineColor:[9,80,90],lineWidth:.3,cellPadding:2.4},
+      styles:{font:'times',fontSize:9.5,cellPadding:2.4,lineColor:[120,150,185],lineWidth:.28,halign:'center',textColor:[30,45,66]},
+      columnStyles:{1:{halign:'left'},2:{fillColor:[226,242,220],fontStyle:'bold',textColor:[30,90,50]},3:{fillColor:[255,240,211],fontStyle:'bold',textColor:[138,90,0]}},
+      head:[['S No.','Location','Qty.','Total Wt.']],
+      body: sumBody.length?sumBody:[['-','-','0','0']],
+      foot:[[{content:'Grand Total',colSpan:2,styles:goldC},{content:lpFmt(sq),styles:goldC},{content:lpFmt(sw),styles:goldC}]] });
     pdf.save(`Daily_Line_Production_${dateStr}.pdf`);
   }catch(e){ toast('PDF nahi bana \u2014 dobara try karo','err'); }
 }
