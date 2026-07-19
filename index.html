@@ -1474,7 +1474,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v162</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v163</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -2495,7 +2495,7 @@ function _entryOrder(){
   if(!on) return null;
   return (ORDERS||[]).find(o=> _eq(ordVal(o,/order\s*no/i),on) && (!fn || !ordVal(o,/file\s*no/i) || _eq(ordVal(o,/file\s*no/i),fn)) ) || null;
 }
-/* Extra-cutting guard: cut per component can exceed required by max 50; beyond that block the save */
+/* Extra-cutting guard: cut per component can exceed required by max 1000; beyond that block the save */
 function extraCutCheck(){
   const o=_entryOrder(); if(!o) return null;
   const comps=orderComponents(o); if(!comps.length) return null;
@@ -2507,7 +2507,7 @@ function extraCutCheck(){
     if(dc<=0) continue;
     const existing=autoCutDone(o,c.name,editingId);
     const projected=existing+dc;
-    if(projected> c.qty+50) return {comp:c.name, required:c.qty, projected, max:c.qty+50};
+    if(projected> c.qty+1000) return {comp:c.name, required:c.qty, projected, max:c.qty+1000};
   }
   return null;
 }
@@ -2518,7 +2518,7 @@ function saveEntry(){
   const any=Object.values(DRAFT.sections).some(rows=>rows.some(r=>Object.values(r).some(v=>String(v).trim()!=='')));
   if(!any){ toast('Add at least one row of data','err'); return; }
   const _ex=extraCutCheck();
-  if(_ex){ toast(`Something went wrong — Extra cutting! "${_ex.comp}" max ${_ex.max} tak allowed (required ${_ex.required} + 50 extra). Abhi total ${_ex.projected} ho raha hai.`,'err'); return; }
+  if(_ex){ toast(`Something went wrong — Extra cutting! "${_ex.comp}" max ${_ex.max} tak allowed (required ${_ex.required} + 1000 extra). Abhi total ${_ex.projected} ho raha hai.`,'err'); return; }
   const s=computeSummary();
   const complete=entryComplete(DRAFT.sections, CFG);
   const now=new Date().toISOString();
@@ -4511,15 +4511,15 @@ function stockOrderExcel(){
   });
   h2+='</table>'; dlXls(h2,'Cutting_Stock_Order-wise.xls');
 }
-function stockLocationPDF(){
-  const ns=window.jspdf; if(!ns||!ns.jsPDF){ toast('PDF engine load ho raha \u2014 phir try karo','err'); return; }
-  const { jsPDF }=ns; const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-  if(typeof pdf.autoTable!=='function'){ toast('PDF plugin load ho raha \u2014 phir try karo','err'); return; }
-  const {map,locs}=stockLocDataFiltered(); if(!locs.length){ toast('Koi location stock nahi','err'); return; }
-  const pageW=pdf.internal.pageSize.getWidth(), M=10; let y=12;
+function _buildStockLocPDF(sc, map, locs){
+  const { jsPDF }=window.jspdf;
+  const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const pageW=pdf.internal.pageSize.getWidth(), pageH=pdf.internal.pageSize.getHeight(), M=10, BOT=pageH-10;
+  const rowH=sc.f*0.42 + sc.pad*2 + 0.7;
+  let y=12;
   pdf.setFillColor(253,241,220); pdf.setDrawColor(140,120,80); pdf.setLineWidth(.35);
   pdf.rect(M,y,pageW-2*M,12,'FD');
-  pdf.setFont('times','bold'); pdf.setFontSize(14); pdf.setTextColor(18,36,58);
+  pdf.setFont('times','bold'); pdf.setFontSize(sc.title); pdf.setTextColor(18,36,58);
   pdf.text('CUTTING STOCK \u2014 LOCATION-WISE', pageW/2, y+7.8, {align:'center'});
   y+=12;
   pdf.setFont('times','bold'); pdf.setFontSize(9.5); pdf.setTextColor(90,70,30);
@@ -4527,39 +4527,59 @@ function stockLocationPDF(){
   y+=8;
   locs.forEach(loc=>{
     const items=map[loc]; const total=items.reduce((a,b)=>a+num(b.bal),0);
-    if(y+16+items.length*8>190){ pdf.addPage(); y=12; }
+    if(y + sc.band + rowH*2 > BOT){ pdf.addPage(); y=12; }
     pdf.setFillColor(255,229,204); pdf.setDrawColor(190,140,80); pdf.setLineWidth(.3);
-    pdf.rect(M,y,pageW-2*M,8.5,'FD');
-    pdf.setTextColor(122,74,10); pdf.setFontSize(10); pdf.setFont('times','bold');
-    pdf.text(`LOCATION: ${loc}    (${items.length} item${items.length>1?'s':''} \u00b7 Total Balance: ${total})`, M+3, y+5.7);
-    y+=8.5;
+    pdf.rect(M,y,pageW-2*M,sc.band,'FD');
+    pdf.setTextColor(122,74,10); pdf.setFontSize(sc.f+1.2); pdf.setFont('times','bold');
+    pdf.text(`LOCATION: ${loc}    (${items.length} item${items.length>1?'s':''} \u00b7 Total Balance: ${total})`, M+3, y+sc.band*0.68);
+    y+=sc.band;
     pdf.autoTable({ startY:y, margin:{left:M,right:M}, theme:'grid',
-      headStyles:{font:'times',fillColor:[214,228,240],textColor:[18,36,58],fontSize:8.8,fontStyle:'bold',halign:'center',lineColor:[110,135,165],lineWidth:.28,cellPadding:2.2},
-      styles:{font:'times',fontSize:8.8,cellPadding:2.2,lineColor:[110,135,165],lineWidth:.28,halign:'center',textColor:[35,50,70]},
+      headStyles:{font:'times',fillColor:[214,228,240],textColor:[18,36,58],fontSize:sc.f,fontStyle:'bold',halign:'center',valign:'middle',lineColor:[110,135,165],lineWidth:.28,cellPadding:sc.pad},
+      styles:{font:'times',fontSize:sc.f,cellPadding:sc.pad,lineColor:[110,135,165],lineWidth:.28,halign:'center',valign:'middle',textColor:[35,50,70],overflow:'linebreak'},
       alternateRowStyles:{fillColor:[251,253,247]},
       columnStyles:{0:{halign:'left',fontStyle:'bold',fillColor:[255,251,235]},5:{fillColor:[226,239,218]},9:{fillColor:[250,222,228],fontStyle:'bold',textColor:[140,30,50]}},
       head:[['Order No','File No','Bag Size','Gsm','Order Qty','Component','Component Qty','Qty','Batch Qty','Balance']],
       body:items.map(it=>[it.on||'-', it.fn||'-', it.bag||'-', it.gsm||'-', String(it.oq||'-'), it.comp||'-', String(it.cqty||'-'), String(it.cut), String(it.given), String(it.bal)]) });
-    y=pdf.lastAutoTable.finalY+6;
+    y=pdf.lastAutoTable.finalY+5;
   });
-  // ---- LOCATION-WISE SUMMARY ----
-  if(y+16+locs.length*9>200){ pdf.addPage(); y=12; }
-  pdf.setFillColor(226,239,218); pdf.setDrawColor(110,135,165); pdf.setLineWidth(.3);
-  pdf.rect(M,y,pageW-2*M,9.5,'FD');
-  pdf.setTextColor(30,90,50); pdf.setFontSize(12); pdf.setFont('times','bold');
-  pdf.text('LOCATION-WISE BALANCE SUMMARY', pageW/2, y+6.3, {align:'center'});
-  y+=9.5;
+  /* ---- SUMMARY: title + table always kept together (whole block moves to next page if it doesn't fit) ---- */
   let _gt=0;
   const sumBody=locs.map(loc=>{ const items=map[loc]; const total=items.reduce((a,b)=>a+num(b.bal),0); _gt+=total; return [String(loc), String(items.length), String(total)]; });
-  pdf.autoTable({ startY:y, margin:{left:M,right:M}, theme:'grid',
-    headStyles:{font:'times',fillColor:[214,228,240],textColor:[18,36,58],fontSize:11,fontStyle:'bold',halign:'center',lineColor:[110,135,165],lineWidth:.28,cellPadding:3},
-    styles:{font:'times',fontSize:11,cellPadding:3,lineColor:[110,135,165],lineWidth:.28,halign:'center',textColor:[35,50,70]},
-    footStyles:{font:'times',fontSize:12.5,fontStyle:'bold',halign:'center',lineColor:[110,135,165],lineWidth:.3},
+  const sRowH=sc.sumF*0.5 + sc.spad*2 + 1;
+  const sumBlockH = 9.5 + sRowH*(sumBody.length+2) + 4;
+  if(y + sumBlockH > BOT){ pdf.addPage(); y=12; }
+  pdf.setFillColor(226,239,218); pdf.setDrawColor(110,135,165); pdf.setLineWidth(.3);
+  pdf.rect(M,y,pageW-2*M,9.5,'FD');
+  pdf.setTextColor(30,90,50); pdf.setFontSize(sc.sumF+1); pdf.setFont('times','bold');
+  pdf.text('LOCATION-WISE BALANCE SUMMARY', pageW/2, y+6.3, {align:'center'});
+  y+=9.5;
+  pdf.autoTable({ startY:y, margin:{left:M,right:M}, theme:'grid', pageBreak:'avoid', rowPageBreak:'avoid',
+    headStyles:{font:'times',fillColor:[214,228,240],textColor:[18,36,58],fontSize:sc.sumF,fontStyle:'bold',halign:'center',lineColor:[110,135,165],lineWidth:.28,cellPadding:sc.spad},
+    styles:{font:'times',fontSize:sc.sumF,cellPadding:sc.spad,lineColor:[110,135,165],lineWidth:.28,halign:'center',textColor:[35,50,70]},
+    footStyles:{font:'times',fontSize:sc.sumF+1.5,fontStyle:'bold',halign:'center',lineColor:[110,135,165],lineWidth:.3},
     alternateRowStyles:{fillColor:[251,253,247]},
     columnStyles:{0:{halign:'left',fontStyle:'bold',fillColor:[255,251,235]},2:{fillColor:[250,222,228],fontStyle:'bold',textColor:[201,42,42]}},
     head:[['Location','Total Items','Total Balance']],
     body:sumBody,
     foot:[[{content:'GRAND TOTAL',styles:{halign:'left',fillColor:[255,224,130]}},{content:String(sumBody.reduce((a,r)=>a+num(r[1]),0)),styles:{fillColor:[255,224,130]}},{content:String(_gt),styles:{fillColor:[255,224,130],textColor:[201,42,42]}}]] });
+  return pdf;
+}
+function stockLocationPDF(){
+  const ns=window.jspdf; if(!ns||!ns.jsPDF){ toast('PDF engine load ho raha \u2014 phir try karo','err'); return; }
+  const test=new ns.jsPDF(); if(typeof test.autoTable!=='function'){ toast('PDF plugin load ho raha \u2014 phir try karo','err'); return; }
+  const {map,locs}=stockLocDataFiltered(); if(!locs.length){ toast('Koi location stock nahi','err'); return; }
+  /* progressively smaller font scales so any amount of data fits in \u2264 5 pages */
+  const SCALES=[
+    {f:8.8,pad:2.2,band:8.5,sumF:11,spad:3,title:14},
+    {f:7.6,pad:1.9,band:7.6,sumF:10,spad:2.6,title:13.5},
+    {f:6.6,pad:1.6,band:7.0,sumF:9,spad:2.3,title:13},
+    {f:5.7,pad:1.35,band:6.4,sumF:8,spad:2.0,title:12.5},
+    {f:5.0,pad:1.15,band:5.9,sumF:7.2,spad:1.8,title:12},
+    {f:4.4,pad:0.95,band:5.4,sumF:6.5,spad:1.6,title:11.5},
+    {f:3.9,pad:0.8,band:5.0,sumF:6,spad:1.4,title:11}
+  ];
+  const MAXP=5; let pdf=null;
+  for(let i=0;i<SCALES.length;i++){ pdf=_buildStockLocPDF(SCALES[i], map, locs); if(pdf.getNumberOfPages()<=MAXP || i===SCALES.length-1) break; }
   pdf.save('Cutting_Stock_Location-wise.pdf');
 }
 function stockLocationExcel(){
