@@ -516,6 +516,31 @@ table.dt td .combo{background-position:right 6px center;padding-right:20px!impor
 .fab-tbl tr.grand td{background:#dde8f3!important;font-weight:700;color:#1f3a5f;border-top:2px solid #1f3a5f}
 /* full-report modal: whole doc scrolls horizontally so nothing gets cut */
 .lp-print{overflow:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+/* ===== Daily Line Production — professional Times New Roman entry UI ===== */
+.lp-eform{font-family:'Times New Roman',Times,serif}
+.lp-eform-head{font-family:'Times New Roman',Times,serif;font-weight:800;font-size:18px;color:#0b1626;letter-spacing:.3px;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #12386b}
+.lp-eform .cr-field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:150px}
+.lp-eform .cr-field label{font-family:'Times New Roman',Times,serif;font-size:11.5px;font-weight:800;letter-spacing:.7px;color:#0b1626;text-transform:uppercase}
+.lp-eform .cr-field input,.lp-eform .cr-field select{
+  font-family:'Times New Roman',Times,serif;font-weight:700;font-size:15px;color:#0b1626;
+  background:#fff;border:1.5px solid #b9c6da;border-radius:9px;padding:10px 12px;transition:border-color .15s,box-shadow .15s;width:100%}
+.lp-eform .cr-field input::placeholder{color:#9aa7b8;font-weight:600}
+.lp-eform .cr-field input:focus,.lp-eform .cr-field select:focus{outline:none;border-color:#12386b;box-shadow:0 0 0 3px rgba(18,56,107,.13)}
+.lp-eform .cr-field input[readonly]{cursor:default}
+/* locked (auto-filled) fields — clean, no badge/placeholder, clearly non-editable */
+.lp-eform .lpf-lock input{background:#eef2f8;border-color:#c4cede;color:#0b1626;color-scheme:light}
+.lp-eform .lpf-lock input:focus{box-shadow:none;border-color:#c4cede}
+/* formula (auto-calculated) field */
+.lp-eform .lpf-formula input{background:#fbf3e2;border-color:#e3c98d;color:#7a4a0a;font-weight:800}
+.lp-eform .lpf-formula label::after{content:' \2699';color:#b8860b}
+/* entries / summary tables inside the entry tab — Times New Roman, black bold */
+.lp-eform .mc-tbl{font-family:'Times New Roman',Times,serif}
+.lp-eform .mc-tbl th{font-weight:800;color:#0b1626}
+.lp-eform .mc-tbl td{font-weight:700;color:#12243a}
+.lp-eform .lp-vfilter .cr-field{min-width:104px}
+.lp-eform .lp-vfilter label{font-size:10.5px;color:#5a6d88}
+.lp-eform .lp-vfilter .lp-vsel{font-size:13px;padding:8px 9px;font-weight:700}
+@media(max-width:560px){ .lp-eform .cr-field{min-width:120px} .lp-eform .cr-field input,.lp-eform .cr-field select{font-size:14px;padding:9px 10px} .lp-eform-head{font-size:16px} }
 .lp-print .fab-doc{width:max-content;max-width:none;overflow:visible}
 .lp-print .fab-tblwrap{overflow:visible}
 /* colourful line Daily Finishing Production Report (also captured into the PDF) */
@@ -1476,7 +1501,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v165</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v166</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -6473,11 +6498,11 @@ function lpOpenDayReport(dateStr){
 /* ---------- ENTRY sub-tab (config-driven) ---------- */
 function lpFieldInput(f,val,roles){
   const idAttr=`data-lpf="${f.id}"`;
-  if(f.type==='formula') return `<div class="cr-field"><label>${esc(f.label)} <span style="font-size:9px;background:#eadcff;color:#6a1b9a;padding:1px 6px;border-radius:8px;font-weight:700">formula</span></label><input ${idAttr} value="${esc(val??'')}" readonly style="background:#fff8ec;font-weight:700"></div>`;
-  if(roles && roles.file && f.id===roles.file.id) return `<div class="cr-field"><label>${esc(f.label)}</label><input ${idAttr} class="combo" value="${esc(val??'')}" autocomplete="off" placeholder="File No. type karo — picker khulega"></div>`;
+  if(f.type==='formula') return `<div class="cr-field lpf-formula"><label>${esc(f.label)}</label><input ${idAttr} value="${esc(val??'')}" readonly tabindex="-1"></div>`;
+  if(roles && roles.file && f.id===roles.file.id) return `<div class="cr-field"><label>${esc(f.label)}</label><input ${idAttr} class="combo" value="${esc(val??'')}" autocomplete="off" placeholder="Type / select file no."></div>`;
   const isLocked = roles && ((roles.order&&f.id===roles.order.id)||(roles.sf&&f.id===roles.sf.id)||(roles.size&&f.id===roles.size.id));
-  if(isLocked) return `<div class="cr-field"><label>${esc(f.label)} <span style="font-size:9px;background:#e6eef9;color:#123a6b;padding:1px 6px;border-radius:8px;font-weight:700">auto \u{1F512}</span></label><input ${idAttr} value="${esc(val??'')}" readonly title="File No. select karne par auto-fill hoga" placeholder="File No. se auto" style="background:#eef3fa;color:#123a6b;font-weight:600;cursor:not-allowed"></div>`;
-  if(f.type==='dropdown'){ const dl='lpdl_'+f.id; return `<div class="cr-field"><label>${esc(f.label)}</label><input ${idAttr} value="${esc(val??'')}" list="${dl}" autocomplete="off" placeholder="Select…"><datalist id="${dl}">${(f.options||[]).map(o=>`<option value="${esc(o)}">`).join('')}</datalist></div>`; }
+  if(isLocked) return `<div class="cr-field lpf-lock"><label>${esc(f.label)}</label><input ${idAttr} value="${esc(val??'')}" readonly tabindex="-1" aria-readonly="true" onmousedown="return false"></div>`;
+  if(f.type==='dropdown'){ const dl='lpdl_'+f.id; return `<div class="cr-field"><label>${esc(f.label)}</label><input ${idAttr} value="${esc(val??'')}" list="${dl}" autocomplete="off" placeholder="Select"><datalist id="${dl}">${(f.options||[]).map(o=>`<option value="${esc(o)}">`).join('')}</datalist></div>`; }
   if(f.type==='date') return `<div class="cr-field"><label>${esc(f.label)}</label><input ${idAttr} type="date" value="${esc(val??'')}"></div>`;
   if(f.type==='number') return `<div class="cr-field"><label>${esc(f.label)}</label><input ${idAttr} type="number" step="any" inputmode="decimal" value="${esc(val??'')}" placeholder="0"></div>`;
   const dl='lpdl_'+f.id;
@@ -6490,12 +6515,12 @@ function lpEntryTabHtml(){
   const curDate=ed?(ed.date||lpDate):(lpDate||todayISO());
   const fs=LINEPCFG.fields||[];
   const fieldsHtml=fs.map(f=>lpFieldInput(f, ed?lpGet(ed,f):'', roles)).join('');
-  return `<div class="card" style="margin-bottom:14px"><div class="card-body">
-    <div style="font-weight:800;font-size:15px;margin-bottom:12px">${ed?'\u270F\uFE0F Edit Line Production Entry':'\u2795 New Line Production Entry'}</div>
-    <div class="cut-search" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:2px">
+  return `<div class="card lp-eform" style="margin-bottom:14px"><div class="card-body">
+    <div class="lp-eform-head">${ed?'\u270F\uFE0F Edit Line Production Entry':'\u2795 New Line Production Entry'}</div>
+    <div class="cut-search" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:2px">
       <div class="cr-field"><label>Date</label><input id="lpDateIn" type="date" value="${esc(curDate)}"></div>
     </div>
-    <div class="ofields" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">${fieldsHtml||'<div class="hint">Line Assignment tab me jaakar fields add karo.</div>'}</div>
+    <div class="ofields" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px">${fieldsHtml||'<div class="hint">Line Assignment tab me jaakar fields add karo.</div>'}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:flex-end">
       <button class="btn btn-primary" id="lpSaveBtn">${ed?'Update Entry':'Save Entry'}</button>
       ${ed?'<button class="btn" id="lpCancelBtn">Cancel</button>':''}
@@ -6509,7 +6534,7 @@ function lpEntryTabHtml(){
       </div>
     </div>
   </div></div>
-  <div class="card"><div class="card-body" id="lpEntriesCard">${lpEntriesSectionHtml(curDate)}</div></div>`;
+  <div class="card lp-eform"><div class="card-body" id="lpEntriesCard">${lpEntriesSectionHtml(curDate)}</div></div>`;
 }
 function lpYearsList(){
   const ys=new Set((LINEP||[]).map(e=>String(e.date||'').slice(0,4)).filter(Boolean));
