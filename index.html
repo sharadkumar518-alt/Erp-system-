@@ -1511,7 +1511,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v170</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v172</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -4681,6 +4681,7 @@ function renderCuttingStock(){
 function batchOrder(b){ return (ORDERS||[]).find(o=>o.id===b.orderId)||null; }
 function batchOrderMeta(o){ return { on:ordVal(o,/order\s*no/i), fn:ordVal(o,/file\s*no/i), sf:ordVal(o,/sf\s*no/i), bag:ordVal(o,/bag\s*size/i), gsm:ordVal(o,/gsm/i), oq:ordVal(o,/order\s*qty|qty|quantit/i), printing:ordVal(o,/printing/i) }; }
 function batchStatus(b){ const o=batchOrder(b); const comps=o?orderComponents(o):[]; if(!comps.length) return 'process'; return comps.every(c=>num((b.ready||{})[c.key]||0)>=c.qty)?'complete':'process'; }
+function batchAnyGiven(b){ return !!(b && b.ready && Object.keys(b.ready).some(k=>num(b.ready[k])>0)); }
 function recomputeBatch(b){ b.status=batchStatus(b); if(b.status==='complete'){ if(!b.completedAt) b.completedAt=Date.now(); } else b.completedAt=null; }
 
 function batchPickerHtml(){
@@ -4719,7 +4720,7 @@ function batchDraftHtml(){
   return `<div class="batch-card">
     <div class="bcard-top"><div class="bcard-title">BATCH CARD</div><div class="bcard-loc">LOCATION :<input class="b-man b-loc" data-f="location" value="${esc(batchDraft.location||'')}" placeholder="—"></div></div>
     ${batchInfoRows(m,extra)}
-    <table class="bcard-comp"><thead><tr><th>Component</th><th class="bc-req">Required</th><th class="bc-ready">Ready</th></tr></thead><tbody>${rows}</tbody></table>
+    <table class="bcard-comp"><thead><tr><th>Component</th><th class="bc-req">Required</th><th class="bc-ready">Batch Qty.</th></tr></thead><tbody>${rows}</tbody></table>
     <div class="bcard-actions"><button class="btn btn-primary" id="bAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add Batch</button><button class="btn btn-ghost" id="bClear">Clear</button></div>
   </div>`;
 }
@@ -4730,11 +4731,11 @@ function batchCardView(b,opts){
   const m=batchOrderMeta(o); const comps=orderComponents(o);
   let compTable;
   if(opts.readonly){
-    const rows=comps.map(c=>`<tr><td class="stk-comp">${esc(c.name)}</td><td class="bc-req"><b>${c.qty}</b></td></tr>`).join('');
-    compTable=`<table class="bcard-comp"><thead><tr><th>Component</th><th class="bc-req">Required</th></tr></thead><tbody>${rows}</tbody></table>`;
+    const rows=comps.map(c=>{ const cut=autoCutDone(o,c.name); const bal=Math.max(0,c.qty-cut); return `<tr><td class="stk-comp">${esc(c.name)}</td><td class="bc-req"><b>${c.qty}</b></td><td class="bc-cut"><b>${cut}</b></td><td class="bc-bal ${bal>0?'b-bal-pend':'b-bal-ok'}">${bal>0?bal:'\u2713 done'}</td></tr>`; }).join('');
+    compTable=`<table class="bcard-comp"><thead><tr><th>Component</th><th class="bc-req">Required</th><th class="bc-cut">Cutting Qty</th><th class="bc-bal">Balance</th></tr></thead><tbody>${rows}</tbody></table>`;
   } else {
     const rows=comps.map(c=>{ const cut=autoCutDone(o,c.name); const rd=num((b.ready||{})[c.key]||0); const bal=Math.max(0,c.qty-rd); return `<tr><td class="stk-comp">${esc(c.name)}</td><td class="bc-req"><b>${c.qty}</b></td><td class="bc-cut"><b>${cut}</b></td><td class="bc-ready"><b>${rd}</b></td><td class="bc-bal ${bal>0?'b-bal-pend':'b-bal-ok'}">${bal>0?bal:'✓ done'}</td></tr>`; }).join('');
-    compTable=`<table class="bcard-comp"><thead><tr><th>Component</th><th class="bc-req">Required</th><th class="bc-cut">Cutting Qty</th><th class="bc-ready">Ready</th><th class="bc-bal">Balance</th></tr></thead><tbody>${rows}</tbody></table>`;
+    compTable=`<table class="bcard-comp"><thead><tr><th>Component</th><th class="bc-req">Required</th><th class="bc-cut">Cutting Qty</th><th class="bc-ready">Batch Qty.</th><th class="bc-bal">Balance</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
   const st=b.status==='complete';
   const extra=`<div class="bcard-row"><span>Type</span><b>${esc(b.type||'—')}</b></div>
@@ -4785,7 +4786,7 @@ function batchCompleteSearchHtml(){
   </div></div>`;
 }
 function batchOrderDayHtml(){
-  let list=BATCHES.slice();
+  let list=BATCHES.filter(b=>!batchAnyGiven(b));
   if(batchQuery){ const q=batchQuery.toLowerCase(); list=list.filter(b=>{ const o=batchOrder(b); if(!o) return false; const m=batchOrderMeta(o); return (m.fn||'').toLowerCase().includes(q)||(m.on||'').toLowerCase().includes(q); }); }
   if(!list.length) return `<div class="empty-state"><p>${batchQuery?'Koi matching batch nahi.':'Abhi koi batch add nahi hua. "Add Batch" se File No pick karke add karo.'}</p></div>`;
   const days={}; list.forEach(b=>{ const d=b.date||'—'; (days[d]=days[d]||[]).push(b); });
@@ -4846,7 +4847,7 @@ function openBatchEditor(b){
 function renderBatch(){
   const c=document.getElementById('content');
   document.getElementById('topActions').innerHTML='';
-  const counts={ process:BATCHES.filter(b=>b.status==='process').length, complete:BATCHES.filter(b=>b.status==='complete').length, card:BATCHES.length };
+  const counts={ process:BATCHES.filter(b=>b.status==='process').length, complete:BATCHES.filter(b=>b.status==='complete').length, card:BATCHES.filter(b=>!batchAnyGiven(b)).length };
   const subbar=`<div class="osub">${BATCH_SUBS.map(([k,l])=>{ const n=counts[k]; return `<button class="osub-btn ${batchSub===k?'active':''}" data-bsub="${k}">${l}${n?` (${n})`:''}</button>`; }).join('')}</div>`;
   let inner='';
   if(batchSub==='new'){ inner = batchPickerHtml() + `<div id="bDetail">${batchDraftHtml()}</div>`; }
@@ -7179,10 +7180,10 @@ function renderTrash(){
   }
   function hideLogin(){ const o=document.getElementById('loginOverlay'); if(o) o.style.display='none'; }
   function showLogin(){ const o=document.getElementById('loginOverlay'); if(o) o.style.display='flex'; }
-  function setMsg(t){ const m=document.getElementById('loginMsg'); if(m) m.textContent='';
+  function setMsg(t, titleOnly){ const m=document.getElementById('loginMsg'); if(m) m.textContent='';
     var _old=document.getElementById('loginErrPopup'); if(_old) _old.remove();
-    if(!t) return;
-    if(t.indexOf('Checking')===0){ if(m) m.textContent=t; return; }
+    if(!t && !titleOnly) return;
+    if(t && t.indexOf('Checking')===0){ if(m) m.textContent=t; return; }
     var ov=document.createElement('div'); ov.id='loginErrPopup';
     ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:20px;';
     var card=document.createElement('div');
@@ -7192,7 +7193,7 @@ function renderTrash(){
       '<div id="loginErrPopupMsg" style="font-size:14px;color:#444;line-height:1.45;margin-bottom:16px;"></div>'+
       '<button id="loginErrPopupOk" type="button" style="background:#c0392b;color:#fff;border:none;border-radius:8px;padding:10px 34px;font-size:15px;font-weight:600;cursor:pointer;">OK</button>';
     ov.appendChild(card); document.body.appendChild(ov);
-    card.querySelector('#loginErrPopupMsg').textContent=t;
+    var _md=card.querySelector('#loginErrPopupMsg'); if(titleOnly||!t){ _md.style.display='none'; } else { _md.textContent=t; }
     var _close=function(){ ov.remove(); var pp=document.getElementById('loginPass'); if(pp){ try{ pp.focus(); }catch(e){} } };
     card.querySelector('#loginErrPopupOk').onclick=_close;
     ov.onclick=function(e){ if(e.target===ov) _close(); };
@@ -7556,7 +7557,7 @@ function renderTrash(){
     });
   }
   try{ setTimeout(_locWatch,8000); setInterval(_locWatch,60000); }catch(e){}
-  setTimeout(function(){ try{ var _bf=sessionStorage.getItem('comsyn_blocked'); if(_bf==='1'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Access Denied \u2014 Your account has been blocked by the administrator. Please contact your administrator.'); } else if(_bf==='2'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Access Denied \u2014 This device has been blocked by the administrator. Please contact your administrator.'); } else if(_bf==='3'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Location OFF hone ke kaaran aapko logout kar diya gaya. Location ON karke dobara login karein.'); } }catch(e){} },700);
+  setTimeout(function(){ try{ var _bf=sessionStorage.getItem('comsyn_blocked'); if(_bf==='1'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Access Denied \u2014 Your account has been blocked by the administrator. Please contact your administrator.'); } else if(_bf==='2'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('', true); } else if(_bf==='3'){ sessionStorage.removeItem('comsyn_blocked'); setMsg('Location OFF hone ke kaaran aapko logout kar diya gaya. Location ON karke dobara login karein.'); } }catch(e){} },700);
   function init(){
     const btn=document.getElementById('loginBtn'); if(btn) btn.onclick=doLogin;
     _startLockWatch();
