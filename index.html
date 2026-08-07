@@ -1092,6 +1092,24 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
 .proui .rs-kpi small{font-size:9.5px;letter-spacing:.6px;color:#6a7d96;font-weight:700;text-transform:uppercase}
 .proui .rs-kpi-amber{background:#fff4e2;border-color:#efd3a8}
 .proui .rs-kpi-amber b{color:#8a5a00}
+/* poora Cutting Roll Stock tab — Times New Roman */
+.proui .rs-head,.proui .rs-h1,.proui .rs-h2,.proui .rs-kpi,.proui .rs-kpi b,.proui .rs-kpi small,
+.proui .rs-tbl,.proui .rs-tbl th,.proui .rs-tbl td,
+#content .stk-exp-label,#rsSearch,#rsPdf,#rsXls,#rsRefresh,#rsClear{
+  font-family:'Times New Roman',Times,serif !important;
+}
+.proui .rs-tbl th,.proui .rs-tbl td{font-size:14px}
+.proui .rs-tbl th{font-weight:700}
+#rsSearch{font-size:15px;font-weight:600;color:#12243a}
+#rsPdf,#rsXls,#rsRefresh,#rsClear{font-weight:700}
+#rsRefresh{background:#eef2f8;color:#12386b;border:1px solid #cfdcee}
+#rsRefresh:hover{background:#e2e9f4}
+/* sortable headers */
+.proui .rs-tbl th.rs-sort{cursor:pointer;user-select:none;white-space:nowrap}
+.proui .rs-tbl th.rs-sort:hover{background:#dbe7f7}
+.proui .rs-tbl th .rs-arw{font-size:10px;opacity:.4;margin-left:2px}
+.proui .rs-tbl th.rs-sorted{background:#12386b;color:#fff}
+.proui .rs-tbl th.rs-sorted .rs-arw{opacity:1;color:#ffd166}
 .proui .rs-tbl td.rs-roll{font-weight:800;color:#123a6b}
 .proui .rs-tbl td.rs-phy{background:#e2f2dc;color:#1e5a32;font-weight:800}
 .proui .rs-tbl tr.rs-tot td{background:#ffe6a8;color:#7a4a0a;font-weight:800;font-size:13px}
@@ -1524,7 +1542,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v177</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v178</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -3988,17 +4006,33 @@ function rollStockRows(){
 function rollStockFiltered(){
   var q=rollStockQuery.trim().toLowerCase();
   var rows=rollStockRows();
-  if(!q) return rows;
-  return rows.filter(function(x){
-    return [x.roll,x.orderNo,x.fileNo,x.sfNo,x.machine,x.type,x.fab,x.colour]
+  if(!q) return _rsSortRows(rows);
+  return _rsSortRows(rows.filter(function(x){
+    return [x.roll,x.orderNo,x.fileNo,x.sfNo,x.machine,x.size,x.gsm]
       .some(function(v){ return String(v||'').toLowerCase().indexOf(q)>=0; });
-  });
+  }));
 }
 var RS_COLS=[
   ['Cutting Date','date'],['Roll No.','roll'],['Order No.','orderNo'],['File No.','fileNo'],
   ['Sf No.','sfNo'],['Machine','machine'],['Size','size'],['Gsm','gsm'],
   ['Mtr','mtr'],['Wt.','phy'],['Type','type'],['Fabric Type','fab'],['Colour','colour']
 ];
+var RS_TYPE={date:'date',roll:'num',orderNo:'text',fileNo:'text',sfNo:'num',machine:'text',
+             size:'num',gsm:'num',mtr:'num',phy:'num',type:'text',fab:'text',colour:'text'};
+/* header par click -> sort. pehli click = chhote se bade / A to Z, dobara click = ulta */
+var rsSort={k:'',d:1};
+function _rsSortRows(rows){
+  if(!rsSort.k) return rows;
+  var key=rsSort.k, typ=RS_TYPE[key]||'text', d=rsSort.d;
+  return rows.slice().sort(function(a,b){
+    var av=a[key], bv=b[key], r;
+    if(typ==='num') r=_rsNum(av)-_rsNum(bv);
+    else if(typ==='date') r=String(av||'').localeCompare(String(bv||''));
+    else r=String(av||'').toLowerCase().localeCompare(String(bv||'').toLowerCase());
+    if(r===0) r=String(a.roll||'').localeCompare(String(b.roll||''));
+    return r*d;
+  });
+}
 function _rsCell(x,k){
   if(k==='date') return x.date?fmtDate(x.date):'—';
   if(k==='phy')  return _rsFmt(x.phy);
@@ -4014,7 +4048,10 @@ function rollStockTableHtml(){
   var rows=rollStockFiltered();
   if(!rows.length) return '<div class="empty-state"><p>'+(rollStockQuery?'Search se koi roll match nahi hua.':'Abhi koi balance roll nahi hai \u2014 sabhi roll poore cut ho chuke hain.')+'</p></div>';
   var total=rows.reduce(function(s,x){ return s+x.phy; },0);
-  var head=RS_COLS.map(function(c){ return '<th>'+c[0]+'</th>'; }).join('');
+  var head=RS_COLS.map(function(c){
+    var on=rsSort.k===c[1], arw = on ? (rsSort.d>0?'\u25B2':'\u25BC') : '\u21C5';
+    return '<th class="rs-sort'+(on?' rs-sorted':'')+'" data-rsk="'+c[1]+'">'+c[0]+' <span class="rs-arw">'+arw+'</span></th>';
+  }).join('');
   var body=rows.map(function(x,i){
     return '<tr>'+RS_COLS.map(function(c){
       var cls = c[1]==='phy'?' class="rs-phy"' : (c[1]==='roll'?' class="rs-roll"':'');
@@ -4025,6 +4062,15 @@ function rollStockTableHtml(){
   return '<div class="mc-scroll"><table class="mc-tbl cut-tbl rs-tbl"><thead><tr>'+head+'</tr></thead><tbody>'+body+foot+'</tbody></table></div>';
 }
 
+function bindRsTable(){
+  document.querySelectorAll('#rsTable th[data-rsk]').forEach(function(th){
+    th.onclick=function(){
+      var k=th.dataset.rsk;
+      if(rsSort.k===k) rsSort.d=-rsSort.d; else { rsSort.k=k; rsSort.d=1; }
+      var t=document.getElementById('rsTable'); if(t){ t.innerHTML=rollStockTableHtml(); bindRsTable(); }
+    };
+  });
+}
 function renderRollStock(){
   var c=document.getElementById('content');
   document.getElementById('topActions').innerHTML='';
@@ -4035,11 +4081,12 @@ function renderRollStock(){
     + '<span style="flex:1"></span>'
     + '<button class="btn btn-amber btn-sm" id="rsPdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>PDF</button>'
     + '<button class="btn btn-green btn-sm" id="rsXls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Excel</button>'
+    + '<button class="btn btn-sm" id="rsRefresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>Refresh</button>'
     + '</div></div></div>';
   var searchBar='<div class="card" style="margin-bottom:14px"><div class="card-body">'
     + '<div class="stk-search">'
     + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>'
-    + '<input id="rsSearch" value="'+esc(rollStockQuery)+'" placeholder="Search Roll No / Order No / File No / Machine\u2026" autocomplete="off">'
+    + '<input id="rsSearch" value="'+esc(rollStockQuery)+'" placeholder="Search Roll No / Order No / File No / Machine / Size / Gsm\u2026" autocomplete="off">'
     + '<button class="btn btn-ghost" id="rsClear" style="'+(rollStockQuery?'':'display:none')+'">Clear</button>'
     + '</div></div></div>';
   var headCard='<div class="card" style="margin-bottom:14px"><div class="card-body rs-head">'
@@ -4049,10 +4096,13 @@ function renderRollStock(){
     + '<div class="rs-kpi rs-kpi-amber"><b>'+_rsFmt(total)+'</b><small>Total Wt.</small></div>'
     + '</div></div>';
   c.innerHTML='<div class="view proui">'+headCard+exportBar+searchBar+'<div class="card"><div class="card-body" id="rsTable">'+rollStockTableHtml()+'</div></div></div>';
+  bindRsTable();
   var si=document.getElementById('rsSearch');
-  if(si) si.oninput=function(){ rollStockQuery=si.value; var t=document.getElementById('rsTable'); if(t) t.innerHTML=rollStockTableHtml();
+  if(si) si.oninput=function(){ rollStockQuery=si.value; var t=document.getElementById('rsTable'); if(t){ t.innerHTML=rollStockTableHtml(); bindRsTable(); }
     var cb=document.getElementById('rsClear'); if(cb) cb.style.display=rollStockQuery?'':'none'; };
   var cb=document.getElementById('rsClear'); if(cb) cb.onclick=function(){ rollStockQuery=''; renderRollStock(); };
+  var rb=document.getElementById('rsRefresh');
+  if(rb) rb.onclick=function(){ rollStockQuery=''; rsSort={k:'',d:1}; try{_dgenBump();}catch(e){} renderRollStock(); try{toast('Refresh \u2014 filter hataye, latest data','ok');}catch(e){} };
   var pb=document.getElementById('rsPdf'); if(pb) pb.onclick=rollStockPDF;
   var xb=document.getElementById('rsXls'); if(xb) xb.onclick=rollStockExcel;
   try{ if(window._comsynPaint) window._comsynPaint(); }catch(e){}
