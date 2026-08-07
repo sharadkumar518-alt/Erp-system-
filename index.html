@@ -1524,7 +1524,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v176</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v177</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -3912,6 +3912,25 @@ var rollStockQuery='';
 function _rsNum(v){ var n=parseFloat(String(v==null?'':v).replace(/,/g,'')); return isNaN(n)?0:n; }
 function _rsFmt(n){ return (Math.round(n*100)/100).toLocaleString('en-IN'); }
 /* kisi bhi section me label dhoondo (config har record ke sath saved hai) */
+/* formula column ki value store nahi hoti — app ki tarah fRec se compute karo */
+function _rsSecVal(r,secRe,colRe){
+  try{
+    var sec=(r.config.sections||[]).find(function(s){ return secRe.test(s.title); }); if(!sec) return '';
+    var col=(sec.columns||[]).find(function(c){ return colRe.test(c.label); }); if(!col) return '';
+    var rows=(r.sections&&r.sections[sec.id])||[];
+    for(var i=0;i<rows.length;i++){
+      var v = col.type==='formula' ? fRec(col.formula,r,sec,i,col) : (rows[i][col.id]==null?'':rows[i][col.id]);
+      v=String(v).trim();
+      if(v!=='' && v!=='0') return v;
+    }
+    /* saare 0 the to pehla hi laut do */
+    if(rows.length){
+      var v0 = col.type==='formula' ? fRec(col.formula,r,sec,0,col) : (rows[0][col.id]==null?'':rows[0][col.id]);
+      return String(v0).trim();
+    }
+  }catch(e){}
+  return '';
+}
 function _rsAny(r,re){
   try{
     var secs=(r.config&&r.config.sections)||[];
@@ -3920,7 +3939,10 @@ function _rsAny(r,re){
       for(var j=0;j<cols.length;j++){
         if(!re.test(cols[j].label)) continue;
         var rows=(r.sections&&r.sections[s.id])||[];
-        for(var k=0;k<rows.length;k++){ var v=String(rows[k][cols[j].id]==null?'':rows[k][cols[j].id]).trim(); if(v!=='') return v; }
+        for(var k=0;k<rows.length;k++){
+          var raw = cols[j].type==='formula' ? fRec(cols[j].formula,r,s,k,cols[j]) : rows[k][cols[j].id];
+          var v=String(raw==null?'':raw).trim(); if(v!=='') return v;
+        }
       }
     }
   }catch(e){}
@@ -3933,29 +3955,29 @@ function rollStockRows(){
   (RECORDS||[]).slice().sort(function(a,b){ return _rsKey(a)<_rsKey(b)?-1:1; })
     .forEach(function(r){
       if(!recDone(r)) return;                                   /* abhi machine par chal raha hai */
-      var roll=String(recSecVal(r,/roll/i,/roll\s*no/i)||'').trim();
+      var roll=String(_rsSecVal(r,/roll/i,/roll\s*no/i)||'').trim();
       if(!roll) return;
       latest[roll]=r;                                           /* baad wali entry purani ko replace kar degi */
     });
   var out=[];
   Object.keys(latest).forEach(function(roll){
     var r=latest[roll];
-    var bal=_rsNum(recSecVal(r,/wastage/i,/balance/i));
+    var bal=_rsNum(_rsSecVal(r,/wastage/i,/balance/i));
     if(bal<=0) return;                                          /* poora cut ho gaya -> stock me nahi */
-    var fileNo=recSecVal(r,/order/i,/file\s*no/i);
+    var fileNo=_rsSecVal(r,/order/i,/file\s*no/i);
     var ord=null; try{ ord=_orderByFile(fileNo); }catch(e){}
     out.push({
       date   : r.date||'',
       roll   : roll,
-      orderNo: recSecVal(r,/order/i,/order\s*no/i) || (ord?ordVal(ord,/order\s*no/i):'') ,
+      orderNo: _rsSecVal(r,/order/i,/order\s*no/i) || (ord?ordVal(ord,/order\s*no/i):'') ,
       fileNo : fileNo,
-      sfNo   : recSecVal(r,/order/i,/sf\s*no/i),
+      sfNo   : _rsSecVal(r,/order/i,/sf\s*no/i),
       machine: recMachine(r),
-      size   : recSecVal(r,/roll/i,/width|size/i) || (ord?ordVal(ord,/bag\s*size/i):''),
-      gsm    : recSecVal(r,/roll/i,/gsm/i) || (ord?ordVal(ord,/gsm/i):''),
-      mtr    : recSecVal(r,/roll/i,/length|mtr|meter/i),
+      size   : _rsSecVal(r,/roll/i,/width|size/i) || (ord?ordVal(ord,/bag\s*size/i):''),
+      gsm    : _rsSecVal(r,/roll/i,/gsm/i) || (ord?ordVal(ord,/gsm/i):''),
+      mtr    : _rsSecVal(r,/roll/i,/length|mtr|meter/i),
       phy    : bal,
-      type   : recSecVal(r,/roll/i,/type/i),
+      type   : _rsSecVal(r,/roll/i,/type/i),
       fab    : _rsAny(r,/fab(ric)?\s*type|fabric/i),
       colour : _rsAny(r,/colou?r/i) || (ord?ordVal(ord,/fabric\s*colou?r|colou?r/i):'')
     });
@@ -3975,7 +3997,7 @@ function rollStockFiltered(){
 var RS_COLS=[
   ['Cutting Date','date'],['Roll No.','roll'],['Order No.','orderNo'],['File No.','fileNo'],
   ['Sf No.','sfNo'],['Machine','machine'],['Size','size'],['Gsm','gsm'],
-  ['Mtr','mtr'],['Phy Qty.','phy'],['Type','type'],['Fabric Type','fab'],['Colour','colour']
+  ['Mtr','mtr'],['Wt.','phy'],['Type','type'],['Fabric Type','fab'],['Colour','colour']
 ];
 function _rsCell(x,k){
   if(k==='date') return x.date?fmtDate(x.date):'—';
@@ -4024,7 +4046,7 @@ function renderRollStock(){
     + '<div><div class="rs-h1">CUTTING ROLL STOCK</div><div class="rs-h2">Machine par bache hue balance roll \u00b7 '+_rsTodayStr()+'</div></div>'
     + '<span style="flex:1"></span>'
     + '<div class="rs-kpi"><b>'+rows.length+'</b><small>Balance Roll</small></div>'
-    + '<div class="rs-kpi rs-kpi-amber"><b>'+_rsFmt(total)+'</b><small>Total Phy Qty.</small></div>'
+    + '<div class="rs-kpi rs-kpi-amber"><b>'+_rsFmt(total)+'</b><small>Total Wt.</small></div>'
     + '</div></div>';
   c.innerHTML='<div class="view proui">'+headCard+exportBar+searchBar+'<div class="card"><div class="card-body" id="rsTable">'+rollStockTableHtml()+'</div></div></div>';
   var si=document.getElementById('rsSearch');
@@ -4052,7 +4074,7 @@ function rollStockPDF(){
     pdf.setFont('times','bold'); pdf.setFontSize(15); pdf.setTextColor(255,255,255);
     pdf.text('CUTTING ROLL STOCK', pageW/2, 16.2, {align:'center'});
     pdf.setFontSize(9.5); pdf.setTextColor(255,236,180);
-    pdf.text('Balance rolls \u00b7 Date :- '+_rsTodayStr()+'   |   Total Roll : '+rows.length+'   |   Total Phy Qty. : '+_rsFmt(total),
+    pdf.text('Balance rolls \u00b7 Date :- '+_rsTodayStr()+'   |   Total Roll : '+rows.length+'   |   Total Wt. : '+_rsFmt(total),
              pageW/2, 20.8, {align:'center'});
     var body=rows.map(function(x){ return RS_COLS.map(function(c){
       var v=_rsCell(x,c[1]); return String(v).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'); }); });
@@ -4101,7 +4123,7 @@ function rollStockExcel(){
    +'.roll{font-weight:bold;color:#123a6b}.phy{background:#e2f2dc;color:#1e5a32;font-weight:bold}'
    +'.tot td{background:#ffe6a8;color:#7a4a0a;font-weight:bold}</style></head><body>'
    +'<div class="title">CUTTING ROLL STOCK</div>'
-   +'<div class="sub">Balance rolls &nbsp;|&nbsp; Date :- '+_rsTodayStr()+' &nbsp;|&nbsp; Total Roll : '+rows.length+' &nbsp;|&nbsp; Total Phy Qty. : '+_rsFmt(total)+'</div><br>'
+   +'<div class="sub">Balance rolls &nbsp;|&nbsp; Date :- '+_rsTodayStr()+' &nbsp;|&nbsp; Total Roll : '+rows.length+' &nbsp;|&nbsp; Total Wt. : '+_rsFmt(total)+'</div><br>'
    +'<table><tr>'+th+'</tr>'+body+foot+'</table></body></html>';
   var blob=new Blob([html],{type:'application/vnd.ms-excel'});
   var url=URL.createObjectURL(blob), a=document.createElement('a');
