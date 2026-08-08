@@ -1579,7 +1579,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v184</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v187</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -5986,6 +5986,33 @@ function downloadDayExcel(dateStr){
    ============================================================ */
 const DSH_TARGET=2000;
 function dshISOtoNice(iso){ try{ return fmtDate(iso); }catch(e){ return iso; } }
+/* ═══ SHIFT HELPERS ═══
+   Night shift (raat 7 se subah 7) ka data usi date me jata hai jo Entry me bhari
+   jati hai — operator shift SHURU hone wali date daalta hai. Isliye 12 baje ke
+   baad ki entry bhi apne aap sahi din me ginti hai, koi extra setting nahi.     */
+function _dshShiftOf(r){ return String(recHeaderVal(r,/shift/i)||'').trim().toUpperCase(); }
+/* Abhi machine par jo entry CHAL rahi hai uski date.
+   Night shift me 12 baje ke baad "aaj" ki date khali hoti hai, isliye Refresh
+   calendar-date nahi, chalti hui entry ki date par le jata hai.               */
+function _dshLiveDate(){
+  var best=0, d='';
+  (RECORDS||[]).forEach(function(r){
+    if(!r.rollCutStart || r.rollCutEnd) return;          /* sirf chalti hui entry */
+    var t=0; try{ t=new Date(r.rollCutStart).getTime(); }catch(e){}
+    if(!t || isNaN(t)) return;
+    if(t>best){ best=t; d=String(r.date||''); }
+  });
+  return d||todayISO();
+}
+function _dshProdDate(r){ return String(r.date||''); }
+function _dshShiftOK(r){ var f=window.__dshShift||''; if(!f) return true; return _dshShiftOf(r).indexOf(f)>=0; }
+/* live view = aaj ka data, koi back-date/month nahi -> tabhi animation chalegi */
+function _dshIsLive(){
+  var p=window.__dshPeriod||'today';
+  if(p==='today') return !window.__dshDate || window.__dshDate===todayISO();
+  if(p==='date' && window.__dshDate) return window.__dshDate===_dshLiveDate();
+  return false;
+}
 function dshAgg(mode){
   const iso=todayISO(); const curMon=iso.slice(0,7);
   const selDate=window.__dshDate||iso;
@@ -5994,20 +6021,20 @@ function dshAgg(mode){
   const all=RECORDS||[];
   if(mode==='week'){
     const days=[]; for(let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); days.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')); }
-    recs=all.filter(r=>days.indexOf(r.date)>=0);
+    recs=all.filter(r=>_dshShiftOK(r) && days.indexOf(_dshProdDate(r))>=0);
     series=days.map(dd=>0);
     recs.forEach(r=>{ let lr; try{ lr=liveRec(r);}catch(e){ lr=r; } let p=0; try{ p=num(computeReportSummary(lr).production);}catch(e){} const ix=days.indexOf(r.date); if(ix>=0) series[ix]+=p; });
     xlabs=days.map(dd=>dd.slice(8,10)+'/'+dd.slice(5,7));
     label='Last 7 days';
   } else if(mode==='month'){
-    recs=all.filter(r=>String(r.date||'').slice(0,7)===selMon);
+    recs=all.filter(r=>_dshShiftOK(r) && String(_dshProdDate(r)||'').slice(0,7)===selMon);
     series=new Array(31).fill(0);
     recs.forEach(r=>{ let lr; try{ lr=liveRec(r);}catch(e){ lr=r; } let p=0; try{ p=num(computeReportSummary(lr).production);}catch(e){} const dd=parseInt(String(r.date||'').slice(8,10),10); if(dd>=1&&dd<=31) series[dd-1]+=p; });
     xlabs=['1','5','10','15','20','25','31'];
     const parts=selMon.split('-'); label=new Date(+parts[0],+parts[1]-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
   } else { /* today or specific date */
     const d=(mode==='date')?selDate:iso;
-    recs=all.filter(r=>r.date===d);
+    recs=all.filter(r=>_dshShiftOK(r) && _dshProdDate(r)===d);
     series=new Array(24).fill(0);
     recs.forEach(r=>{ let lr; try{ lr=liveRec(r);}catch(e){ lr=r; } let p=0; try{ p=num(computeReportSummary(lr).production);}catch(e){} const dt=new Date(r.savedAt||0); const hh=isNaN(dt.getTime())?0:dt.getHours(); series[hh]+=p; });
     xlabs=['0h','4h','8h','12h','16h','20h','23h'];
@@ -6020,8 +6047,7 @@ function dshAgg(mode){
     let w={loom:0,lam:0,proc:0}; try{ w=entryWasteBuckets(lr); }catch(e){}
     const wt=num(w.loom)+num(w.lam)+num(w.proc);
     totProd+=prod; totW+=wt;
-    const mc=recHeaderVal(r,/machine/i)||'\u2014'; const sh=recHeaderVal(r,/shift/i)||'';
-    const k=mc+(sh?(' \u00b7 Shift '+sh):'');
+    const k=recHeaderVal(r,/machine/i)||'\u2014';      /* machine-wise (Shift A+B dono ek sath) */
     if(!mach[k]) mach[k]={prod:0,w:0,loom:0,lam:0,proc:0};
     mach[k].prod+=prod; mach[k].w+=wt; mach[k].loom+=num(w.loom); mach[k].lam+=num(w.lam); mach[k].proc+=num(w.proc);
   });
@@ -6055,10 +6081,15 @@ function _dshAgo(ms){
 }
 function dshMachineStatus(){
   var iso=todayISO(); var out={};
+  var _y=new Date(); _y.setDate(_y.getDate()-1);
+  var _dshYest=_y.getFullYear()+'-'+String(_y.getMonth()+1).padStart(2,'0')+'-'+String(_y.getDate()).padStart(2,'0');
   (RECORDS||[]).forEach(function(r){
-    if(r.date!==iso) return;
-    var mc=recHeaderVal(r,/machine/i)||'\u2014'; var sh=recHeaderVal(r,/shift/i)||'';
-    var k=mc+(sh?(' \u00b7 Shift '+sh):'');
+    /* night shift aadhi raat cross karti hai — isliye aaj + kal dono dekho,
+       aur jo entry abhi chal rahi ho use hamesha lo */
+    var _running=!!(r.rollCutStart && !r.rollCutEnd);
+    if(!_running && r.date!==iso && r.date!==_dshYest) return;
+    if(!_dshShiftOK(r)) return;
+    var k=recHeaderVal(r,/machine/i)||'\u2014';
     var st=r.rollCutStart?new Date(r.rollCutStart).getTime():0;
     var en=r.rollCutEnd?new Date(r.rollCutEnd).getTime():0;
     var ref=Math.max(st||0,en||0,num(r.savedAt)&&isFinite(new Date(r.savedAt).getTime())?new Date(r.savedAt).getTime():0);
@@ -6524,7 +6555,7 @@ function dshBandGroups(bi,fab){
 }
 function dshMachineGroups(mk){
   const a=window.__dshA; if(!a) return [];
-  const recs=a.recs.filter(r=>{ const mc=recHeaderVal(r,/machine/i)||'\u2014'; const sh=recHeaderVal(r,/shift/i)||''; return (mc+(sh?(' \u00b7 Shift '+sh):''))===mk; });
+  const recs=a.recs.filter(r=>(recHeaderVal(r,/machine/i)||'\u2014')===mk);   /* tile ab machine-wise hai */
   const buckets={'U/L':[], 'L/F':[], 'OTHER':[]};
   recs.forEach(r=>{ const t=recRollUL(r); (buckets[t==='U/L'?'U/L':(t==='L/F'?'L/F':'OTHER')]).push(r); });
   const out=[];
@@ -6813,6 +6844,15 @@ function renderDashboard(){
     @keyframes dsh3din{from{opacity:0;transform:rotateX(14deg) translateY(14px)}to{opacity:1;transform:rotateX(0) translateY(0)}}
     .dsh2 .chip:hover{transform:rotateX(5deg) rotateY(-4deg) translateY(-3px)!important;box-shadow:0 14px 26px rgba(40,60,90,.22)!important}
     .dsh2 .dstat:hover{transform:rotateX(5deg) rotateY(4deg) translateY(-3px)!important;box-shadow:0 16px 30px rgba(40,60,90,.24)!important}
+    /* ── shift / refresh chips ── */
+    .dsh2 .mc.dsh-sh,.dsh2 .mc.dsh-rf{cursor:pointer;user-select:none;transition:background .18s,color .18s}
+    .dsh2 .mc.dsh-sh:hover,.dsh2 .mc.dsh-rf:hover{background:#e6edf7}
+    .dsh2 .mc.dsh-sh.on{background:#12386b;color:#fff;border-color:#12386b}
+    .dsh2 .mc.dsh-rf{background:#fff3e0;color:#9a5b00;border:1px solid #f0cfa0}
+    /* ── back-date / month dekh rahe ho to saari animation band (app tez chale) ── */
+    .dsh2.dsh-static,.dsh2.dsh-static *{animation:none!important;transition:none!important;
+      will-change:auto!important;transform:none!important;filter:none!important}
+    .dsh2.dsh-static .mtile{opacity:1!important}
     .dsh2 .mtile{transform-style:preserve-3d;backface-visibility:visible}
     @keyframes mtile360{0%{transform:rotateY(360deg) scale(.55);opacity:0}60%{opacity:1}100%{transform:rotateY(0deg) scale(1);opacity:1}}
     @keyframes mtileLoop{0%,72%{transform:rotateY(0deg)}100%{transform:rotateY(360deg)}}
@@ -6919,7 +6959,7 @@ function renderDashboard(){
     .dsh2 .dsh-emp{padding:26px;text-align:center;color:#8a99ad;font-weight:600}
     @keyframes dshIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   </style>
-  <div class="view"><div class="dsh dsh2">
+  <div class="view"><div class="dsh dsh2${_dshIsLive()?'':' dsh-static'}">
     <div class="dsh-headx">
       <div>
         <div class="t">CUTTING PRODUCTION \u2014 LIVE MONITOR</div>
@@ -6957,11 +6997,25 @@ function renderDashboard(){
       ${statCell('EFFICIENCY',_dshRing(eff,'#1e9e50',eff.toFixed(1)+'%'),'UPTIME '+uptime.toFixed(1)+'%','#1e9e50')}
     </div>
     <div class="mpanel">
-      <div class="mpanel-h"><span class="mt">MACHINE PERFORMANCE \u00b7 LIVE</span><span class="mc" style="background:#d9f4e2;color:#127a3f;border:1px solid #9fdcb6">\u25B6 RUNNING ${Object.values(window.__dshMach||{}).filter(s=>s.running).length}</span> <span class="mc" style="background:#fde3e3;color:#b02525;border:1px solid #f2b3b3">\u25A0 STOP ${Object.values(window.__dshMach||{}).filter(s=>!s.running).length}</span> <span class="mc">${keys.length} MACHINE${keys.length!==1?'S':''}</span></div>
+      <div class="mpanel-h"><span class="mt">MACHINE PERFORMANCE \u00b7 LIVE</span><span class="mc" style="background:#d9f4e2;color:#127a3f;border:1px solid #9fdcb6">\u25B6 RUNNING ${Object.values(window.__dshMach||{}).filter(s=>s.running).length}</span> <span class="mc" style="background:#fde3e3;color:#b02525;border:1px solid #f2b3b3">\u25A0 STOP ${Object.values(window.__dshMach||{}).filter(s=>!s.running).length}</span> <span class="mc">${keys.length} MACHINE${keys.length!==1?'S':''}</span>
+        <span style="flex:1"></span>
+        <span class="mc dsh-sh${(window.__dshShift||'')===''?' on':''}" data-shift="">ALL</span>
+        <span class="mc dsh-sh${(window.__dshShift||'')==='A'?' on':''}" data-shift="A">SHIFT-A</span>
+        <span class="mc dsh-sh${(window.__dshShift||'')==='B'?' on':''}" data-shift="B">SHIFT-B</span>
+        <span class="mc dsh-rf" id="dshRefresh" title="Aaj ka live data">\u21BB REFRESH</span></div>
       <div class="mgrid">${tiles}</div>
     </div>
   </div></div>`;
   window.__dshA=a;
+  c.querySelectorAll('[data-shift]').forEach(ch=>ch.onclick=()=>{ window.__dshShift=ch.dataset.shift||''; renderDashboard(); });
+  (function(){ var rb=document.getElementById('dshRefresh'); if(rb) rb.onclick=function(){
+    var ld=_dshLiveDate(), td=todayISO();
+    window.__dshMonth=null; window.__dshShift='';
+    if(ld===td){ window.__dshPeriod='today'; window.__dshDate=null; }
+    else { window.__dshPeriod='date'; window.__dshDate=ld; }   /* machine par jo entry chal rahi hai uski date */
+    try{_dgenBump();}catch(e){} renderDashboard();
+    try{toast(ld===td?'Live data \u2014 aaj ka':('Live data \u2014 chalti shift '+dshISOtoNice(ld)),'ok');}catch(e){}
+  }; })();
   c.querySelectorAll('[data-band]').forEach(ch=>ch.onclick=()=>openDshBand(+ch.dataset.band));
   c.querySelectorAll('[data-fab]').forEach(ch=>ch.onclick=()=>openDshFabPick(ch.dataset.fab));
   c.querySelectorAll('[data-mkey]').forEach(t=>t.onclick=()=>openDshMachine(decodeURIComponent(t.dataset.mkey)));
