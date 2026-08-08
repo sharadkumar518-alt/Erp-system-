@@ -1579,7 +1579,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v187</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v189</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -6038,7 +6038,7 @@ function dshAgg(mode){
     series=new Array(24).fill(0);
     recs.forEach(r=>{ let lr; try{ lr=liveRec(r);}catch(e){ lr=r; } let p=0; try{ p=num(computeReportSummary(lr).production);}catch(e){} const dt=new Date(r.savedAt||0); const hh=isNaN(dt.getTime())?0:dt.getHours(); series[hh]+=p; });
     xlabs=['0h','4h','8h','12h','16h','20h','23h'];
-    label=(mode==='date')?dshISOtoNice(d):new Date().toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+    label=dshISOtoNice(d);      /* today ho ya chuni hui date — hamesha poori date dikhe */
   }
   const mach={}; let totProd=0, totW=0;
   recs.forEach(r=>{
@@ -6844,11 +6844,39 @@ function renderDashboard(){
     @keyframes dsh3din{from{opacity:0;transform:rotateX(14deg) translateY(14px)}to{opacity:1;transform:rotateX(0) translateY(0)}}
     .dsh2 .chip:hover{transform:rotateX(5deg) rotateY(-4deg) translateY(-3px)!important;box-shadow:0 14px 26px rgba(40,60,90,.22)!important}
     .dsh2 .dstat:hover{transform:rotateX(5deg) rotateY(4deg) translateY(-3px)!important;box-shadow:0 16px 30px rgba(40,60,90,.24)!important}
-    /* ── shift / refresh chips ── */
-    .dsh2 .mc.dsh-sh,.dsh2 .mc.dsh-rf{cursor:pointer;user-select:none;transition:background .18s,color .18s}
-    .dsh2 .mc.dsh-sh:hover,.dsh2 .mc.dsh-rf:hover{background:#e6edf7}
-    .dsh2 .mc.dsh-sh.on{background:#12386b;color:#fff;border-color:#12386b}
-    .dsh2 .mc.dsh-rf{background:#fff3e0;color:#9a5b00;border:1px solid #f0cfa0}
+    /* ── shift segmented control + refresh ── */
+    .dsh2 .mpanel-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .dsh2 .shseg{display:inline-flex;background:#e9eef6;border:1px solid #d3ddea;border-radius:999px;
+      padding:3px;gap:2px;box-shadow:inset 0 1px 3px rgba(18,56,107,.08);
+      animation:shsegIn .5s cubic-bezier(.2,.8,.3,1) both}
+    @keyframes shsegIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+    .dsh2 .shseg-b{font-family:'Times New Roman',Times,serif;font-weight:700;font-size:12.5px;
+      letter-spacing:.5px;color:#5c6f88;background:transparent;border:none;border-radius:999px;
+      padding:6px 15px;cursor:pointer;white-space:nowrap;position:relative;
+      transition:color .22s ease,background .28s cubic-bezier(.2,.8,.3,1),transform .22s ease,box-shadow .28s ease}
+    .dsh2 .shseg-b:hover{color:#12386b;background:rgba(255,255,255,.7)}
+    .dsh2 .shseg-b:active{transform:scale(.96)}
+    .dsh2 .shseg-b.on{color:#fff;background:linear-gradient(135deg,#f5a623,#e2731f);
+      box-shadow:0 3px 10px rgba(226,115,31,.42);transform:translateY(-1px)}
+    .dsh2 .shseg-b.on::after{content:'';position:absolute;left:50%;bottom:-1px;width:0;height:2px;
+      background:#fff;border-radius:2px;transform:translateX(-50%);animation:shsegBar .45s .06s ease forwards}
+    @keyframes shsegBar{to{width:52%}}
+    .dsh2 .dsh-rfb{display:inline-flex;align-items:center;gap:7px;font-family:'Times New Roman',Times,serif;
+      font-weight:700;font-size:12.5px;letter-spacing:.4px;color:#12386b;background:#fff;
+      border:1px solid #d3ddea;border-radius:999px;padding:6px 15px;cursor:pointer;
+      box-shadow:0 2px 6px rgba(18,56,107,.08);
+      transition:background .2s,box-shadow .2s,transform .18s;
+      animation:shsegIn .5s .08s cubic-bezier(.2,.8,.3,1) both}
+    .dsh2 .dsh-rfb svg{width:15px;height:15px;transition:transform .5s cubic-bezier(.3,.8,.3,1)}
+    .dsh2 .dsh-rfb:hover{background:#f4f8fd;box-shadow:0 4px 12px rgba(18,56,107,.14)}
+    .dsh2 .dsh-rfb:hover svg{transform:rotate(-140deg)}
+    .dsh2 .dsh-rfb:active{transform:scale(.96)}
+    .dsh2 .dsh-rfb.spin svg{animation:rfSpin .7s cubic-bezier(.3,.7,.3,1)}
+    @keyframes rfSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+    @media(max-width:560px){
+      .dsh2 .shseg-b{padding:5px 11px;font-size:11.5px}
+      .dsh2 .dsh-rfb{padding:5px 12px;font-size:11.5px}
+    }
     /* ── back-date / month dekh rahe ho to saari animation band (app tez chale) ── */
     .dsh2.dsh-static,.dsh2.dsh-static *{animation:none!important;transition:none!important;
       will-change:auto!important;transform:none!important;filter:none!important}
@@ -6997,12 +7025,19 @@ function renderDashboard(){
       ${statCell('EFFICIENCY',_dshRing(eff,'#1e9e50',eff.toFixed(1)+'%'),'UPTIME '+uptime.toFixed(1)+'%','#1e9e50')}
     </div>
     <div class="mpanel">
-      <div class="mpanel-h"><span class="mt">MACHINE PERFORMANCE \u00b7 LIVE</span><span class="mc" style="background:#d9f4e2;color:#127a3f;border:1px solid #9fdcb6">\u25B6 RUNNING ${Object.values(window.__dshMach||{}).filter(s=>s.running).length}</span> <span class="mc" style="background:#fde3e3;color:#b02525;border:1px solid #f2b3b3">\u25A0 STOP ${Object.values(window.__dshMach||{}).filter(s=>!s.running).length}</span> <span class="mc">${keys.length} MACHINE${keys.length!==1?'S':''}</span>
+      <div class="mpanel-h">
+        <span class="mt">MACHINE PERFORMANCE \u00b7 LIVE</span>
         <span style="flex:1"></span>
-        <span class="mc dsh-sh${(window.__dshShift||'')===''?' on':''}" data-shift="">ALL</span>
-        <span class="mc dsh-sh${(window.__dshShift||'')==='A'?' on':''}" data-shift="A">SHIFT-A</span>
-        <span class="mc dsh-sh${(window.__dshShift||'')==='B'?' on':''}" data-shift="B">SHIFT-B</span>
-        <span class="mc dsh-rf" id="dshRefresh" title="Aaj ka live data">\u21BB REFRESH</span></div>
+        <div class="shseg" id="shSeg">
+          <button type="button" class="shseg-b${(window.__dshShift||'')===''?' on':''}" data-shift="">All</button>
+          <button type="button" class="shseg-b${(window.__dshShift||'')==='A'?' on':''}" data-shift="A">Shift-A</button>
+          <button type="button" class="shseg-b${(window.__dshShift||'')==='B'?' on':''}" data-shift="B">Shift-B</button>
+        </div>
+        <button type="button" class="dsh-rfb" id="dshRefresh" title="Machine par jo entry chal rahi hai uska data">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+          <span>Refresh</span>
+        </button>
+      </div>
       <div class="mgrid">${tiles}</div>
     </div>
   </div></div>`;
@@ -7013,19 +7048,20 @@ function renderDashboard(){
     window.__dshMonth=null; window.__dshShift='';
     if(ld===td){ window.__dshPeriod='today'; window.__dshDate=null; }
     else { window.__dshPeriod='date'; window.__dshDate=ld; }   /* machine par jo entry chal rahi hai uski date */
+    try{ rb.classList.add('spin'); }catch(e){}
     try{_dgenBump();}catch(e){} renderDashboard();
     try{toast(ld===td?'Live data \u2014 aaj ka':('Live data \u2014 chalti shift '+dshISOtoNice(ld)),'ok');}catch(e){}
   }; })();
   c.querySelectorAll('[data-band]').forEach(ch=>ch.onclick=()=>openDshBand(+ch.dataset.band));
   c.querySelectorAll('[data-fab]').forEach(ch=>ch.onclick=()=>openDshFabPick(ch.dataset.fab));
   c.querySelectorAll('[data-mkey]').forEach(t=>t.onclick=()=>openDshMachine(decodeURIComponent(t.dataset.mkey)));
-  document.getElementById('dshTd').onclick=()=>{ window.__dshPeriod='today'; renderDashboard(); };
-  document.getElementById('dshMo').onclick=()=>{ window.__dshPeriod='month'; window.__dshMonth=todayISO().slice(0,7); renderDashboard(); };
-  document.getElementById('dshPt').onclick=()=>{ window.__dshPeriod='today'; renderDashboard(); };
-  document.getElementById('dshPw').onclick=()=>{ window.__dshPeriod='week'; renderDashboard(); };
-  document.getElementById('dshPm').onclick=()=>{ window.__dshPeriod='month'; window.__dshMonth=window.__dshMonth||todayISO().slice(0,7); renderDashboard(); };
-  document.getElementById('dshDateIn').onchange=function(){ if(this.value){ window.__dshDate=this.value; window.__dshPeriod='date'; renderDashboard(); } };
-  document.getElementById('dshMonIn').onchange=function(){ if(this.value){ window.__dshMonth=this.value; window.__dshPeriod='month'; renderDashboard(); } };
+  document.getElementById('dshTd').onclick=()=>{ window.__dshPeriod='today'; window.__dshShift=''; renderDashboard(); };
+  document.getElementById('dshMo').onclick=()=>{ window.__dshPeriod='month'; window.__dshMonth=todayISO().slice(0,7); window.__dshShift=''; renderDashboard(); };
+  document.getElementById('dshPt').onclick=()=>{ window.__dshPeriod='today'; window.__dshShift=''; renderDashboard(); };
+  document.getElementById('dshPw').onclick=()=>{ window.__dshPeriod='week'; window.__dshShift=''; renderDashboard(); };
+  document.getElementById('dshPm').onclick=()=>{ window.__dshPeriod='month'; window.__dshMonth=window.__dshMonth||todayISO().slice(0,7); window.__dshShift=''; renderDashboard(); };
+  document.getElementById('dshDateIn').onchange=function(){ if(this.value){ window.__dshDate=this.value; window.__dshPeriod='date'; window.__dshShift=''; renderDashboard(); } };
+  document.getElementById('dshMonIn').onchange=function(){ if(this.value){ window.__dshMonth=this.value; window.__dshPeriod='month'; window.__dshShift=''; renderDashboard(); } };
   const tickEl=()=>{ const t=new Date().toLocaleTimeString('en-GB'); const e1=document.getElementById('dshClock'); if(e1) e1.textContent=t; const e2=document.getElementById('dshClock2'); if(e2) e2.textContent=t;
     try{ document.querySelectorAll('.mst-t[data-since]').forEach(function(el){ var s=num(el.getAttribute('data-since')); if(s>0) el.textContent=_dshAgo(Date.now()-s); }); }catch(e){}
   };
