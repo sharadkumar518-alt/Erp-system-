@@ -1579,7 +1579,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v190</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v191</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -6779,8 +6779,8 @@ function renderDashboard(){
   c.innerHTML=`<style>
     .dsh2{font-variant-numeric:tabular-nums}
     .dsh2 .dsh-headx{position:relative;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:linear-gradient(120deg,#0c1b2e 0%,#14304f 35%,#1d4670 68%,#153252 100%);background-size:220% 220%;animation:dshGrad 12s ease infinite;color:#fff;border-radius:18px;padding:19px 22px;box-shadow:0 10px 30px rgba(10,25,45,.38),inset 0 1px 0 rgba(255,255,255,.08);border:1px solid rgba(120,180,240,.22);border-bottom:3px solid #2e86c1}
-    .dsh2 .dsh-headx .t{font-family:Georgia,'Times New Roman',serif;font-weight:800;font-size:19px;letter-spacing:.6px}
-    .dsh2 .dsh-headx .s{display:flex;align-items:center;gap:7px;font-size:11px;opacity:.92;margin-top:5px;letter-spacing:1px;font-weight:700}
+    .dsh2 .dsh-headx .t{font-family:Georgia,'Times New Roman',serif;font-weight:800;font-size:26px;letter-spacing:.7px;line-height:1.18}
+    .dsh2 .dsh-headx .s{display:flex;align-items:center;gap:8px;font-size:14.5px;opacity:.95;margin-top:7px;letter-spacing:1.1px;font-weight:800;flex-wrap:wrap}
     .dsh2 .lvdot{width:8px;height:8px;border-radius:50%;background:#35d07f;box-shadow:0 0 0 0 rgba(53,208,127,.7);animation:lvp 1.6s infinite}
     @keyframes lvp{0%{box-shadow:0 0 0 0 rgba(53,208,127,.6)}70%{box-shadow:0 0 0 7px rgba(53,208,127,0)}100%{box-shadow:0 0 0 0 rgba(53,208,127,0)}}
     /* ---- LIVE FEEL ANIMATIONS ---- */
@@ -6862,25 +6862,30 @@ function renderDashboard(){
       background:#fff;border-radius:2px;transform:translateX(-50%);animation:shsegBar .45s .06s ease forwards}
     @keyframes shsegBar{to{width:52%}}
     .dsh2 .dsh-rfb{display:inline-flex;align-items:center;gap:8px;font-family:'Times New Roman',Times,serif;
-      font-weight:700;font-size:14.5px;letter-spacing:.4px;color:#12386b;background:#fff;
-      border:1px solid #d3ddea;border-radius:999px;padding:9px 24px;cursor:pointer;
+      font-weight:700;font-size:16px;letter-spacing:.5px;color:#12386b;background:#fff;
+      border:1px solid #d3ddea;border-radius:999px;padding:10px 22px;cursor:pointer;
       box-shadow:0 2px 6px rgba(18,56,107,.08);
       transition:background .2s,box-shadow .2s,transform .18s;
       animation:shsegIn .5s .08s cubic-bezier(.2,.8,.3,1) both}
-    .dsh2 .dsh-rfb svg{width:17px;height:17px;transition:transform .5s cubic-bezier(.3,.8,.3,1)}
+    .dsh2 .dsh-rfb svg{width:18px;height:18px;transition:transform .5s cubic-bezier(.3,.8,.3,1)}
     .dsh2 .dsh-rfb:hover{background:#f4f8fd;box-shadow:0 4px 12px rgba(18,56,107,.14)}
     .dsh2 .dsh-rfb:hover svg{transform:rotate(-140deg)}
     .dsh2 .dsh-rfb:active{transform:scale(.96)}
     .dsh2 .dsh-rfb.spin svg{animation:rfSpin .7s cubic-bezier(.3,.7,.3,1)}
     @keyframes rfSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-    .dsh2 .mp-ctl{display:flex;flex-direction:column;align-items:flex-end;gap:9px}
+    .dsh2 .mp-ctl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
     @media(max-width:560px){
       .dsh2 .mpanel-h{flex-direction:column;align-items:stretch;gap:11px}
-      .dsh2 .mpanel-h .mt{font-size:14.5px;text-align:center}
-      .dsh2 .mp-ctl{align-items:center;width:100%}
-      .dsh2 .shseg{width:100%;justify-content:center}
-      .dsh2 .shseg-b{flex:1;padding:9px 6px;font-size:14.5px}
-      .dsh2 .dsh-rfb{width:100%;justify-content:center;font-size:14px;padding:9px 16px}
+      .dsh2 .mpanel-h .mt{font-size:15px;text-align:center}
+      .dsh2 .mp-ctl{width:100%;justify-content:center;gap:8px}
+      .dsh2 .shseg{flex:1;justify-content:center}
+      .dsh2 .shseg-b{flex:1;padding:9px 4px;font-size:14px}
+      .dsh2 .dsh-rfb{padding:9px 15px;font-size:14px}
+      .dsh2 .dsh-headx .t{font-size:20px}
+      .dsh2 .dsh-headx .s{font-size:12.5px;letter-spacing:.8px}
+      .dsh2 .chip .n{font-size:24px;min-width:50px}
+      .dsh2 .chip .d b{font-size:14.5px}
+      .dsh2 .chip .d small{font-size:11.5px}
     }
     /* ── back-date / month dekh rahe ho to saari animation band (app tez chale) ── */
     .dsh2.dsh-static,.dsh2.dsh-static *{animation:none!important;transition:none!important;
@@ -6956,10 +6961,10 @@ function renderDashboard(){
     .dsh2 .chip{display:flex;align-items:stretch;border-radius:13px;overflow:hidden;background:linear-gradient(180deg,#ffffff,#f6f9fd);border:1px solid #d5e0ee;box-shadow:0 2px 6px rgba(18,36,58,.09),inset 0 1px 0 #fff;transition:transform .18s,box-shadow .18s}
     .dsh2 .chip:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(18,36,58,.16)}
     .dsh2 .chip[data-band]:active{transform:scale(.97)}
-    .dsh2 .chip .n{color:#fff;font-weight:900;font-size:21px;display:flex;align-items:center;justify-content:center;min-width:56px;position:relative;text-shadow:0 1px 4px rgba(0,0,0,.3)}
-    .dsh2 .chip .d{padding:8px 12px;flex:1;display:flex;flex-direction:column;justify-content:center}
-    .dsh2 .chip .d b{font-size:12px;color:#16283f;letter-spacing:.5px}
-    .dsh2 .chip .d small{font-size:9.5px;color:#7488a0;font-weight:800;letter-spacing:.5px;margin-top:2px}
+    .dsh2 .chip .n{color:#fff;font-weight:900;font-size:28px;display:flex;align-items:center;justify-content:center;min-width:56px;position:relative;text-shadow:0 1px 4px rgba(0,0,0,.3)}
+    .dsh2 .chip .d{padding:11px 14px;flex:1;display:flex;flex-direction:column;justify-content:center}
+    .dsh2 .chip .d b{font-size:16px;color:#16283f;letter-spacing:.6px}
+    .dsh2 .chip .d small{font-size:12.5px;color:#7488a0;font-weight:800;letter-spacing:.5px;margin-top:3px}
     .dsh2 .dstats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
     @media(max-width:760px){.dsh2 .dstats{grid-template-columns:repeat(2,1fr)}}
     .dsh2 .dstat{border:1px solid #d5e0ee;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#ffffff,#f7fafd);box-shadow:0 3px 10px rgba(18,36,58,.10),inset 0 1px 0 #fff;transition:transform .18s,box-shadow .18s}
