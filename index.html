@@ -1547,6 +1547,38 @@ body.tvmode .tv-bar{display:flex}
 .tv-bar .tv-wl.warn{background:rgba(247,169,59,.18);color:#ffd166;border:1px solid rgba(247,169,59,.4)}
 .tv-bar .tv-exit{width:auto;padding:0 15px;height:34px;border-radius:999px;font-size:12.5px;
   background:linear-gradient(135deg,#f5a623,#e2731f);border-color:transparent}
+
+/* ═══════════ Dropdown Lists tab ═══════════ */
+.proui .dl-view{font-family:'Times New Roman',Times,serif}
+.proui .dl-card{margin-bottom:13px}
+.proui .dl-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.proui .dl-h1{font-weight:800;font-size:18px;color:#12386b;letter-spacing:.4px}
+.proui .dl-h2{font-size:12px;color:#6a7d96;margin-top:2px}
+.proui .dl-kpi{background:#eef4fc;border:1px solid #cfdcee;border-radius:10px;padding:8px 15px;text-align:center;min-width:96px}
+.proui .dl-kpi b{display:block;font-size:19px;color:#12386b;line-height:1.1}
+.proui .dl-kpi small{font-size:9.5px;letter-spacing:.6px;color:#6a7d96;font-weight:700;text-transform:uppercase}
+.proui .dl-kpi-amber{background:#fff4e2;border-color:#efd3a8}
+.proui .dl-kpi-amber b{color:#8a5a00}
+.proui .dl-search{display:flex;align-items:center;gap:9px;background:#f4f7fb;border:1px solid #d8e2ee;border-radius:10px;padding:9px 13px}
+.proui .dl-search svg{width:17px;height:17px;color:#7d90aa;flex:none}
+.proui .dl-search input{flex:1;border:none;background:transparent;outline:none;font-family:inherit;font-size:15px;font-weight:600;color:#12243a;min-width:60px}
+.proui .dl-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:11px;padding-bottom:9px;border-bottom:2px solid #e6edf6}
+.proui .dl-title{font-weight:800;font-size:16px;color:#12243a}
+.proui .dl-sub{font-size:11.5px;color:#6a7d96;margin-top:3px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.proui .dl-src{color:#fff;font-weight:800;font-size:9.5px;letter-spacing:.6px;padding:3px 9px;border-radius:999px;text-transform:uppercase}
+.proui .dl-count{font-size:11.5px;font-weight:800;color:#8a5a00;background:#fff4e2;border:1px solid #efd3a8;border-radius:999px;padding:4px 11px;white-space:nowrap}
+.proui .dl-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:11px}
+.proui .dl-chip{display:inline-flex;align-items:center;gap:6px;background:#eef4fc;border:1px solid #cfdcee;color:#12386b;
+  font-weight:700;font-size:14px;border-radius:999px;padding:6px 6px 6px 13px}
+.proui .dl-x{border:none;background:#d9e4f2;color:#12386b;width:20px;height:20px;border-radius:50%;
+  font-size:14px;line-height:1;cursor:pointer;font-family:inherit;font-weight:800}
+.proui .dl-x:hover{background:#e74c3c;color:#fff}
+.proui .dl-none{font-size:13px;color:#9aa8ba;font-style:italic}
+.proui .dl-add{display:flex;gap:8px;flex-wrap:wrap}
+.proui .dl-in{flex:1;min-width:150px;border:1px solid #d8e2ee;border-radius:9px;padding:9px 12px;
+  font-family:inherit;font-size:14.5px;font-weight:600;color:#12243a;outline:none}
+.proui .dl-in:focus{border-color:#12386b;box-shadow:0 0 0 3px rgba(18,56,107,.12)}
+.proui .dl-add .btn{font-family:inherit;font-weight:700;font-size:14px}
 </style>
 
 <!-- PWA Phase 1: home-screen icon + full-screen -->
@@ -1605,7 +1637,7 @@ body.tvmode .tv-bar{display:flex}
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v201</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v202</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -1703,6 +1735,10 @@ body.tvmode .tv-bar{display:flex}
       <button data-tab="linep">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l5 4V7l5 4V7l4 3v11"/><path d="M9 17h1M13 17h1"/></svg>
         Daily Line Production
+      </button>
+      <button data-tab="droplists">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6l1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/></svg>
+        Dropdown Lists
       </button>
       <div class="nav-label">Setup</div>
       <button data-tab="assign">
@@ -1950,6 +1986,7 @@ const TAB_META={
   cuttingreport:{title:'Cutting Report',sub:'File-wise fabric cutting report'},
   cuttingstock:{title:'Cutting Stock',sub:'Order-wise & location-wise material stock'},
   rollstock:{title:'Cutting Roll Stock',sub:'Machine par bache hue balance roll \u2014 roll-wise stock'},
+  droplists:{title:'Dropdown Lists',sub:'Saari dropdown list ek jagah \u2014 add / remove karo'},
   rollreturn:{title:'Return Roll To Roll Godown',sub:'Cutting se Roll Godown bheje gaye roll \u2014 date-wise record'},
   batch:{title:'Batch',sub:'Batch cards, component readiness & completion'},
   linep:{title:'Daily Line Production',sub:'Comsyn Daily Finishing Production Report \u2014 line-wise entry & summary'},
@@ -1984,6 +2021,7 @@ function render(){
   else if(current==='cuttingstock') renderCuttingStock();
   else if(current==='rollstock') renderRollStock();
   else if(current==='rollreturn') renderRollReturn();
+  else if(current==='droplists') renderDropLists();
   else if(current==='batch') renderBatch();
   else if(current==='linep') renderLineProd();
   else if(current==='linepassign') renderLinepAssign();
@@ -4562,6 +4600,157 @@ function rollReturnExcel(id){
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(url); },1500);
 }
 
+
+/* ══════════════════════════════════════════════════════════════════
+   DROPDOWN LISTS — ek hi jagah se saari dropdown list manage karo.
+   Cutting Entry, Order Entry aur Line Production — teeno ke dropdown
+   yahan dikhte hain. Yahan add/remove karo ya Setup se, dono jagah
+   turant update ho jayega (dono ek hi config par kaam karte hain).
+   ══════════════════════════════════════════════════════════════════ */
+var dlQuery='';
+/* saare dropdown fields ek list me — har entry me uska asli object hota hai
+   isliye badlaav seedha usi config me lagta hai */
+function dlCollect(){
+  var out=[];
+  try{
+    (CFG.upperHeaders||[]).concat(CFG.lowerHeaders||[]).forEach(function(hh){
+      if(hh.type==='dropdown') out.push({src:'Cutting Entry',sub:'Header',label:hh.label,obj:hh,save:'cfg'});
+    });
+    (CFG.sections||[]).forEach(function(s){
+      (s.columns||[]).forEach(function(c){
+        if(c.type==='dropdown') out.push({src:'Cutting Entry',sub:s.title,label:c.label,obj:c,save:'cfg'});
+      });
+    });
+  }catch(e){}
+  try{
+    (ORDERCFG.fields||[]).forEach(function(f){
+      if(f.type==='dropdown') out.push({src:'Order Entry',sub:'Order field',label:f.label,obj:f,save:'ocfg'});
+    });
+  }catch(e){}
+  try{
+    (LINEPCFG.fields||[]).forEach(function(f){
+      if(f.type==='dropdown') out.push({src:'Line Production',sub:'Line field',label:f.label,obj:f,save:'lcfg'});
+    });
+  }catch(e){}
+  out.forEach(function(o,i){ o.key=i; if(!Array.isArray(o.obj.options)) o.obj.options=[]; });
+  return out;
+}
+function dlSave(which){
+  try{
+    if(which==='cfg') saveCfg();
+    else if(which==='ocfg') saveOcfg();
+    else if(which==='lcfg') saveLinepCfg();
+    _dgenBump();
+  }catch(e){}
+}
+var DL_SRC_COL={'Cutting Entry':'#12386b','Order Entry':'#0d7a5f','Line Production':'#8a4b12'};
+
+function dlCardsHtml(){
+  var all=dlCollect();
+  var q=dlQuery.trim().toLowerCase();
+  var list=q? all.filter(function(o){
+      return String(o.label||'').toLowerCase().indexOf(q)>=0
+          || String(o.src||'').toLowerCase().indexOf(q)>=0
+          || (o.obj.options||[]).some(function(v){ return String(v).toLowerCase().indexOf(q)>=0; });
+    }) : all;
+  if(!all.length) return '<div class="empty-state"><p>Abhi koi dropdown field nahi hai.<br>Setup \u2192 Assignment me kisi field ka type <b>Dropdown</b> karo, phir wo yahan aa jayega.</p></div>';
+  if(!list.length) return '<div class="empty-state"><p>Search se koi dropdown match nahi hua.</p></div>';
+  return list.map(function(o){
+    var opts=(o.obj.options||[]);
+    var chips=opts.length
+      ? opts.map(function(v,ix){
+          return '<span class="dl-chip">'+esc(v)+'<button type="button" class="dl-x" data-dlrm="'+o.key+'" data-ix="'+ix+'" title="Hatao">\u00d7</button></span>';
+        }).join('')
+      : '<span class="dl-none">Koi option nahi \u2014 neeche se jodo</span>';
+    return '<div class="card dl-card"><div class="card-body">'
+      + '<div class="dl-head">'
+      +   '<div><div class="dl-title">'+esc(o.label)+'</div>'
+      +   '<div class="dl-sub"><span class="dl-src" style="background:'+(DL_SRC_COL[o.src]||'#555')+'">'+esc(o.src)+'</span> '+esc(o.sub||'')+'</div></div>'
+      +   '<span style="flex:1"></span><span class="dl-count">'+opts.length+' option</span>'
+      + '</div>'
+      + '<div class="dl-chips">'+chips+'</div>'
+      + '<div class="dl-add">'
+      +   '<input type="text" class="dl-in" data-dlin="'+o.key+'" placeholder="Naya option likho\u2026" autocomplete="off">'
+      +   '<button type="button" class="btn btn-primary btn-sm" data-dladd="'+o.key+'">+ Add</button>'
+      + '</div></div></div>';
+  }).join('');
+}
+
+function renderDropLists(){
+  var c=document.getElementById('content');
+  document.getElementById('topActions').innerHTML='';
+  var all=dlCollect();
+  var totOpt=all.reduce(function(s,o){ return s+(o.obj.options||[]).length; },0);
+  c.innerHTML='<div class="view proui dl-view">'
+    + '<div class="card dl-card"><div class="card-body dl-top">'
+    +   '<div><div class="dl-h1">DROPDOWN LISTS</div>'
+    +   '<div class="dl-h2">Saari dropdown ek jagah \u2014 yahan ya Setup, dono se add/remove kar sakte ho</div></div>'
+    +   '<span style="flex:1"></span>'
+    +   '<div class="dl-kpi"><b>'+all.length+'</b><small>Dropdown</small></div>'
+    +   '<div class="dl-kpi dl-kpi-amber"><b>'+totOpt+'</b><small>Total Option</small></div>'
+    + '</div></div>'
+    + '<div class="card dl-card"><div class="card-body">'
+    +   '<div class="dl-search">'
+    +     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>'
+    +     '<input id="dlSearch" value="'+esc(dlQuery)+'" placeholder="Search dropdown ya option\u2026" autocomplete="off">'
+    +     (dlQuery?'<button class="btn btn-ghost btn-sm" id="dlClear">Clear</button>':'')
+    +   '</div>'
+    + '</div></div>'
+    + '<div id="dlList">'+dlCardsHtml()+'</div></div>';
+  bindDropLists();
+  try{ if(window._comsynPaint) window._comsynPaint(); }catch(e){}
+}
+
+function dlRefreshList(){
+  var el=document.getElementById('dlList');
+  if(el){ el.innerHTML=dlCardsHtml(); bindDropLists(); }
+  /* upar ke counters bhi taaza karo */
+  try{
+    var all=dlCollect(), tot=all.reduce(function(s,o){ return s+(o.obj.options||[]).length; },0);
+    var k=document.querySelectorAll('.dl-kpi b');
+    if(k[0]) k[0].textContent=all.length;
+    if(k[1]) k[1].textContent=tot;
+  }catch(e){}
+}
+
+function bindDropLists(){
+  var si=document.getElementById('dlSearch');
+  if(si && !si._dl){ si._dl=1; si.oninput=function(){ dlQuery=si.value; dlRefreshList();
+    var cb=document.getElementById('dlClear'); if(cb) cb.style.display=dlQuery?'':'none'; }; }
+  var cb=document.getElementById('dlClear'); if(cb) cb.onclick=function(){ dlQuery=''; renderDropLists(); };
+
+  var all=dlCollect();
+  /* option hatao */
+  document.querySelectorAll('[data-dlrm]').forEach(function(b){
+    b.onclick=function(){
+      var o=all[+b.dataset.dlrm]; if(!o) return;
+      var ix=+b.dataset.ix, val=(o.obj.options||[])[ix];
+      confirmModal('"'+val+'" ko '+o.label+' ki list se hata dein?',function(){
+        o.obj.options.splice(ix,1);
+        dlSave(o.save); dlRefreshList();
+        toast('"'+val+'" hata diya','ok');
+      },true);
+    };
+  });
+  /* naya option jodo */
+  function addFrom(key){
+    var o=all[+key]; if(!o) return;
+    var inp=document.querySelector('[data-dlin="'+key+'"]'); if(!inp) return;
+    var v=String(inp.value||'').trim();
+    if(!v){ toast('Pehle option likho','err'); inp.focus(); return; }
+    var dup=(o.obj.options||[]).some(function(x){ return String(x).trim().toLowerCase()===v.toLowerCase(); });
+    if(dup){ toast('Ye option pehle se hai','err'); inp.select(); return; }
+    o.obj.options.push(v);
+    dlSave(o.save); dlRefreshList();
+    toast('"'+v+'" jod diya \u2014 Setup me bhi aa gaya','ok');
+    var again=document.querySelector('[data-dlin="'+key+'"]'); if(again) again.focus();
+  }
+  document.querySelectorAll('[data-dladd]').forEach(function(b){ b.onclick=function(){ addFrom(b.dataset.dladd); }; });
+  document.querySelectorAll('[data-dlin]').forEach(function(i){
+    i.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); addFrom(i.dataset.dlin); } };
+  });
+}
+
 /* ---- Cutting Stock: per order-component storage location (e.g. "Jali 1") ---- */
 const KEY_LOC='comsyn_loc_v1';
 let LOC=(()=>{ const r=Store.get(KEY_LOC); if(r){try{return JSON.parse(r);}catch(e){}} return {}; })();
@@ -6193,7 +6382,7 @@ function dshChartSVG(series){
 }
 /* ---- MANAGE USERS PANEL (admin only) ---- */
 var _muRows=[];
-var MU_PANELS=[['entry','Entry'],['records','Records'],['orderentry','Order Entry'],['batch','Batch'],['linep','Line Prod.'],['cuttingstock','Cutting Stock'],['rollstock','Roll Stock'],['rollreturn','Roll Godown Return'],['cuttingreport','Cutting Report'],['mtrreport','MTR Report'],['dashboard','Dashboard'],['assign','Assignment'],['orderassign','Order Assign'],['linepassign','Line Assign'],['trash','Trash']];
+var MU_PANELS=[['entry','Entry'],['records','Records'],['orderentry','Order Entry'],['batch','Batch'],['linep','Line Prod.'],['cuttingstock','Cutting Stock'],['rollstock','Roll Stock'],['rollreturn','Roll Godown Return'],['droplists','Dropdown Lists'],['cuttingreport','Cutting Report'],['mtrreport','MTR Report'],['dashboard','Dashboard'],['assign','Assignment'],['orderassign','Order Assign'],['linepassign','Line Assign'],['trash','Trash']];
 function _muCreds(){ var u,p; try{ u=sessionStorage.getItem('comsyn_user'); p=sessionStorage.getItem('comsyn_pass'); }catch(e){} return {u:u,p:p}; }
 function _muRpc(fn,body){
   return fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{ method:'POST', headers:SB_HEADERS, body:JSON.stringify(body) })
@@ -8214,6 +8403,7 @@ function renderTrash(){
       if(allowed.indexOf(tab)>=0) return false;
       /* naya panel: purani rights list me 'rollstock' hai hi nahi -> Cutting Stock ke sath dikhao */
       if((tab==='rollstock'||tab==='rollreturn') && allowed.indexOf('cuttingstock')>=0) return false;
+      if(tab==='droplists' && allowed.indexOf('linep')>=0) return false;
       return true;
     };
     let firstVisible=null;
