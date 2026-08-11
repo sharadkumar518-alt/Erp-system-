@@ -1579,6 +1579,24 @@ body.tvmode .tv-bar{display:flex}
   font-family:inherit;font-size:14.5px;font-weight:600;color:#12243a;outline:none}
 .proui .dl-in:focus{border-color:#12386b;box-shadow:0 0 0 3px rgba(18,56,107,.12)}
 .proui .dl-add .btn{font-family:inherit;font-weight:700;font-size:14px}
+
+/* Dropdown Lists — user access modal */
+.dl-ac{font-family:'Times New Roman',Times,serif}
+.dl-ac-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.dl-ac-lbl{font-weight:800;font-size:13px;color:#12386b;letter-spacing:.5px}
+.dl-ac-sel{flex:1;min-width:190px;font-family:inherit;font-size:15px;font-weight:600;padding:9px 12px;
+  border:1px solid #d8e2ee;border-radius:9px;background:#fff;color:#12243a}
+.dl-ac-note{font-size:13px;color:#8a99ad;padding:16px;text-align:center;background:#f6f9fc;border-radius:10px}
+.dl-ac-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.dl-ac-bar .btn{font-family:inherit;font-weight:700;font-size:13px}
+.dl-ac-note2{font-size:12px;color:#6a7d96;margin-left:auto}
+.dl-ac-list{max-height:46vh;overflow:auto;border:1px solid #e3ebf4;border-radius:10px}
+.dl-ac-row{display:flex;align-items:center;gap:9px;padding:9px 12px;border-bottom:1px solid #eef3f8;cursor:pointer}
+.dl-ac-row:last-child{border-bottom:none}
+.dl-ac-row:hover{background:#f6f9fc}
+.dl-ac-row input{width:17px;height:17px;accent-color:#e2731f;flex:none}
+.dl-ac-row b{font-size:14.5px;color:#12243a}
+.dl-ac-row small{font-size:11.5px;color:#8a99ad;margin-left:auto}
 </style>
 
 <!-- PWA Phase 1: home-screen icon + full-screen -->
@@ -1637,7 +1655,7 @@ body.tvmode .tv-bar{display:flex}
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v202</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v203</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -4607,6 +4625,20 @@ function rollReturnExcel(id){
    yahan dikhte hain. Yahan add/remove karo ya Setup se, dono jagah
    turant update ho jayega (dono ek hi config par kaam karte hain).
    ══════════════════════════════════════════════════════════════════ */
+/* ---- per-user access: kaun sa user kaun si dropdown manage kar sake ---- */
+const KEY_DLRIGHTS='comsyn_dlr_v1';
+let DLRIGHTS=(function(){ var r=Store.get(KEY_DLRIGHTS); if(r){ try{ var p=JSON.parse(r); if(p&&typeof p==='object') return p; }catch(e){} } return {}; })();
+function saveDlRights(){ Store.set(KEY_DLRIGHTS,JSON.stringify(DLRIGHTS)); }
+function dlKeyOf(o){ return o.src+'|'+(o.sub||'')+'|'+o.label; }
+function _dlUser(){ try{ return sessionStorage.getItem('comsyn_user')||''; }catch(e){ return ''; } }
+/* rights set nahi hain -> sab dikhega (purana behaviour) */
+function dlAllowed(o){
+  if(isAdmin()) return true;
+  var u=_dlUser(); if(!u) return true;
+  var list=DLRIGHTS[u];
+  if(!Array.isArray(list)) return true;
+  return list.indexOf(dlKeyOf(o))>=0;
+}
 var dlQuery='';
 /* saare dropdown fields ek list me — har entry me uska asli object hota hai
    isliye badlaav seedha usi config me lagta hai */
@@ -4632,6 +4664,7 @@ function dlCollect(){
       if(f.type==='dropdown') out.push({src:'Line Production',sub:'Line field',label:f.label,obj:f,save:'lcfg'});
     });
   }catch(e){}
+  out=out.filter(dlAllowed);                       /* user ko sirf uski di gayi list dikhe */
   out.forEach(function(o,i){ o.key=i; if(!Array.isArray(o.obj.options)) o.obj.options=[]; });
   return out;
 }
@@ -4676,6 +4709,79 @@ function dlCardsHtml(){
   }).join('');
 }
 
+
+/* ── Admin: kis user ko kaun si dropdown dikhe (aur wo add/remove kar sake) ── */
+var _dlAllList=[], _dlSelUser='';
+function dlAllDropdowns(){
+  /* bina rights-filter ke poori list (admin ke liye) */
+  var out=[];
+  try{
+    (CFG.upperHeaders||[]).concat(CFG.lowerHeaders||[]).forEach(function(hh){
+      if(hh.type==='dropdown') out.push({src:'Cutting Entry',sub:'Header',label:hh.label});
+    });
+    (CFG.sections||[]).forEach(function(s){ (s.columns||[]).forEach(function(c){
+      if(c.type==='dropdown') out.push({src:'Cutting Entry',sub:s.title,label:c.label}); }); });
+  }catch(e){}
+  try{ (ORDERCFG.fields||[]).forEach(function(f){ if(f.type==='dropdown') out.push({src:'Order Entry',sub:'Order field',label:f.label}); }); }catch(e){}
+  try{ (LINEPCFG.fields||[]).forEach(function(f){ if(f.type==='dropdown') out.push({src:'Line Production',sub:'Line field',label:f.label}); }); }catch(e){}
+  return out;
+}
+function dlAccessOpen(){
+  if(!isAdmin()){ toast('Sirf admin','err'); return; }
+  _dlAllList=dlAllDropdowns();
+  var ov=openModal({
+    title:'User Access \u2014 kis user ko kaun si dropdown',
+    wide:true,
+    body:'<div class="dl-ac"><div class="dl-ac-top">'
+        +'<label class="dl-ac-lbl">User</label>'
+        +'<select id="dlAcUser" class="ctrl dl-ac-sel"><option value="">\u2014 user chuno \u2014</option></select>'
+        +'</div>'
+        +'<div id="dlAcBody"><div class="dl-ac-note">Upar se user chuno, phir tick karo ki use kaun si dropdown list dikhe.</div></div></div>',
+    footer:'<button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="dlAcSave">Save</button>'
+  });
+  /* user list Supabase se */
+  var cr=_muCreds();
+  _muRpc('comsyn_user_list',{u:cr.u,p:cr.p}).then(function(rows){
+    var sel=document.getElementById('dlAcUser'); if(!sel) return;
+    if(!rows||rows.error||!Array.isArray(rows)){ sel.innerHTML='<option value="">User list nahi mili</option>'; return; }
+    sel.innerHTML='<option value="">\u2014 user chuno \u2014</option>'
+      + rows.filter(function(r){ return String(r.role||'')!=='admin'; })
+            .map(function(r){ return '<option value="'+esc(r.username)+'">'+esc(r.username)+' \u00b7 '+esc(r.role||'')+'</option>'; }).join('');
+  }).catch(function(){});
+
+  document.getElementById('dlAcUser').onchange=function(){ _dlSelUser=this.value; dlAcPaint(); };
+  document.getElementById('dlAcSave').onclick=function(){
+    if(!_dlSelUser){ toast('Pehle user chuno','err'); return; }
+    var picked=[];
+    document.querySelectorAll('#dlAcBody input[data-dlk]').forEach(function(cb){ if(cb.checked) picked.push(cb.dataset.dlk); });
+    if(picked.length===_dlAllList.length) delete DLRIGHTS[_dlSelUser];   /* sab tick = koi limit nahi */
+    else DLRIGHTS[_dlSelUser]=picked;
+    saveDlRights(); closeModal();
+    toast(_dlSelUser+' ke liye access save ho gaya','ok');
+  };
+  return ov;
+}
+function dlAcPaint(){
+  var box=document.getElementById('dlAcBody'); if(!box) return;
+  if(!_dlSelUser){ box.innerHTML='<div class="dl-ac-note">Upar se user chuno.</div>'; return; }
+  var cur=DLRIGHTS[_dlSelUser];
+  var all=!Array.isArray(cur);                       /* rights nahi = sab allowed */
+  var rows=_dlAllList.map(function(o){
+    var k=o.src+'|'+(o.sub||'')+'|'+o.label;
+    var on = all || cur.indexOf(k)>=0;
+    return '<label class="dl-ac-row"><input type="checkbox" data-dlk="'+esc(k)+'"'+(on?' checked':'')+'>'
+      + '<span class="dl-src" style="background:'+(DL_SRC_COL[o.src]||'#555')+'">'+esc(o.src)+'</span>'
+      + '<b>'+esc(o.label)+'</b><small>'+esc(o.sub||'')+'</small></label>';
+  }).join('');
+  box.innerHTML='<div class="dl-ac-bar">'
+    + '<button type="button" class="btn btn-sm" id="dlAcAll">Sab tick</button>'
+    + '<button type="button" class="btn btn-sm" id="dlAcNone">Sab hatao</button>'
+    + '<span class="dl-ac-note2">'+(all?'Abhi: sab dikh rahi hain':'Abhi: '+cur.length+' chuni hui')+'</span></div>'
+    + '<div class="dl-ac-list">'+rows+'</div>';
+  document.getElementById('dlAcAll').onclick=function(){ box.querySelectorAll('input[data-dlk]').forEach(function(c){ c.checked=true; }); };
+  document.getElementById('dlAcNone').onclick=function(){ box.querySelectorAll('input[data-dlk]').forEach(function(c){ c.checked=false; }); };
+}
+
 function renderDropLists(){
   var c=document.getElementById('content');
   document.getElementById('topActions').innerHTML='';
@@ -4688,6 +4794,7 @@ function renderDropLists(){
     +   '<span style="flex:1"></span>'
     +   '<div class="dl-kpi"><b>'+all.length+'</b><small>Dropdown</small></div>'
     +   '<div class="dl-kpi dl-kpi-amber"><b>'+totOpt+'</b><small>Total Option</small></div>'
+    +   (isAdmin()?'<button type="button" class="btn btn-primary btn-sm" id="dlAccess" style="font-family:inherit;font-weight:700"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 .01 0M19 8v6M22 11h-6"/></svg>User Access</button>':'')
     + '</div></div>'
     + '<div class="card dl-card"><div class="card-body">'
     +   '<div class="dl-search">'
@@ -4698,6 +4805,7 @@ function renderDropLists(){
     + '</div></div>'
     + '<div id="dlList">'+dlCardsHtml()+'</div></div>';
   bindDropLists();
+  (function(){ var ab=document.getElementById('dlAccess'); if(ab) ab.onclick=dlAccessOpen; })();
   try{ if(window._comsynPaint) window._comsynPaint(); }catch(e){}
 }
 
@@ -8181,7 +8289,7 @@ function renderTrash(){
 /* ===== REAL-TIME SYNC (plain fetch + 3s polling) ===== */
 (function(){
   if(!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
-  const SYNC_KEYS=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG,KEY_ROLLRET];
+  const SYNC_KEYS=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG,KEY_ROLLRET,KEY_DLRIGHTS];
   let ready=false, suppress=false; const timers={}; const lastLocal={};
   const origSet=Store.set.bind(Store);
   Store.set=function(k,v){ origSet(k,v); try{_dgenBump();}catch(e){} if(ready && !suppress && SYNC_KEYS.indexOf(k)>=0){ lastLocal[k]=Date.now(); push(k,v); } };
@@ -8240,6 +8348,7 @@ function renderTrash(){
       else if(k===KEY_LINEP) LINEP=parsed;
       else if(k===KEY_LINEPCFG) LINEPCFG=parsed;
       else if(k===KEY_ROLLRET) ROLLRET=parsed;
+      else if(k===KEY_DLRIGHTS) DLRIGHTS=parsed;
       origSet(k,v); try{_dgenBump();}catch(e){}
     } finally { suppress=false; }
     try{ if(current!=='entry' && !(current==='linep' && lpSub==='entry') && current!=='linepassign') render(); }catch(e){}
