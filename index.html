@@ -1521,6 +1521,32 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
 @keyframes dshHue{to{filter:hue-rotate(360deg)}}
 @keyframes dshUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @media(max-width:640px){.dsh-title{font-size:21px}.dsh-hero .h-num{font-size:46px}}
+
+/* ═══════════ TV MODE — bade LED/monitor ke liye ═══════════ */
+.tv-btn{display:none}
+@media(min-width:900px){ .tv-btn{display:inline-flex;align-items:center;justify-content:center} }
+body.tvmode .side,
+body.tvmode .topbar{display:none !important}
+body.tvmode .app{display:block}
+body.tvmode .main{margin:0 !important;width:100% !important}
+body.tvmode .content{padding:10px 12px !important;height:100vh;overflow:auto;zoom:var(--tvz,1.5)}
+body.tvmode.no-zoom .content{zoom:normal;transform:scale(var(--tvz,1.5));transform-origin:top left;
+  width:calc(100% / var(--tvz,1.5));height:calc(100vh / var(--tvz,1.5))}
+.tv-bar{position:fixed;right:14px;bottom:14px;z-index:9999;display:none;align-items:center;gap:8px;
+  background:rgba(15,32,54,.94);color:#fff;border-radius:999px;padding:8px 10px 8px 16px;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);font-family:'Times New Roman',Times,serif;transition:opacity .35s}
+body.tvmode .tv-bar{display:flex}
+.tv-bar.faded{opacity:.12}
+.tv-bar .tv-lbl{font-size:12px;font-weight:800;letter-spacing:2px;color:#ffd166}
+.tv-bar #tvPct{font-size:13px;font-weight:800;min-width:52px;text-align:center}
+.tv-bar button{font-family:inherit;font-weight:800;font-size:16px;line-height:1;cursor:pointer;
+  width:34px;height:34px;border-radius:50%;border:1px solid #ffffff33;background:#ffffff1a;color:#fff}
+.tv-bar button:hover{background:#ffffff2e}
+.tv-bar .tv-wl{font-size:11px;font-weight:800;letter-spacing:.4px;padding:4px 9px;border-radius:999px;white-space:nowrap}
+.tv-bar .tv-wl.on{background:rgba(46,204,113,.22);color:#7ef3b4;border:1px solid rgba(46,204,113,.45)}
+.tv-bar .tv-wl.warn{background:rgba(247,169,59,.18);color:#ffd166;border:1px solid rgba(247,169,59,.4)}
+.tv-bar .tv-exit{width:auto;padding:0 15px;height:34px;border-radius:999px;font-size:12.5px;
+  background:linear-gradient(135deg,#f5a623,#e2731f);border-color:transparent}
 </style>
 
 <!-- PWA Phase 1: home-screen icon + full-screen -->
@@ -1536,7 +1562,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
 <body>
 <div id="loginOverlay" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(15,30,48,.5);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);font-family:Tahoma,'Segoe UI',Arial,sans-serif">
   <div style="width:min(470px,95vw);background:#f1f0ea;border:1px solid #6c6c6c;box-shadow:0 14px 46px rgba(0,0,0,.55);position:relative">
-    <div id="locGate" style="position:absolute;inset:0;z-index:5;background:rgba(10,22,38,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px">
+    <div id="locGate" style="position:absolute;inset:0;z-index:5;background:rgba(10,22,38,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px">
       <style>
         @keyframes lgIn{from{opacity:0;transform:scale(.92) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
         @keyframes lgRing{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.9);opacity:0}}
@@ -1579,7 +1605,7 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v198</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v201</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -1720,9 +1746,23 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
           <div class="sub" id="pageSub">Fill today's cutting production report</div>
         </div>
       </div>
-      <div class="topbar-actions" id="topActions"></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn-icon tv-btn" id="tvBtn" title="TV Mode — bade screen ke liye">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </button>
+        <div class="topbar-actions" id="topActions"></div>
+      </div>
     </header>
     <main class="content" id="content"></main>
+  </div>
+  <!-- TV MODE controls (sirf TV mode me dikhta hai) -->
+  <div id="tvBar" class="tv-bar">
+    <span class="tv-lbl">TV MODE</span>
+    <span id="tvWl" class="tv-wl">\u2600</span>
+    <button type="button" id="tvMinus" title="Chhota karo">&minus;</button>
+    <span id="tvPct">150%</span>
+    <button type="button" id="tvPlus" title="Bada karo">+</button>
+    <button type="button" id="tvExit" class="tv-exit">Exit</button>
   </div>
 </div>
 
@@ -8078,6 +8118,89 @@ function renderTrash(){
   try{ document.addEventListener('visibilitychange',function(){ if(!document.hidden){ _syncTick(); _syncLoop(); } }); }catch(e){}
 })();
 
+/* ═══════════ TV MODE ═══════════
+   Ek button se: sidebar/topbar chhup jate hain, poori screen par sirf data,
+   sab kuch bada (zoom) taaki LED par door se saaf dikhe. Setting yaad rehti hai. */
+(function(){
+  var Z_MIN=1.0, Z_MAX=3.0, STEP=0.15;
+  function zoomOK(){ try{ return !!(window.CSS && CSS.supports && CSS.supports('zoom','1.5')); }catch(e){ return false; } }
+  function getZ(){ var v=parseFloat(localStorage.getItem('comsyn_tvz')||'1.5'); return isNaN(v)?1.5:Math.min(Z_MAX,Math.max(Z_MIN,v)); }
+  function setZ(v){
+    v=Math.min(Z_MAX,Math.max(Z_MIN,Math.round(v*100)/100));
+    try{ localStorage.setItem('comsyn_tvz',String(v)); }catch(e){}
+    document.documentElement.style.setProperty('--tvz',v);
+    var p=document.getElementById('tvPct'); if(p) p.textContent=Math.round(v*100)+'%';
+  }
+  /* ── screen ko jagaye rakho (Wake Lock) — TV mode me LED kaali na ho ── */
+  var _wl=null, _wlOn=false;
+  function wlSupported(){ try{ return 'wakeLock' in navigator; }catch(e){ return false; } }
+  function wlAcquire(){
+    if(!wlSupported()) return;
+    try{
+      navigator.wakeLock.request('screen').then(function(s){
+        _wl=s; _wlOn=true; wlPaint();
+        s.addEventListener('release',function(){ _wlOn=false; _wl=null; wlPaint(); });
+      }).catch(function(){ _wlOn=false; wlPaint(); });
+    }catch(e){ _wlOn=false; wlPaint(); }
+  }
+  function wlRelease(){
+    try{ if(_wl) _wl.release(); }catch(e){}
+    _wl=null; _wlOn=false; wlPaint();
+  }
+  function wlPaint(){
+    var d=document.getElementById('tvWl'); if(!d) return;
+    if(!wlSupported()){ d.textContent='\u26A0 screen sleep off karo'; d.className='tv-wl warn'; d.title='Is browser me auto wake-lock nahi hai \u2014 device settings me screen sleep Never kar do'; return; }
+    d.textContent = _wlOn ? '\u2600 screen jagi hai' : '\u26A0 screen lock';
+    d.className   = _wlOn ? 'tv-wl on' : 'tv-wl warn';
+    d.title = _wlOn ? 'TV mode me screen apne aap band nahi hogi' : 'Wake lock nahi mila \u2014 screen par ek baar tap karo';
+  }
+  /* tab wapas visible ho to lock dobara le lo (browser chhod deta hai) */
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible' && document.body.classList.contains('tvmode')) wlAcquire();
+  });
+  var fadeT=null;
+  function poke(){
+    var bar=document.getElementById('tvBar'); if(!bar) return;
+    bar.classList.remove('faded'); clearTimeout(fadeT);
+    fadeT=setTimeout(function(){ bar.classList.add('faded'); },4000);
+  }
+  function enter(){
+    document.body.classList.add('tvmode');
+    if(!zoomOK()) document.body.classList.add('no-zoom');
+    setZ(getZ());
+    try{ if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); }catch(e){}
+    wlAcquire();
+    /* pehli koshish fail ho jaye (fullscreen switch ke waqt) to dobara try */
+    setTimeout(function(){ if(document.body.classList.contains('tvmode') && !_wlOn) wlAcquire(); },1500);
+    poke();
+    try{ toast('TV Mode ON \u2014 screen jagi rahegi \u00b7 Esc se wapas','ok'); }catch(e){}
+  }
+  function exit(){
+    document.body.classList.remove('tvmode','no-zoom');
+    wlRelease();
+    try{ if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen(); }catch(e){}
+  }
+  function bind(){
+    var b=document.getElementById('tvBtn'); if(b && !b._tv){ b._tv=1; b.onclick=enter; }
+    var mi=document.getElementById('tvMinus'), pl=document.getElementById('tvPlus'), ex=document.getElementById('tvExit');
+    if(mi && !mi._tv){ mi._tv=1; mi.onclick=function(){ setZ(getZ()-STEP); poke(); }; }
+    if(pl && !pl._tv){ pl._tv=1; pl.onclick=function(){ setZ(getZ()+STEP); poke(); }; }
+    if(ex && !ex._tv){ ex._tv=1; ex.onclick=exit; }
+  }
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape' && document.body.classList.contains('tvmode')) exit();
+  });
+  ['mousemove','touchstart','click'].forEach(function(ev){
+    document.addEventListener(ev,function(){
+      if(!document.body.classList.contains('tvmode')) return;
+      poke();
+      if(!_wlOn) wlAcquire();          /* tap ke baad lock mil jata hai */
+    },{passive:true});
+  });
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind); else bind();
+  setInterval(bind,1500);   /* re-render ke baad bhi button zinda rahe */
+})();
+
 /* ===== LOGIN + ROLE-BASED ACCESS ===== */
 (function(){
   const ROLE_HIDE = { view:['entry','orderentry','assign','orderassign','linepassign','trash','users','manageusers'], entry:['assign','orderassign','linepassign','trash','users','manageusers'], admin:[] };
@@ -8319,6 +8442,7 @@ function renderTrash(){
   function _hbDevice(){ return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'')?'MOBILE':'PC'; }
   var LOC_OK=false;
   function _gateHide(){ var g=document.getElementById('locGate'); if(g) g.style.display='none'; }
+  function _gateShow(){ var g=document.getElementById('locGate'); if(g) g.style.display='flex'; }
   function _gateMsg(t,col){ var m=document.getElementById('locGateMsg'); if(m){ m.textContent=t; m.style.color=col||'#b33'; } }
   function _gpsSave(lat,lon,cb){
     var fin=function(v){ v=String(v).slice(0,88)+' \u00b7 GPS @'+lat.toFixed(5)+','+lon.toFixed(5); try{ localStorage.setItem('comsyn_loc', JSON.stringify({v:v, t:Date.now(), gps:1})); }catch(e){} cb(); };
@@ -8353,6 +8477,23 @@ function renderTrash(){
     cb('unknown');
   }
   var _locRetry=null;
+  /* permission pehle se di ja chuki hai -> gate mat dikhao.
+     Seedha user/password page do aur location peeche-peeche le lo. */
+  function _reqLocSilent(){
+    if(!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(function(pos){
+      if(pos.coords && pos.coords.accuracy && pos.coords.accuracy>1200){
+        LOC_OK=false; _gateShow(); _reqLoc(); return;   /* approximate mila -> tabhi gate */
+      }
+      LOC_OK=true;
+      _gpsSave(pos.coords.latitude,pos.coords.longitude,function(){ try{ _heartbeat(); }catch(e){} });
+    }, function(){
+      /* na mile to purani location se kaam chalao, warna gate dikhao */
+      var cg=null; try{ cg=JSON.parse(localStorage.getItem('comsyn_loc')||'null'); }catch(e){}
+      if(cg && cg.gps && cg.v){ LOC_OK=true; }
+      else { LOC_OK=false; _gateShow(); _reqLoc(); }
+    }, {enableHighAccuracy:true, timeout:12000, maximumAge:300000});
+  }
   function _reqLoc(){
     if(window.isSecureContext===false){ _gateMsg('Ye file direct kholi gayi hai \u2014 location yahan kaam nahi karti. App ko company ke https link se kholein.'); return; }
     if(!navigator.geolocation){ _gateMsg('Is browser me location support nahi hai \u2014 Chrome use karein.'); return; }
@@ -8393,12 +8534,30 @@ function renderTrash(){
       var bs=document.querySelector('#locGate .lg-btns'); if(bs) bs.style.display='flex';
       _gateMsg(''); _reqLoc();
     };
+    /* ek hi baar faisla: gate dikhe ya seedha user/password.
+       Location pehle allow ho chuki ho (ya aaj hi mil chuki ho) to gate nahi \u2014
+       location peeche-peeche chupchap on ho jati hai. */
+    var _decided=false;
+    function _decide(show){ if(_decided) return; _decided=true; if(show) _gateShow(); else _gateHide(); }
+    setTimeout(function(){ if(!_decided) _decide(true); },2500);   /* safety: faisla na ho to gate */
     try{
       if(sessionStorage.getItem('comsyn_user')){
-        LOC_OK=true; _gateHide();
+        LOC_OK=true; _decide(false);
         _permState(function(ps){ if(ps==='granted' && navigator.geolocation) navigator.geolocation.getCurrentPosition(function(pos){ _gpsSave(pos.coords.latitude,pos.coords.longitude,function(){}); },function(){},{enableHighAccuracy:true,timeout:12000,maximumAge:300000}); });
-      } else if(navigator.permissions && navigator.permissions.query){
-        navigator.permissions.query({name:'geolocation'}).then(function(st){ if(st.state==='granted') _reqLoc(); }).catch(function(){});
+      } else {
+        _permState(function(ps){
+          if(ps==='granted'){
+            /* pehle se allow hai -> location wali screen mat dikhao */
+            LOC_OK=true; _decide(false); _reqLocSilent(); return;
+          }
+          /* permission "sirf is baar" di thi -> par isi device par aaj location mil chuki hai
+             to dobara mat pucho, chupchap try karo */
+          var cg=null; try{ cg=JSON.parse(localStorage.getItem('comsyn_loc')||'null'); }catch(e){}
+          if(cg && cg.gps && cg.v && (Date.now()-cg.t) < 604800000){   /* 7 din \u2014 gate baar-baar na aaye */
+            LOC_OK=true; _decide(false); _reqLocSilent(); return;
+          }
+          _decide(true);
+        });
       }
     }catch(e){}
   })();
