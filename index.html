@@ -1598,6 +1598,27 @@ body.tvmode .tv-bar{display:flex}
 .dl-ac-row input{width:17px;height:17px;accent-color:#e2731f;flex:none}
 .dl-ac-row b{font-size:14.5px;color:#12243a}
 .dl-ac-row small{font-size:11.5px;color:#8a99ad;margin-left:auto}
+
+/* GPS strict toggle (Active Users) */
+.gpsw{display:inline-flex;align-items:center;gap:6px;border:1px solid #d3ddea;background:#f2f5f9;
+  color:#8a99ad;font-weight:800;font-size:10.5px;letter-spacing:.6px;border-radius:999px;
+  padding:4px 10px 4px 5px;cursor:pointer;font-family:inherit;transition:all .2s}
+.gpsw i{width:14px;height:14px;border-radius:50%;background:#b6c2d1;display:block;transition:all .2s}
+.gpsw:hover{border-color:#9db0c4}
+.gpsw.on{background:#e6f4ea;border-color:#9fdcb6;color:#1e7a3c}
+.gpsw.on i{background:#1e9e50;box-shadow:0 0 0 3px rgba(30,158,80,.18)}
+/* GPS lock screen */
+#gpsLock{position:fixed;inset:0;z-index:99999;background:rgba(10,20,34,.92);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;padding:22px}
+#gpsLock .gl-box{background:#fff;border-radius:18px;padding:30px 26px;max-width:420px;text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.45)}
+#gpsLock .gl-ic{font-size:44px;margin-bottom:10px}
+#gpsLock .gl-t{font-family:'Times New Roman',Times,serif;font-weight:800;font-size:22px;color:#12243a;margin-bottom:8px}
+#gpsLock .gl-s{font-size:14px;color:#5b6b80;line-height:1.6;margin-bottom:20px}
+#gpsLock .gl-b{display:flex;gap:9px;justify-content:center;flex-wrap:wrap}
+#gpsLock .gl-btn{font-family:inherit;font-weight:700;font-size:14px;padding:11px 22px;border-radius:999px;
+  border:none;cursor:pointer;background:linear-gradient(135deg,#f5a623,#e2731f);color:#fff}
+#gpsLock .gl-ghost{background:#eef2f7;color:#5b6b80}
 </style>
 
 <!-- PWA Phase 1: home-screen icon + full-screen -->
@@ -1656,7 +1677,7 @@ body.tvmode .tv-bar{display:flex}
           <button id="locGateRetry" style="width:100%;margin-top:12px;padding:12px;font-size:13.5px;font-weight:800;font-family:inherit;background:linear-gradient(135deg,#2e86c1,#1b5e94);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 4px 12px rgba(46,134,193,.3)">Maine Kar Liya &mdash; Try Again</button>
         </div>
         <div id="locGateMsg" style="font-size:11px;color:#b3261e;margin:12px 20px 0;min-height:14px;line-height:1.5"></div>
-        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v204</div>
+        <div class="lg-foot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SECURED &middot; COMSYN ERP &middot; v205</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fcfcf7,#e4e3d6);border-bottom:1px solid #c7c7ba;padding:5px 8px">
@@ -4627,6 +4648,12 @@ function rollReturnExcel(id){
    turant update ho jayega (dono ek hi config par kaam karte hain).
    ══════════════════════════════════════════════════════════════════ */
 /* ---- per-user access: kaun sa user kaun si dropdown manage kar sake ---- */
+/* ---- GPS Strict: kis user par sakht location zaroori hai ---- */
+const KEY_GPSSTRICT='comsyn_gpss_v1';
+let GPSSTRICT=(function(){ var r=Store.get(KEY_GPSSTRICT); if(r){ try{ var p=JSON.parse(r); if(p&&typeof p==='object') return p; }catch(e){} } return {}; })();
+function saveGpsStrict(){ Store.set(KEY_GPSSTRICT,JSON.stringify(GPSSTRICT)); }
+function gpsStrictFor(u){ return !!GPSSTRICT[String(u||'').trim()]; }
+function gpsStrictOn(){ try{ return gpsStrictFor(sessionStorage.getItem('comsyn_user')||''); }catch(e){ return false; } }
 const KEY_DLRIGHTS='comsyn_dlr_v1';
 let DLRIGHTS=(function(){ var r=Store.get(KEY_DLRIGHTS); if(r){ try{ var p=JSON.parse(r); if(p&&typeof p==='object') return p; }catch(e){} } return {}; })();
 function saveDlRights(){ Store.set(KEY_DLRIGHTS,JSON.stringify(DLRIGHTS)); }
@@ -6812,8 +6839,8 @@ function renderUsers(){
     </div>
     <div class="uchips" id="usrChips"></div>
     <div class="utblw"><table>
-      <thead><tr><th>STATUS</th><th>USER ID</th><th>DEVICE</th><th>LOCATION</th><th>LAST ACTIVE</th><th>DEVICE ID</th><th>ACTION</th></tr></thead>
-      <tbody id="usrRows"><tr><td colspan="7" style="text-align:center;color:#8a99ad;padding:22px">Loading\u2026</td></tr></tbody>
+      <thead><tr><th>STATUS</th><th>USER ID</th><th>DEVICE</th><th>LOCATION</th><th>GPS</th><th>LAST ACTIVE</th><th>DEVICE ID</th><th>ACTION</th></tr></thead>
+      <tbody id="usrRows"><tr><td colspan="8" style="text-align:center;color:#8a99ad;padding:22px">Loading\u2026</td></tr></tbody>
     </table></div>
     <div class="hint2">Green = abhi active (2 min ke andar) \u00b7 Ek hi ID se kai log ho to har device ki alag row \u00b7 Sirf usi device ko block karo jise rokna hai \u2014 baki sab chalte rahenge.</div>
   </div></div>`;
@@ -6852,14 +6879,25 @@ function _usersLoad(){
             if(mm){ var nm=L.replace(/\s*@[^@]*$/,''); return '\ud83d\udccd <a href="https://www.google.com/maps?q='+mm[1]+','+mm[2]+'" target="_blank" rel="noopener" style="color:#1f6da3;font-weight:700;text-decoration:underline;text-underline-offset:2px">'+esc(nm)+'</a> <a href="https://www.google.com/maps?q='+mm[1]+','+mm[2]+'" target="_blank" rel="noopener" style="display:inline-block;font-size:9.5px;font-weight:800;background:#e8f2fc;color:#1f6da3;border:1px solid #cfe3f5;padding:2px 8px;border-radius:9px;text-decoration:none;letter-spacing:.4px;margin-left:4px">MAP \u2197</a>'; }
             return '\ud83d\udccd '+esc(L);
           })()+'</td>'
+          +'<td>'+(function(){
+              var on=gpsStrictFor(s.username);
+              return '<button class="gpsw'+(on?' on':'')+'" data-gps="'+esc(s.username||'')+'" title="'+(on?'Sakht mode ON \u2014 GPS zaroori':'Normal \u2014 abhi jaisa')+'"><i></i><span>'+(on?'ON':'OFF')+'</span></button>';
+            })()+'</td>'
           +'<td>'+_agoTxt(s.last_seen)+'</td>'
           +'<td style="color:#8a99ad;font-size:11px">'+esc(String(s.sid||'').slice(0,12))+'\u2026</td>'
           +'<td>'+btn+'</td></tr>';
       }).join('');
-      tb.innerHTML=html||'<tr><td colspan="7" style="text-align:center;color:#8a99ad;padding:22px">Abhi tak koi device connect nahi hua</td></tr>';
+      tb.innerHTML=html||'<tr><td colspan="8" style="text-align:center;color:#8a99ad;padding:22px">Abhi tak koi device connect nahi hua</td></tr>';
       if(ch) ch.innerHTML='<div class="uchip"><b>'+rows.length+'</b><small>TOTAL DEVICES</small></div>'
         +'<div class="uchip"><b style="color:#1e9e50">'+act+'</b><small>ACTIVE NOW</small></div>'
         +'<div class="uchip"><b style="color:#d93636">'+blk+'</b><small>BLOCKED</small></div>';
+      tb.querySelectorAll('[data-gps]').forEach(function(b){ b.onclick=function(){
+        var un=b.dataset.gps; if(!un) return;
+        var now=gpsStrictFor(un);
+        if(now){ delete GPSSTRICT[un]; } else { GPSSTRICT[un]=1; }
+        saveGpsStrict(); _usersLoad();
+        try{ toast(un+' \u2014 GPS sakht mode '+(now?'OFF':'ON'),'ok'); }catch(e){}
+      }; });
       tb.querySelectorAll('[data-bl]').forEach(function(b){ b.onclick=function(){ _sessBlock(b.dataset.bl,true); }; });
       tb.querySelectorAll('[data-ub]').forEach(function(b){ b.onclick=function(){ _sessBlock(b.dataset.ub,false); }; });
     })
@@ -8295,7 +8333,7 @@ function renderTrash(){
 /* ===== REAL-TIME SYNC (plain fetch + 3s polling) ===== */
 (function(){
   if(!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
-  const SYNC_KEYS=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG,KEY_ROLLRET,KEY_DLRIGHTS];
+  const SYNC_KEYS=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG,KEY_ROLLRET,KEY_DLRIGHTS,KEY_GPSSTRICT];
   let ready=false, suppress=false; const timers={}; const lastLocal={};
   const origSet=Store.set.bind(Store);
   Store.set=function(k,v){ origSet(k,v); try{_dgenBump();}catch(e){} if(ready && !suppress && SYNC_KEYS.indexOf(k)>=0){ lastLocal[k]=Date.now(); push(k,v); } };
@@ -8355,6 +8393,7 @@ function renderTrash(){
       else if(k===KEY_LINEPCFG) LINEPCFG=parsed;
       else if(k===KEY_ROLLRET) ROLLRET=parsed;
       else if(k===KEY_DLRIGHTS) DLRIGHTS=parsed;
+      else if(k===KEY_GPSSTRICT) GPSSTRICT=parsed;
       origSet(k,v); try{_dgenBump();}catch(e){}
     } finally { suppress=false; }
     try{ if(current!=='entry' && !(current==='linep' && lpSub==='entry') && current!=='linepassign') render(); }catch(e){}
@@ -8652,6 +8691,26 @@ function renderTrash(){
                sessionStorage.setItem('comsyn_rights_expired', j.expired?'1':'0'); }catch(_e){} }
         if(role){
           var _finish=function(){
+            /* GPS sakht mode: bina asli location ke login nahi */
+            if(!gpsStrictFor(u)){ _doFinish(); return; }
+            var _msgEl=document.getElementById('loginMsg');
+            var _say=function(t){ try{ if(_msgEl){ _msgEl.textContent=t; _msgEl.style.color='#1f6da3'; _msgEl.style.display='block'; } }catch(e){} };
+            _say('Location check ho rahi hai\u2026');
+            if(!navigator.geolocation){ try{ setMsg('Is browser me location nahi chalti \u2014 Chrome use karein'); }catch(e){} return; }
+            navigator.geolocation.getCurrentPosition(function(pos){
+              if(pos.coords && pos.coords.accuracy && pos.coords.accuracy>1500){
+                try{ setMsg('Sahi location nahi mili \u2014 phone ki Location (GPS) ON karke dobara try karein'); }catch(e){} return;
+              }
+              try{ _gpsSave(pos.coords.latitude,pos.coords.longitude,function(){}); }catch(e){}
+              _doFinish();
+            }, function(err){
+              var m=(err&&err.code===1)
+                ? 'Location Block hai \u2014 address bar ke \ud83d\udd12 icon se Location > Allow karein'
+                : 'Phone ki Location (GPS) ON karke dobara Login dabayein';
+              try{ setMsg(m); }catch(e){}
+            }, {enableHighAccuracy:true, timeout:15000, maximumAge:0});
+          };
+          var _doFinish=function(){
             _setLock({fails:0,until:0,stage:0});
             sessionStorage.setItem('comsyn_role',role); sessionStorage.setItem('comsyn_user',u); sessionStorage.setItem('comsyn_pass',p);
             sessionStorage.setItem('comsyn_can_edit',canE); sessionStorage.setItem('comsyn_can_delete',canD); sessionStorage.setItem('comsyn_tabs',tabsStr);
@@ -8662,6 +8721,7 @@ function renderTrash(){
               if(rem && rem.checked) accs.unshift({u:u,p:p});
               localStorage.setItem('comsyn_accounts', JSON.stringify(accs)); }catch(e){}
             applyRole(role); hideLogin(); try{toast('Welcome '+u+' ('+role+')','ok');}catch(e){} try{ _heartbeat(); }catch(e){}
+            try{ if(gpsStrictFor(u) && window._gpsWatchStart) window._gpsWatchStart(); }catch(e){}
           };
           _finish();
         }
@@ -8825,6 +8885,51 @@ function renderTrash(){
       }
     }, {enableHighAccuracy:true, timeout:15000, maximumAge:60000});
   }
+  /* ═══ GPS SAKHT MODE ═══
+     Sirf un users par jinke liye admin ne ON kiya hai.
+     Har 10 minute chup-chaap asli GPS check. Location band ho jaye
+     ya na mile to app lock ho jati hai (data safe rehta hai).       */
+  var _gpsW=null, _gpsFail=0;
+  function _gpsLock(msg){
+    if(document.getElementById('gpsLock')) return;
+    var d=document.createElement('div');
+    d.id='gpsLock';
+    d.innerHTML='<div class="gl-box"><div class="gl-ic">\ud83d\udccd</div>'
+      +'<div class="gl-t">Location band ho gayi</div>'
+      +'<div class="gl-s">'+(msg||'Aapke account par location zaroori hai. Phone ki Location ON karke "Dobara check" dabayein.')+'</div>'
+      +'<div class="gl-b"><button id="gpsRetry" class="gl-btn">Dobara check</button>'
+      +'<button id="gpsOut" class="gl-btn gl-ghost">Logout</button></div></div>';
+    document.body.appendChild(d);
+    document.getElementById('gpsRetry').onclick=function(){
+      var t=document.querySelector('#gpsLock .gl-s'); if(t) t.textContent='Check ho raha hai\u2026';
+      _gpsCheck(function(ok){
+        if(ok){ var e=document.getElementById('gpsLock'); if(e) e.remove(); _gpsFail=0; }
+        else { var s=document.querySelector('#gpsLock .gl-s');
+               if(s) s.textContent='Abhi bhi location nahi mil rahi. Phone ki Location (GPS) ON karke dobara dabayein.'; }
+      });
+    };
+    document.getElementById('gpsOut').onclick=function(){ try{ doLogout(); }catch(e){ location.reload(); } };
+  }
+  function _gpsCheck(cb){
+    if(!navigator.geolocation){ cb(false); return; }
+    navigator.geolocation.getCurrentPosition(function(pos){
+      if(pos.coords && pos.coords.accuracy && pos.coords.accuracy>1500){ cb(false); return; }  /* sirf network se aaya -> nahi */
+      _gpsSave(pos.coords.latitude,pos.coords.longitude,function(){ try{ _heartbeat(); }catch(e){} });
+      cb(true);
+    }, function(){ cb(false); }, {enableHighAccuracy:true, timeout:15000, maximumAge:0});
+  }
+  function _gpsWatchStart(){
+    if(_gpsW) return;
+    _gpsW=setInterval(function(){
+      if(!gpsStrictOn()){ clearInterval(_gpsW); _gpsW=null; return; }   /* admin ne OFF kar diya */
+      _gpsCheck(function(ok){
+        if(ok){ _gpsFail=0; var e=document.getElementById('gpsLock'); if(e) e.remove(); }
+        else { _gpsFail++; if(_gpsFail>=2) _gpsLock(); }                 /* 2 baar fail = lock */
+      });
+    }, 600000);   /* har 10 minute */
+  }
+  window._gpsWatchStart=_gpsWatchStart;
+  window._gpsCheckOnce=_gpsCheck;
   function _locExit(){
     try{ window.close(); }catch(e){}
     setTimeout(function(){
@@ -8846,7 +8951,10 @@ function renderTrash(){
     function _decide(show){ if(_decided) return; _decided=true; if(show) _gateShow(); else _gateHide(); }
     setTimeout(function(){ if(!_decided) _decide(true); },2500);   /* safety: faisla na ho to gate */
     try{
-      if(sessionStorage.getItem('comsyn_user')){
+      /* strict user pehle se logged-in hai -> uska pehra chalu karo */
+      if(sessionStorage.getItem('comsyn_user') && gpsStrictOn()){
+        LOC_OK=true; _decide(false); _gpsWatchStart(); 
+      } else if(sessionStorage.getItem('comsyn_user')){
         LOC_OK=true; _decide(false);
         _permState(function(ps){ if(ps==='granted' && navigator.geolocation) navigator.geolocation.getCurrentPosition(function(pos){ _gpsSave(pos.coords.latitude,pos.coords.longitude,function(){}); },function(){},{enableHighAccuracy:true,timeout:12000,maximumAge:300000}); });
       } else {
