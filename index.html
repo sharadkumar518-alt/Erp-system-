@@ -491,6 +491,32 @@ table.dt td .combo{background-position:right 6px center;padding-right:20px!impor
 .ord-gate{flex-basis:100%;font-size:11px;color:var(--muted-2);font-style:italic;display:flex;align-items:center;gap:5px}
 .ord-done{color:var(--green);font-weight:800;font-size:13px;display:inline-flex;align-items:center}
 .ord-nocomp{padding:8px 22px 14px;color:var(--muted-2);font-size:12.5px;font-style:italic}
+/* ===== Extra Order Cutting tab ===== */
+.x-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0 14px}
+.x-list{display:flex;flex-direction:column;gap:16px}
+.x-card{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.x-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px 12px 18px;background:linear-gradient(180deg,#FFF7F0,#FFFDFB);border-bottom:1px solid var(--line-2);flex-wrap:wrap}
+.x-title{display:flex;align-items:center;gap:9px;min-width:0;flex-wrap:wrap}
+.x-title b{font-size:17px;font-weight:800;color:var(--ink);letter-spacing:.2px}
+.x-badge{display:flex;align-items:baseline;gap:6px;background:var(--amber);color:#fff;border-radius:30px;padding:5px 14px;box-shadow:0 3px 10px rgba(232,112,42,.3)}
+.x-badge span{font-size:9.5px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;opacity:.9}
+.x-badge b{font-family:'JetBrains Mono';font-size:16px;font-weight:800}
+.x-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:11px 14px;padding:13px 18px}
+.x-kv{display:flex;flex-direction:column;gap:2px;min-width:0}
+.x-kv span{color:var(--muted-2);font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.x-kv b{color:var(--ink);font-size:14px;font-weight:700;word-break:break-word}
+.x-tblwrap{padding:2px 18px 14px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.x-tbl{border-collapse:separate;border-spacing:0;width:100%;min-width:100%;font-size:13px;white-space:nowrap;border:1px solid var(--line-2);border-radius:12px;overflow:hidden}
+.x-tbl th{background:linear-gradient(180deg,#FDEEE2,#FBE4D3);color:#8a4b13;font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;padding:9px 12px;text-align:center;border-bottom:1px solid #f3d3ba;font-weight:800}
+.x-tbl td{padding:11px 12px;text-align:center;border-bottom:1px solid var(--line-2);color:var(--ink);font-size:14px;font-weight:600}
+.x-tbl tbody tr:last-child td{border-bottom:none}
+.x-tbl td.xc-name{text-align:left;font-weight:800;background:#FFFBF6}
+.x-tbl td.xc-cut{font-family:'JetBrains Mono';background:#F3F8F5;color:var(--green);font-weight:800}
+.x-tbl td.xc-ex{background:#FFF6EE}
+.x-tbl td.xc-pct{font-family:'JetBrains Mono';color:var(--amber);font-weight:800}
+.x-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;border-top:1px solid var(--line-2);background:#FCFDFE;flex-wrap:wrap}
+.x-note{font-size:11.5px;color:var(--muted-2);font-style:italic}
+@media(max-width:640px){.x-meta{grid-template-columns:repeat(auto-fit,minmax(80px,1fr))}.x-tbl th,.x-tbl td{padding:9px 8px}}
 .ord-searchbar{border-radius:14px;box-shadow:var(--shadow-md)}
 .ord-searchbar svg{color:var(--amber)}
 /* Fabric Cutting Report */
@@ -1771,6 +1797,10 @@ body.tvmode .tv-bar{display:flex}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
         Order Entry
       </button>
+      <button data-tab="extracut">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12"/><circle cx="6" cy="18" r="3"/><path d="M18 3v12"/><circle cx="18" cy="18" r="3"/><path d="M9.5 8.5h5"/></svg>
+        Extra Order Cutting
+      </button>
       <button data-tab="cuttingreport">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h2"/></svg>
         Cutting Report
@@ -2042,6 +2072,7 @@ const TAB_META={
   entry:{title:'Production Entry',sub:"Fill today's cutting production report"},
   records:{title:'Records',sub:'Date-wise saved production reports'},
   orderentry:{title:'Order Entry',sub:'New orders, balance, under process & complete'},
+  extracut:{title:'Extra Order Cutting',sub:'Jin orders me component ki cutting order qty se zyada hui \u2014 order-wise detail'},
   cuttingreport:{title:'Cutting Report',sub:'File-wise fabric cutting report'},
   cuttingstock:{title:'Cutting Stock',sub:'Order-wise & location-wise material stock'},
   rollstock:{title:'Cutting Roll Stock',sub:'Machine par bache hue balance roll \u2014 roll-wise stock'},
@@ -2076,6 +2107,7 @@ function render(){
   else if(current==='entry') renderEntry();
   else if(current==='records') renderRecords();
   else if(current==='orderentry') renderOrderEntry();
+  else if(current==='extracut') renderExtraCutting();
   else if(current==='cuttingreport') renderCuttingReport();
   else if(current==='cuttingstock') renderCuttingStock();
   else if(current==='rollstock') renderRollStock();
@@ -5160,6 +5192,19 @@ function componentsPanelHtml(){
     <div class="comp-hint">Component select karo (jaise Side, Body), Cut Length aur Qty to cut bharo. Aur component jodne ke liye "Add Component" dabao.</div>
   </div>`;
 }
+/* combo option choose karte hi popup hat jata hai, to us jagah ka "ghost click"
+   niche wale button (Add Component) par gir jata tha -> apne aap naya row add ho jata tha.
+   Ye helper us ek ghost click ko kha jata hai. */
+let _compPickAt=0;
+function _swallowGhostClick(){
+  _compPickAt=Date.now();
+  const kill=ev=>{
+    document.removeEventListener('click',kill,true);
+    if(Date.now()-_compPickAt<450){ ev.stopPropagation(); ev.preventDefault(); }
+  };
+  document.addEventListener('click',kill,true);
+  setTimeout(()=>document.removeEventListener('click',kill,true),450);
+}
 function showCompCombo(inp){
   hideCombo();
   let opts=componentNameOptions();
@@ -5171,13 +5216,13 @@ function showCompCombo(inp){
   el.style.left=Math.max(8,r.left)+'px'; el.style.top=(r.bottom+4)+'px'; el.style.minWidth=Math.max(r.width,150)+'px';
   el.innerHTML=opts.map(o=>`<button class="combo-opt" data-val="${esc(o)}">${esc(o)}</button>`).join('');
   document.body.appendChild(el);
-  el.querySelectorAll('[data-val]').forEach(b=>b.addEventListener('pointerdown',e=>{ e.preventDefault(); inp.value=b.dataset.val; hideCombo(); const row=inp.closest('.comp-row'); const q=row&&(row.querySelector('.comp-cut')||row.querySelector('.comp-qty')); if(q) q.focus(); }));
+  el.querySelectorAll('[data-val]').forEach(b=>b.addEventListener('pointerdown',e=>{ e.preventDefault(); inp.value=b.dataset.val; hideCombo(); _swallowGhostClick(); const row=inp.closest('.comp-row'); const q=row&&(row.querySelector('.comp-cut')||row.querySelector('.comp-qty')); if(q) q.focus(); }));
   window.addEventListener('scroll',hideCombo,{passive:true,once:true,capture:true});
 }
 function bindCompRows(){
   const wrap=document.getElementById('compRows'); if(!wrap) return;
   const addBtn=document.getElementById('compAddBtn');
-  if(addBtn) addBtn.onclick=()=>{ wrap.insertAdjacentHTML('beforeend',compRowHtml('','','')); bindCompRows(); const names=wrap.querySelectorAll('.comp-name'); const last=names[names.length-1]; if(last) last.focus(); };
+  if(addBtn) addBtn.onclick=()=>{ if(Date.now()-_compPickAt<450) return; wrap.insertAdjacentHTML('beforeend',compRowHtml('','','')); bindCompRows(); const names=wrap.querySelectorAll('.comp-name'); const last=names[names.length-1]; if(last) last.focus(); };
   wrap.querySelectorAll('.comp-del').forEach(b=>{ b.onclick=()=>{ const rows=wrap.querySelectorAll('.comp-row'); if(rows.length<=1){ const r=b.closest('.comp-row'); r.querySelector('.comp-name').value=''; r.querySelector('.comp-qty').value=''; const cc=r.querySelector('.comp-cut'); if(cc) cc.value=''; } else b.closest('.comp-row').remove(); }; });
   wrap.querySelectorAll('.comp-name').forEach(inp=>{ if(inp._cbound) return; inp._cbound=1;
     inp.addEventListener('focus',()=>showCompCombo(inp));
@@ -5265,10 +5310,15 @@ function autoCutDone(order, compName, excludeId){
 }
 function autoAllDone(o){ const cs=orderComponents(o); return cs.length>0 && cs.every(c=>autoCutDone(o,c.name)>=c.qty); }
 function anyCompCut(o){ const cs=orderComponents(o); return cs.some(c=>autoCutDone(o,c.name)>0); }
-/* New order → Balance jab koi component cut ho. (Balance → Under Process manual button se, jab saare Done ho) */
+/* New → Balance jab koi ek component cut ho.
+   Balance/New → Under Process TABHI jab SAARE components ki cut qty
+   order qty ke barabar ya usse zyada ho jaye (ek bhi baaki hua to nahi). */
 function refreshOrderStatuses(){
   let changed=false;
-  ORDERS.forEach(o=>{ if(o.status==='new' && anyCompCut(o)){ o.status='balance'; changed=true; } });
+  ORDERS.forEach(o=>{
+    if((o.status==='new'||o.status==='balance') && autoAllDone(o)){ o.status='process'; changed=true; return; }
+    if(o.status==='new' && anyCompCut(o)){ o.status='balance'; changed=true; }
+  });
   if(changed) saveOrders();
 }
 function emptyOrders(sub){
@@ -5303,6 +5353,119 @@ function bindOrderList(sub){
   const search=document.querySelector('.ord-search');
   if(search){ search.addEventListener('input',()=>{ orderQuery=search.value; const cont=document.getElementById('ordCards'); if(cont){ cont.innerHTML=orderCardsHtml(sub); bindOrderCards(sub); } }); }
   bindOrderCards(sub);
+}
+/* ============================================================
+   EXTRA ORDER CUTTING  (apna alag tab)
+   Jis order ke kisi bhi component ka Cut Done > Order Qty hai,
+   wo order yahan aata hai — aur us order me sirf wahi component
+   dikhte hain jinki cutting extra hui. Barabar / kam wale hide.
+   ============================================================ */
+let _xCache=null, xQuery='', xOnlyOpen=false;
+function extraCutList(){
+  if(_xCache) return _xCache;
+  const out=[];
+  (ORDERS||[]).forEach(o=>{
+    const rows=[];
+    orderComponents(o).forEach(c=>{
+      const cut=autoCutDone(o,c.name);
+      if(cut>c.qty) rows.push({name:c.name, qty:c.qty, cut:cut, extra:cut-c.qty, cutLen:c.cutLen});
+    });
+    if(rows.length){
+      rows.sort((a,b)=>b.extra-a.extra);
+      out.push({o:o, rows:rows, total:rows.reduce((s,r)=>s+r.extra,0)});
+    }
+  });
+  out.sort((a,b)=>b.total-a.total || (b.o.savedAt||0)-(a.o.savedAt||0));
+  _xCache=out;
+  return out;
+}
+function xFiltered(){
+  let list=extraCutList();
+  if(xOnlyOpen) list=list.filter(it=>it.o.status!=='complete');
+  const q=xQuery.trim().toLowerCase();
+  if(q) list=list.filter(it=>orderMatchesQuery(it.o,q) || it.rows.some(r=>String(r.name).toLowerCase().includes(q)));
+  return list;
+}
+function xTableHtml(item){
+  const rows=item.rows.map(c=>{
+    const pct=c.qty>0?Math.round(c.extra/c.qty*1000)/10:0;
+    return `<tr>
+      <td class="xc-name">${esc(c.name)}</td>
+      <td>${c.cutLen===''||c.cutLen==null?'—':esc(String(c.cutLen))}</td>
+      <td>${c.qty}</td>
+      <td class="xc-cut">${c.cut}</td>
+      <td class="xc-ex"><span class="chip chip-extra">+${c.extra}</span></td>
+      <td class="xc-pct">${pct}%</td>
+    </tr>`;
+  }).join('');
+  return `<div class="x-tblwrap"><table class="x-tbl">
+    <thead><tr><th style="text-align:left">Component</th><th>Cut Len</th><th>Order Qty</th><th>Cut Done</th><th>Extra Cut</th><th>Extra %</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+function xCardHtml(item,nf){
+  const o=item.o;
+  const kv=(re,lbl)=>{ const v=ordVal(o,re); return v?`<div class="x-kv"><span>${lbl}</span><b>${esc(v)}</b></div>`:''; };
+  const meta=kv(/file\s*no/i,'File No.')+kv(/sf\s*no/i,'Sf No.')+kv(/bag\s*size/i,'Bag Size')+kv(/gsm/i,'GSM')+kv(/qty|quantit/i,'Order Qty');
+  const title=o.vals[nf.id]||'Order';
+  const hidden=Math.max(0,orderComponents(o).length-item.rows.length);
+  return `<div class="x-card">
+    <div class="x-head">
+      <div class="x-title"><b>${esc(title)}</b><span class="ord-status ${o.status}">${statusLabel(o.status)}</span></div>
+      <div class="x-badge"><span>Extra</span><b>+${item.total}</b></div>
+    </div>
+    <div class="x-meta">${meta||'<div class="x-kv"><span>Order</span><b>—</b></div>'}</div>
+    ${xTableHtml(item)}
+    <div class="x-foot">
+      <span class="x-note">${item.rows.length} component me extra cutting${hidden>0?` · baki ${hidden} component barabar hain (hide)`:''}</span>
+      <button class="btn btn-sm btn-blue" data-oedit="${o.id}" style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>Edit Order</button>
+    </div>
+  </div>`;
+}
+function xCardsHtml(){
+  const list=xFiltered();
+  if(!list.length){
+    const msg = xQuery.trim() ? `"${esc(xQuery)}" ke liye koi extra cutting nahi mili.`
+      : xOnlyOpen ? 'Chalu orders me abhi koi extra cutting nahi hui. Filter hata kar complete orders bhi dekh sakte ho.'
+      : 'Abhi kisi order me extra cutting nahi hui. Jis component ka Cut Done, Order Qty se zyada hoga wo apne aap yahan aa jayega.';
+    return `<div class="empty-state"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></div><p>${msg}</p></div>`;
+  }
+  const nf=ordNoField();
+  return `<div class="x-list">${list.map(it=>xCardHtml(it,nf)).join('')}</div>`;
+}
+function renderExtraCutting(){
+  _xCache=null;
+  try{ refreshOrderStatuses(); }catch(e){}
+  const c=document.getElementById('content');
+  document.getElementById('topActions').innerHTML='';
+  const all=extraCutList();
+  const totPcs=all.reduce((s,it)=>s+it.total,0);
+  const totComp=all.reduce((s,it)=>s+it.rows.length,0);
+  const openCnt=all.filter(it=>it.o.status!=='complete').length;
+  c.innerHTML=`<div class="view proui">
+    <div class="summary-strip" style="margin-top:0">
+      <div class="stat accent"><div class="k">Extra Pcs (total)</div><div class="v">${totPcs}</div></div>
+      <div class="stat"><div class="k">Orders with extra</div><div class="v">${all.length}</div></div>
+      <div class="stat"><div class="k">Components extra</div><div class="v">${totComp}</div></div>
+      <div class="stat"><div class="k">Abhi chalu</div><div class="v">${openCnt}<span class="u">/ ${all.length}</span></div></div>
+    </div>
+    <div class="x-bar">
+      <div class="ord-searchbar" style="margin:0;flex:1;min-width:210px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="xSearch" placeholder="Search — Order No / File No / Sf No / Component…" value="${esc(xQuery)}" autocomplete="off"></div>
+      <button class="btn btn-sm ${xOnlyOpen?'btn-primary':''}" id="xOpenTgl">${xOnlyOpen?'Sirf chalu orders':'Sab orders'}</button>
+    </div>
+    <div id="xCards">${xCardsHtml()}</div>
+  </div>`;
+  bindExtraCutting();
+}
+function bindExtraCutting(){
+  const repaint=()=>{ const el=document.getElementById('xCards'); if(el){ el.innerHTML=xCardsHtml(); bindExtraCards(); } };
+  const s=document.getElementById('xSearch');
+  if(s) s.addEventListener('input',()=>{ xQuery=s.value; repaint(); });
+  const t=document.getElementById('xOpenTgl');
+  if(t) t.onclick=()=>{ xOnlyOpen=!xOnlyOpen; renderExtraCutting(); };
+  bindExtraCards();
+}
+function bindExtraCards(){
+  document.querySelectorAll('#xCards [data-oedit]').forEach(b=>b.onclick=()=>openOrderEdit(b.dataset.oedit));
 }
 function compTableHtml(o,showLive){
   const comps=orderComponents(o);
@@ -5358,7 +5521,7 @@ function openOrderEdit(id){
       outC.push({ id: prev?prev.id : ('k'+Date.now().toString(36)+i.toString(36)), name:nm, qty:qt, cutLen:cl });
     });
     o.components=outC;
-    saveOrders(); closeModal(); renderOrderEntry(); toast('Order update ho gaya','info');
+    saveOrders(); closeModal(); render(); toast('Order update ho gaya','info');
   };
 }
 function orderCardHtml(o,sub,nf){
@@ -5367,15 +5530,19 @@ function orderCardHtml(o,sub,nf){
   let extra='';
   if(sub==='balance'||sub==='process'||sub==='complete') extra=compTableHtml(o, sub==='balance');
   else if(sub==='new'){ const cs=orderComponents(o); if(cs.length) extra=`<div class="ord-comp-chips">${cs.map(c=>`<span class="cchip">${esc(c.name)} <b>${c.qty}</b></span>`).join('')}</div>`; }
-  const del=`<button class="btn btn-sm btn-danger" data-odel="${o.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button><button class="btn btn-sm btn-blue" data-oedit="${o.id}" style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>Edit</button>`;
+  const delBtn=`<button class="btn btn-sm btn-danger" data-odel="${o.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>`;
+  const editBtn=`<button class="btn btn-sm btn-blue" data-oedit="${o.id}" style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>Edit</button>`;
+  const del=delBtn+editBtn;
   let actions;
-  if(sub==='balance'){ const done=autoAllDone(o); actions=`<button class="btn btn-sm btn-blue" data-tomove="${o.id}" ${done?'':'disabled'}>Move to Under Process</button>${del}${done?'':'<div class="ord-gate">Saare components "Done" hone par hi Under Process me jayega</div>'}`; }
-  else if(sub==='process') actions=`<button class="btn btn-sm btn-primary" data-ocomplete="${o.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Move to Complete</button>${del}`;
+  /* Balance: koi button nahi — order khud hi Under Process me chala jata hai jab saare components poore ho jayein */
+  if(sub==='balance') actions='';
+  else if(sub==='process') actions=`<button class="btn btn-sm btn-primary" data-ocomplete="${o.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Move to Complete</button>${delBtn}`;
   else if(sub==='complete') actions=`<span class="ord-done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;margin-right:5px"><path d="M20 6 9 17l-5-5"/></svg>Completed — bag ban gaya</span>${del}`;
   else actions=del;
   const title=o.vals[nf.id]||'Order';
-  return `<div class="ord-card st-${o.status}"><div class="ord-card-head"><b>${esc(title)}</b><span class="ord-status ${o.status}">${statusLabel(o.status)}</span></div>
-    <div class="ord-kvs">${rows}</div>${extra}<div class="ord-actions">${actions}</div></div>`;
+  const chip= sub==='process' ? '' : `<span class="ord-status ${o.status}">${statusLabel(o.status)}</span>`;
+  return `<div class="ord-card st-${o.status}"><div class="ord-card-head"><b>${esc(title)}</b>${chip}</div>
+    <div class="ord-kvs">${rows}</div>${extra}${actions?`<div class="ord-actions">${actions}</div>`:''}</div>`;
 }
 /* ============================================================
    FABRIC CUTTING REPORT  (File No + Sf No wise, roll-wise from records)
@@ -6628,7 +6795,7 @@ function dshChartSVG(series){
 }
 /* ---- MANAGE USERS PANEL (admin only) ---- */
 var _muRows=[];
-var MU_PANELS=[['entry','Entry'],['records','Records'],['orderentry','Order Entry'],['batch','Batch'],['linep','Line Prod.'],['cuttingstock','Cutting Stock'],['rollstock','Roll Stock'],['rollreturn','Roll Godown Return'],['droplists','Dropdown Lists'],['cuttingreport','Cutting Report'],['mtrreport','MTR Report'],['dashboard','Dashboard'],['assign','Assignment'],['orderassign','Order Assign'],['linepassign','Line Assign'],['trash','Trash']];
+var MU_PANELS=[['entry','Entry'],['records','Records'],['orderentry','Order Entry'],['extracut','Extra Order Cutting'],['batch','Batch'],['linep','Line Prod.'],['cuttingstock','Cutting Stock'],['rollstock','Roll Stock'],['rollreturn','Roll Godown Return'],['droplists','Dropdown Lists'],['cuttingreport','Cutting Report'],['mtrreport','MTR Report'],['dashboard','Dashboard'],['assign','Assignment'],['orderassign','Order Assign'],['linepassign','Line Assign'],['trash','Trash']];
 function _muCreds(){ var u,p; try{ u=sessionStorage.getItem('comsyn_user'); p=sessionStorage.getItem('comsyn_pass'); }catch(e){} return {u:u,p:p}; }
 function _muRpc(fn,body){
   return fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{ method:'POST', headers:SB_HEADERS, body:JSON.stringify(body) })
@@ -8664,6 +8831,7 @@ function renderTrash(){
       /* naya panel: purani rights list me 'rollstock' hai hi nahi -> Cutting Stock ke sath dikhao */
       if((tab==='rollstock'||tab==='rollreturn') && allowed.indexOf('cuttingstock')>=0) return false;
       if(tab==='droplists' && allowed.indexOf('linep')>=0) return false;
+      if(tab==='extracut' && allowed.indexOf('orderentry')>=0) return false;
       return true;
     };
     let firstVisible=null;
