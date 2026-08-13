@@ -493,34 +493,63 @@ table.dt td .combo{background-position:right 6px center;padding-right:20px!impor
 .ord-nocomp{padding:8px 22px 14px;color:var(--muted-2);font-size:12.5px;font-style:italic}
 /* ===== Extra Order Cutting tab ===== */
 #xcContent,#xcContent *{font-family:'Times New Roman',Times,Georgia,serif}
+/* --- bada, saaf search bar --- */
+#xcContent .ord-searchbar{border-radius:16px;padding:0 20px;gap:12px;margin-bottom:18px;border:1.5px solid var(--line);box-shadow:var(--shadow-md)}
+#xcContent .ord-searchbar:focus-within{border-color:var(--amber);box-shadow:0 0 0 4px rgba(232,112,42,.12),var(--shadow-md)}
+#xcContent .ord-searchbar svg{width:24px;height:24px;color:var(--amber)}
+#xcContent .x-search{padding:18px 0;font-size:17px;font-weight:700;color:#0d1726}
+#xcContent .x-search::placeholder{color:#93a5ba;font-weight:600}
 .x-list{display:flex;flex-direction:column;gap:16px}
-.x-card{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--amber);border-radius:var(--radius);box-shadow:var(--shadow-md);overflow:hidden}
-.x-head{padding:13px 16px 12px 18px;background:linear-gradient(135deg,#fff4ec,#ffe0c9);border-bottom:1px solid #f3d3ba}
+/* --- har card ka apna colour theme (xt1..xt6 rotate hote hain) --- */
+.x-card{--xa:#E8702A;--xh1:#FFF4EC;--xh2:#FFE0C9;--xhb:#F3D3BA;--xth:#FDE7D3;--xthc:#8A4B13;--xthb:#EEC7A6;
+  --k1:#FFF8E1;--k2:#EAFAF0;--k3:#EAF2FC;--k4:#FFF1E6;--k5:#FDEDEC;
+  --c1:#FFFBEB;--c2:#EAF2FC;--c3:#FFF8E1;--c4:#EAFAF0;--c5:#FFF1E6;--c6:#F3EEFA;
+  background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--xa);border-radius:var(--radius);box-shadow:var(--shadow-md);overflow:hidden}
+.x-card.xt2{--xa:#2C6FD8;--xh1:#EEF5FC;--xh2:#D7E8FB;--xhb:#BFD9F2;--xth:#DCEBFA;--xthc:#14487F;--xthb:#AFD0EF;
+  --k1:#EAF2FC;--k2:#FFF8E1;--k3:#EAFAF0;--k4:#FDEDEC;--k5:#FFF1E6;
+  --c1:#F0F6FE;--c2:#FFF8E1;--c3:#EAFAF0;--c4:#FFF1E6;--c5:#F3EEFA;--c6:#FDEDEC}
+.x-card.xt3{--xa:#1E9E6A;--xh1:#EEFBF4;--xh2:#D3F2E2;--xhb:#B7E7CE;--xth:#D9F3E5;--xthc:#0C5F3E;--xthb:#A9DFC6;
+  --k1:#EAFAF0;--k2:#EAF2FC;--k3:#FDEDEC;--k4:#FFF8E1;--k5:#F3EEFA;
+  --c1:#F1FBF6;--c2:#EAF2FC;--c3:#FFF8E1;--c4:#EAFAF0;--c5:#FFF1E6;--c6:#FDEDEC}
+.x-card.xt4{--xa:#7B5BD6;--xh1:#F5F1FD;--xh2:#E5DBFA;--xhb:#D3C6F2;--xth:#E9E1FB;--xthc:#4A3391;--xthb:#CBBAEF;
+  --k1:#F3EEFA;--k2:#FFF1E6;--k3:#EAFAF0;--k4:#EAF2FC;--k5:#FFF8E1;
+  --c1:#F7F3FD;--c2:#EAF2FC;--c3:#FFF1E6;--c4:#EAFAF0;--c5:#FFF8E1;--c6:#FDEDEC}
+.x-card.xt5{--xa:#0E9AA7;--xh1:#EDFAFB;--xh2:#D0F0F3;--xhb:#B2E5EA;--xth:#D8F2F5;--xthc:#0A5C63;--xthb:#A6DDE3;
+  --k1:#E8F8FA;--k2:#FDEDEC;--k3:#FFF8E1;--k4:#EAF2FC;--k5:#EAFAF0;
+  --c1:#EEFAFB;--c2:#FFF8E1;--c3:#EAF2FC;--c4:#EAFAF0;--c5:#FDEDEC;--c6:#FFF1E6}
+.x-card.xt6{--xa:#D6456F;--xh1:#FEF0F4;--xh2:#FBD9E3;--xhb:#F5C2D2;--xth:#FBE0E8;--xthc:#8E2244;--xthb:#F0B9CB;
+  --k1:#FDEDEC;--k2:#F3EEFA;--k3:#EAF2FC;--k4:#EAFAF0;--k5:#FFF8E1;
+  --c1:#FEF3F6;--c2:#EAF2FC;--c3:#FFF8E1;--c4:#EAFAF0;--c5:#F3EEFA;--c6:#FFF1E6}
+.x-head{padding:13px 16px 12px 18px;background:linear-gradient(135deg,var(--xh1),var(--xh2));border-bottom:1px solid var(--xhb)}
 .x-title b{font-size:19px;font-weight:800;color:#0d1726;letter-spacing:.2px}
 .x-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;padding:12px 16px}
-.x-kv{display:flex;flex-direction:column;gap:1px;padding:7px 9px;border-radius:8px;border:1px solid rgba(20,40,70,.05);min-width:0}
+.x-kv{display:flex;flex-direction:column;gap:1px;padding:7px 9px;border-radius:8px;border:1px solid rgba(20,40,70,.06);min-width:0}
 .x-kv span{color:#0d1726;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:800}
 .x-kv b{color:#0d1726;font-size:13.5px;font-weight:800;word-break:break-word}
-.x-kv:nth-child(5n+1){background:#fff8e1}
-.x-kv:nth-child(5n+2){background:#eafaf0}
-.x-kv:nth-child(5n+3){background:#eaf2fc}
-.x-kv:nth-child(5n+4){background:#fff1e6}
-.x-kv:nth-child(5n+5){background:#fdedec}
+.x-kv:nth-child(5n+1){background:var(--k1)}
+.x-kv:nth-child(5n+2){background:var(--k2)}
+.x-kv:nth-child(5n+3){background:var(--k3)}
+.x-kv:nth-child(5n+4){background:var(--k4)}
+.x-kv:nth-child(5n+5){background:var(--k5)}
 .x-tblwrap{padding:2px 16px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .x-tbl{border-collapse:collapse;width:100%;font-size:13.5px;white-space:nowrap}
-.x-tbl th{background:#e6f0fb;color:#0d1726;font-weight:800;border:1px solid #aebfd2;padding:8px 10px;text-align:center;font-size:11.5px;letter-spacing:.3px;text-transform:uppercase}
+.x-tbl th{background:var(--xth);color:var(--xthc);font-weight:800;border:1px solid var(--xthb);padding:8px 10px;text-align:center;font-size:11.5px;letter-spacing:.3px;text-transform:uppercase}
 .x-tbl td{border:1px solid #c4d2e1;padding:9px 10px;text-align:center;color:#0d1726;font-weight:800;font-size:14px}
-.x-tbl td:nth-child(1){background:#fffbeb;text-align:left}
-.x-tbl td:nth-child(2){background:#eaf2fc}
-.x-tbl td:nth-child(3){background:#fff8e1}
-.x-tbl td:nth-child(4){background:#eafaf0}
-.x-tbl td:nth-child(5){background:#fff1e6}
-.x-tbl td:nth-child(6){background:#fdedec}
+.x-tbl td:nth-child(1){background:var(--c1);text-align:left}
+.x-tbl td:nth-child(2){background:var(--c2)}
+.x-tbl td:nth-child(3){background:var(--c3)}
+.x-tbl td:nth-child(4){background:var(--c4)}
+.x-tbl td:nth-child(5){background:var(--c5)}
+.x-tbl td:nth-child(6){background:var(--c6);white-space:normal;min-width:120px;text-align:left}
+.x-loc{display:block;font-size:13px;line-height:1.5}
+.x-loc-main{font-weight:800;color:#0d1726}
+.x-loc i{font-style:normal;font-weight:700;color:#7a8b9f;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.x-loc-none{color:#8b9bb0;font-weight:600;font-size:11.5px;white-space:normal}
 .x-btns{display:flex;gap:9px;padding:12px 16px;border-top:1px solid var(--line-2);background:#FCFDFE;flex-wrap:wrap}
 .x-btns .btn{flex:1;min-width:150px;justify-content:center;font-weight:800}
 .x-btns .btn.on{box-shadow:0 0 0 3px rgba(13,23,38,.18)}
 .x-report:not(:empty){padding:14px 12px 16px;border-top:1px solid var(--line-2);background:#F7FAFD}
-@media(max-width:640px){.x-meta{grid-template-columns:1fr 1fr}.x-tbl th,.x-tbl td{padding:8px 7px}.x-btns .btn{min-width:120px}}
+@media(max-width:640px){.x-meta{grid-template-columns:1fr 1fr}.x-tbl th,.x-tbl td{padding:8px 7px}.x-btns .btn{min-width:120px}#xcContent .x-search{font-size:16px;padding:16px 0}}
 .ord-searchbar{border-radius:14px;box-shadow:var(--shadow-md)}
 .ord-searchbar svg{color:var(--amber)}
 /* Fabric Cutting Report */
@@ -5374,7 +5403,7 @@ function extraCutList(){
     const rows=[];
     orderComponents(o).forEach(c=>{
       const cut=autoCutDone(o,c.name);
-      if(cut>c.qty) rows.push({name:c.name, qty:c.qty, cut:cut, extra:cut-c.qty, cutLen:c.cutLen});
+      if(cut>c.qty) rows.push({key:c.key, name:c.name, qty:c.qty, cut:cut, extra:cut-c.qty, cutLen:c.cutLen});
     });
     if(rows.length){
       rows.sort((a,b)=>b.extra-a.extra);
@@ -5391,28 +5420,50 @@ function xFiltered(){
   if(q) list=list.filter(it=>orderMatchesQuery(it.o,q) || it.rows.some(r=>String(r.name).toLowerCase().includes(q)));
   return list;
 }
+/* Extra components kahan rakhe hain:
+   1) Cutting Stock wali location (Cutting Stock tab me set ki hui, ya cutting
+      entry ke "Location" column se auto) — ye wahi jagah hai jahan cut maal
+      abhi pada hai, chahe batch me gaya ho ya nahi.
+   2) Agar batch me gaya hai to Batch Card ki LOCATION bhi qty ke sath. */
+const X_PIN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px;margin-right:3px"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+function xCompLocations(order,compKey){
+  const agg={};
+  (typeof BATCHES!=='undefined'?BATCHES:[]).filter(b=>b.orderId===order.id).forEach(b=>{
+    const entries=(b.log&&b.log.length)?b.log:[{items:b.ready||{}}];
+    let q=0; entries.forEach(e=>{ q+=num((e.items||{})[compKey]||0); });
+    if(q>0){ const L=String(b.location||'').trim()||'—'; agg[L]=(agg[L]||0)+q; }
+  });
+  return Object.keys(agg).map(L=>({loc:L,qty:agg[L]}));
+}
+function xLocCell(order,c){
+  const out=[];
+  let stock='';
+  try{ stock=resolveLoc(order,{key:c.key,name:c.name})||''; }catch(e){}
+  if(stock) out.push(`<span class="x-loc x-loc-main">${X_PIN}${esc(stock)}</span>`);
+  xCompLocations(order,c.key).forEach(l=>out.push(`<span class="x-loc"><i>Batch:</i> ${esc(l.loc)} (${l.qty})</span>`));
+  if(!out.length) return '<span class="x-loc x-loc-none">Location set nahi \u2014 Cutting Stock tab me set karo</span>';
+  return out.join('');
+}
 function xTableHtml(item){
-  const rows=item.rows.map(c=>{
-    const pct=c.qty>0?Math.round(c.extra/c.qty*1000)/10:0;
-    return `<tr>
+  const rows=item.rows.map(c=>`<tr>
       <td>${esc(c.name)}</td>
       <td>${c.cutLen===''||c.cutLen==null?'—':esc(String(c.cutLen))}</td>
       <td>${c.qty}</td>
       <td>${c.cut}</td>
       <td>+${c.extra}</td>
-      <td>${pct}%</td>
-    </tr>`;
-  }).join('');
+      <td>${xLocCell(item.o,c)}</td>
+    </tr>`).join('');
   return `<div class="x-tblwrap"><table class="x-tbl">
-    <thead><tr><th style="text-align:left">Component</th><th>Cut Len</th><th>Order Qty</th><th>Cut Done</th><th>Extra Cut</th><th>Extra %</th></tr></thead>
+    <thead><tr><th style="text-align:left">Component</th><th>Cut Len</th><th>Order Qty</th><th>Cut Done</th><th>Extra Cut</th><th style="text-align:left">Location</th></tr></thead>
     <tbody>${rows}</tbody></table></div>`;
 }
-function xCardHtml(item,nf){
+function xCardHtml(item,nf,idx){
   const o=item.o;
+  const theme='xt'+((idx%6)+1);
   const kv=(re,lbl)=>{ const v=ordVal(o,re); return v?`<div class="x-kv"><span>${lbl}</span><b>${esc(v)}</b></div>`:''; };
   const meta=kv(/file\s*no/i,'File No.')+kv(/sf\s*no/i,'Sf No.')+kv(/bag\s*size/i,'Bag Size')+kv(/gsm/i,'GSM')+kv(/qty|quantit/i,'Order Qty');
   const title=o.vals[nf.id]||'Order';
-  return `<div class="x-card">
+  return `<div class="x-card ${theme}">
     <div class="x-head"><div class="x-title"><b>${esc(title)}</b></div></div>
     <div class="x-meta">${meta||'<div class="x-kv"><span>Order</span><b>—</b></div>'}</div>
     ${xTableHtml(item)}
@@ -5431,7 +5482,7 @@ function xCardsHtml(){
     return `<div class="empty-state"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></div><p>${msg}</p></div>`;
   }
   const nf=ordNoField();
-  return `<div class="x-list">${list.map(it=>xCardHtml(it,nf)).join('')}</div>`;
+  return `<div class="x-list">${list.map((it,i)=>xCardHtml(it,nf,i)).join('')}</div>`;
 }
 /* Report bilkul wahi jo Cutting Report tab me banta hai — PDF/Excel button uske andar hi aate hain.
    Ek waqt me sirf ek report khuli rehti hai taaki toolbar ki id unique rahe. */
@@ -5457,7 +5508,7 @@ function renderExtraCutting(){
   const c=document.getElementById('content');
   document.getElementById('topActions').innerHTML='';
   c.innerHTML=`<div class="view proui" id="xcContent">
-    <div class="ord-searchbar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="xSearch" placeholder="Search — Order No / File No / Sf No / Component…" value="${esc(xQuery)}" autocomplete="off"></div>
+    <div class="ord-searchbar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="xSearch" class="ord-search x-search" placeholder="Search — Order No / File No / Sf No / Component…" value="${esc(xQuery)}" autocomplete="off"></div>
     <div id="xCards">${xCardsHtml()}</div>
   </div>`;
   bindExtraCutting();
