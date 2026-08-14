@@ -4204,7 +4204,9 @@ function storageStats(){
     for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.indexOf('comsyn_')===0) total+=_stBytes(k); }
   }catch(e){}
   if(!total) items.forEach(function(x){ total+=x.bytes; });
-  return { items:items, total:total, nRec:(RECORDS||[]).length, idb:_recIdbOn };
+  var sync='off';
+  try{ sync = (typeof RECSYNC!=='undefined' && RECSYNC.isOn()) ? 'on' : 'off'; }catch(e){}
+  return { items:items, total:total, nRec:(RECORDS||[]).length, idb:_recIdbOn, sync:sync };
 }
 function showStorageInfo(){
   const st=storageStats();
@@ -4217,6 +4219,9 @@ function showStorageInfo(){
       '<div style="height:4px;background:#eef2f7;border-radius:3px;margin-top:4px;overflow:hidden"><div style="height:100%;width:'+w.toFixed(1)+'%;background:#5b8fd6"></div></div></td>'+
       '<td style="padding:7px 8px;border-bottom:1px solid #eef2f7;text-align:right;font-weight:800;white-space:nowrap">'+_stFmt(it.bytes)+'</td></tr>';
   }).join('');
+  const syncBox = st.sync==='on'
+    ? '<div style="background:#eafaf0;border:1px solid #c3e9d4;border-radius:10px;padding:10px 13px;margin-bottom:10px;font-size:13.5px;font-weight:800;color:#0C5F3E">\u2714 Cloud table sync ON \u2014 har entry seedhi Supabase table me</div>'
+    : '<div style="background:#fdeee2;border:1px solid #f3d3ba;border-radius:10px;padding:10px 13px;margin-bottom:10px;font-size:13.5px;font-weight:800;color:#8a4b13">\u26A0 Cloud table sync OFF \u2014 purane tarike se chal raha hai</div>';
   const recBox = st.idb
     ? '<div style="background:#eafaf0;border:1px solid #c3e9d4;border-radius:10px;padding:11px 13px;margin-bottom:14px">'+
         '<div style="font-size:10.5px;font-weight:800;color:#0C5F3E;text-transform:uppercase;letter-spacing:.4px">Cutting Records</div>'+
@@ -4231,7 +4236,7 @@ function showStorageInfo(){
   openModal({
     title:'Storage Info',
     body:'<div style="font-size:14px;line-height:1.6">'+
-      recBox+
+      syncBox+recBox+
       '<div style="background:#f7fafd;border:1px solid #e3ebf3;border-radius:12px;padding:13px 14px;margin-bottom:14px">'+
         '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:#5a6b80;text-transform:uppercase;letter-spacing:.4px"><span>Baki data (localStorage)</span><span>'+pct.toFixed(1)+'%</span></div>'+
         '<div style="height:10px;background:#e6edf5;border-radius:6px;margin:8px 0 10px;overflow:hidden"><div style="height:100%;width:'+pct.toFixed(1)+'%;background:'+barCol+'"></div></div>'+
@@ -9043,7 +9048,11 @@ var RECSYNC=(function(){
 
   /* ---- har 3 sec: sasta version check, badla ho tabhi delta ---- */
   function tick(){
-    if(!on||off||busy) return;
+    if(off) return;
+    /* Page load ke waqt login nahi hua hota, isliye boot tab fail ho jata hai.
+       Har tick par dobara koshish — login hote hi apne aap chalu ho jayega. */
+    if(!booted){ boot(); return; }
+    if(!on||busy) return;
     var c=creds(); if(!c.u||!c.p) return;
     busy=true;
     rpc('comsyn_rec_ver',{u:c.u,p:c.p})
