@@ -1277,6 +1277,19 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
 .proui .bcard-comp tbody tr:last-child td{border-bottom:1px solid #c4d2e1}
 .proui .bcard-comp .b-ready{color:#0d1726;background:#fff;font-family:'Times New Roman',Times,serif}
 .proui .bcard-actions{background:#f7fafd;border-top:1px solid #e6eef6}
+/* Batch card ka Component Report */
+.bcard-actions .b-crep{font-weight:800}
+.bcard-actions .b-crep.on{box-shadow:0 0 0 3px rgba(30,158,106,.28)}
+.b-report:not(:empty){padding:14px 12px 16px;border-top:1px solid var(--line);background:#f7fafd;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.b-report .cr-toolbar{margin-bottom:12px}
+@media(max-width:640px){
+  .bcard-actions{gap:8px}
+  .bcard-actions .b-status{order:1}
+  .bcard-actions>span[style*="flex:1"]{display:none}
+  .bcard-actions .b-crep{order:2;flex:1 1 100%;justify-content:center;margin-top:2px}
+  .bcard-actions .btn-blue{order:3;flex:1 1 auto;justify-content:center}
+  .bcard-actions .b-del{order:4}
+}
 .proui .batch-card,.proui .batch-card *{font-family:'Times New Roman',Times,Georgia,serif}
 
 /* ===== Batch cards — more LIGHT COLOURS (pastel semantic columns + zebra) ===== */
@@ -5613,6 +5626,7 @@ function autoCutDone(order, compName, excludeId){
   if(_cutMemo) _cutMemo[memoKey]=total;
   return total;
 }
+function autoAllDone(o){ const cs=orderComponents(o); return cs.length>0 && cs.every(c=>autoCutDone(o,c.name)>=c.qty); }
 function anyCompCut(o){ const cs=orderComponents(o); return cs.some(c=>autoCutDone(o,c.name)>0); }
 /* New → Balance jab koi ek component cut ho.
    Balance/New → Under Process TABHI jab SAARE components ki cut qty
@@ -6416,11 +6430,17 @@ function batchCardView(b,opts){
     const editBtn = editLocked
       ? `<button class="btn btn-blue b-edit-locked" disabled title="Batch qty ek baar add ho chuki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Add Batch Qty</button>`
       : `<button class="btn btn-blue b-edit" data-bid="${b.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Add Batch Qty</button>`;
+    /* Component Report — Cutting Stock wali hi report, taaki batch wala dekh
+       le ki kaunsa component kab-kab issue hua. File No + Sf No se aati hai. */
+    const crBtn = m.fn
+      ? `<button class="btn btn-green b-crep" data-bcrep="${b.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M3 11h18M3 17h12"/></svg>Component Report</button>`
+      : '';
     footer=`<div class="bcard-actions">
       <span class="b-status ${st?'ok':'pend'}">${st?'COMPLETE':'UNDER PROCESS'}</span><span style="flex:1"></span>
+      ${crBtn}
       ${editBtn}
       <button class="btn btn-ghost b-del" data-bid="${b.id}">Delete</button>
-    </div>`;
+    </div><div class="b-report" id="brep_${b.id}"></div>`;
   }
   return `<div class="batch-card ${st?'b-complete':'b-process'}">
     <div class="bcard-top"><div class="bcard-title">BATCH CARD</div><div class="bcard-loc">LOCATION : <b>${esc(b.location||'—')}</b></div></div>
@@ -6428,6 +6448,24 @@ function batchCardView(b,opts){
     ${compTable}
     ${footer}
   </div>`;
+}
+/* Ek waqt me sirf ek report khuli rakhte hain, taaki uske Excel/PDF
+   button hamesha usi report ka data lein. */
+var _bRepOpen='';
+function bToggleCompReport(bid){
+  const b=BATCHES.find(x=>x.id===bid); if(!b) return;
+  const o=batchOrder(b); if(!o){ toast('Linked order nahi mila','err'); return; }
+  const m=batchOrderMeta(o);
+  document.querySelectorAll('.b-report').forEach(el=>{ el.innerHTML=''; });
+  document.querySelectorAll('.b-crep').forEach(x=>x.classList.remove('on'));
+  if(_bRepOpen===bid){ _bRepOpen=''; return; }
+  const box=document.getElementById('brep_'+bid); if(!box) return;
+  if(!m.fn){ toast('Is order me File No. nahi hai','err'); return; }
+  box.innerHTML=compIssueReportHTML(m.fn, m.sf);
+  bindCompIssueExport(m.fn, m.sf);
+  _bRepOpen=bid;
+  const btn=document.querySelector('.b-crep[data-bcrep="'+bid+'"]'); if(btn) btn.classList.add('on');
+  try{ box.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){}
 }
 function _batchSortByOrder(a,b){ const ma=batchOrderMeta(batchOrder(a)||{vals:{}}), mb=batchOrderMeta(batchOrder(b)||{vals:{}}); return String(ma.on).localeCompare(String(mb.on),undefined,{numeric:true,sensitivity:'base'}); }
 function batchListHtml(filterStatus){
@@ -6572,6 +6610,7 @@ function bindBatchPick(){
 function bindBatchCompletePick(){ document.querySelectorAll('[data-bcomp]').forEach(btn=>btn.onclick=()=>{ batchCompQuery=btn.dataset.bcomp; renderBatch(); }); }
 function bindBatchCardActions(){
   document.querySelectorAll('.b-edit').forEach(btn=>btn.onclick=()=>{ const b=BATCHES.find(x=>x.id===btn.dataset.bid); if(b) openBatchEditor(b); });
+  document.querySelectorAll('.b-crep').forEach(btn=>btn.onclick=()=>bToggleCompReport(btn.dataset.bcrep));
   document.querySelectorAll('.b-del').forEach(btn=>btn.onclick=()=>{ const id=btn.dataset.bid; confirmModal('Is batch ko delete karein?',()=>{ const _it=BATCHES.find(x=>x.id===id); if(_it) trashAdd('batch',_it); BATCHES=BATCHES.filter(x=>x.id!==id); saveBatches(); renderBatch(); toast('Batch deleted','info'); },true); });
   document.querySelectorAll('.b-daypdf').forEach(btn=>btn.onclick=()=>batchDayPDF(btn.dataset.date));
   document.querySelectorAll('.b-dayxls').forEach(btn=>btn.onclick=()=>batchDayExcel(btn.dataset.date));
