@@ -4232,6 +4232,7 @@ function storageStats(){
 }
 function showStorageInfo(){
   const st=storageStats();
+  let _c=null; try{ _c={u:sessionStorage.getItem('comsyn_user'),p:sessionStorage.getItem('comsyn_pass')}; }catch(e){}
   const LIMIT=5*1024*1024;
   const pct=Math.min(100, st.total/LIMIT*100);
   const barCol = pct<50?'#1E9E6A' : pct<80?'#E8702A' : '#D1495B';
@@ -4258,7 +4259,9 @@ function showStorageInfo(){
   openModal({
     title:'Storage Info',
     body:'<div style="font-size:14px;line-height:1.6">'+
-      syncBox+recBox+
+      syncBox+
+      '<div id="dbBox" style="background:#f7fafd;border:1px solid #e3ebf3;border-radius:12px;padding:13px 14px;margin-bottom:14px;font-size:12.5px;color:#7a8b9f">Supabase database size load ho raha hai\u2026</div>'+
+      recBox+
       '<div style="background:#f7fafd;border:1px solid #e3ebf3;border-radius:12px;padding:13px 14px;margin-bottom:14px">'+
         '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:#5a6b80;text-transform:uppercase;letter-spacing:.4px"><span>Baki data (localStorage)</span><span>'+pct.toFixed(1)+'%</span></div>'+
         '<div style="height:10px;background:#e6edf5;border-radius:6px;margin:8px 0 10px;overflow:hidden"><div style="height:100%;width:'+pct.toFixed(1)+'%;background:'+barCol+'"></div></div>'+
@@ -4269,6 +4272,35 @@ function showStorageInfo(){
     '</div>',
     footer:'<button class="btn" data-close>Close</button>'
   });
+  _loadDbSize(_c);
+}
+/* Supabase database ka asli size — free plan me 500 MB milta hai.
+   Isse har baar Supabase dashboard kholne ki zarurat nahi padegi. */
+function _loadDbSize(c){
+  const put=function(html){ const el=document.getElementById('dbBox'); if(el) el.innerHTML=html; };
+  if(!c||!c.u){ put('<span style="color:#8b9bb0">Database size ke liye admin login chahiye</span>'); return; }
+  fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_db_size',{method:'POST',headers:SB_HEADERS,body:JSON.stringify({u:c.u,p:c.p})})
+    .then(function(r){ return r.ok?r.json():null; })
+    .then(function(j){
+      if(!j || j.error){ put('<span style="color:#8b9bb0">Database size nahi mila\u2014 SQL chala hai ya nahi check karo</span>'); return; }
+      const LIM=500*1024*1024;
+      const pct=Math.min(100, (j.total||0)/LIM*100);
+      const col = pct<60?'#1E9E6A' : pct<80?'#E8702A' : '#D1495B';
+      const rows=(j.tables||[]).filter(function(t){ return t.bytes>0; }).slice(0,5).map(function(t){
+        return '<div style="display:flex;justify-content:space-between;font-size:12px;color:#5a6b80;margin-top:3px"><span>'+
+          esc(String(t.name).replace('comsyn_',''))+'</span><b style="color:#0d1726">'+_stFmt(t.bytes)+'</b></div>';
+      }).join('');
+      const warn = pct>=80
+        ? '<div style="margin-top:9px;font-size:12px;font-weight:700;color:#D1495B">Limit ke paas \u2014 archive ya Pro plan ka faisla lene ka waqt</div>'
+        : (pct>=60 ? '<div style="margin-top:9px;font-size:12px;font-weight:700;color:#8a4b13">Aadhe se upar \u2014 nazar rakho</div>' : '');
+      put('<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:#5a6b80;text-transform:uppercase;letter-spacing:.4px"><span>Supabase database</span><span>'+pct.toFixed(1)+'%</span></div>'+
+          '<div style="height:10px;background:#e6edf5;border-radius:6px;margin:8px 0 10px;overflow:hidden"><div style="height:100%;width:'+pct.toFixed(1)+'%;background:'+col+'"></div></div>'+
+          '<div style="font-size:20px;font-weight:800;color:#0d1726">'+_stFmt(j.total||0)+' <span style="font-size:13px;color:#7a8b9f;font-weight:700">/ 500 MB free limit</span></div>'+
+          '<div style="font-size:12.5px;color:#5a6b80;margin-top:4px">'+(j.records||0)+' cutting records cloud table me</div>'+
+          (rows?'<div style="margin-top:10px;padding-top:9px;border-top:1px solid #e3ebf3">'+rows+'</div>':'')+
+          warn);
+    })
+    .catch(function(){ put('<span style="color:#8b9bb0">Database size nahi mila \u2014 internet check karo</span>'); });
 }
 
 
