@@ -1890,6 +1890,7 @@ body.tvmode .tv-bar{display:flex}
     </nav>
     <div class="side-foot">
       <span class="dot"></span> <span id="userChip">—</span><br>
+      <button id="storageBtn" style="display:none;margin-top:10px;margin-right:6px;padding:7px 14px;background:rgba(255,255,255,.08);color:#cfe0f0;border:1px solid rgba(255,255,255,.18);border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Storage Info</button>
       <button id="logoutBtn" style="margin-top:10px;padding:7px 14px;background:rgba(255,255,255,.08);color:#cfe0f0;border:1px solid rgba(255,255,255,.18);border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Logout</button>
     </div>
   </aside>
@@ -2007,14 +2008,64 @@ function defaultConfig(){
 let CFG = (()=>{ const r=Store.get(KEY_CFG); if(r){try{return JSON.parse(r);}catch(e){}} const d=defaultConfig(); Store.set(KEY_CFG,JSON.stringify(d)); return d; })();
 // migration: ensure each section has a multiRow flag (only Cut Item is multi by default)
 CFG.sections.forEach(s=>{ if(s.multiRow===undefined) s.multiRow=/cut item/i.test(s.title); });
-let RECORDS = (()=>{ const r=Store.get(KEY_REC); if(r){try{return JSON.parse(r);}catch(e){}} return []; })();
+/* ===================================================================
+   CONFIG POOL  (size optimisation — step 1)
+   Pehle har record apne andar poori CFG ki copy rakhta tha (~2-6 KB
+   per record). 70 entry/day pe ye localStorage aur Supabase dono ko
+   mahine bhar me bhar deta tha.
+   Ab config ek baar POOL me jati hai aur record me sirf uska chhota
+   ref (cfgRef) rehta hai. Purani config jaisi ki taisi mil jati hai,
+   yaani purane record purane column layout ke saath hi khulte hain —
+   fidelity me koi farak nahi, sirf bytes bachte hain.
+   Memory me record.config waisa ka waisa milta hai, isliye baaki
+   pura code bina kisi badlav ke chalta rehta hai.
+   =================================================================== */
+const KEY_CFGP='comsyn_cfgpool_v1';
+let CFGPOOL=(()=>{ const r=Store.get(KEY_CFGP); if(r){try{return JSON.parse(r);}catch(e){}} return {}; })();
+let _cfgObj={};                       /* hash -> parsed object (shared reference) */
+function saveCfgPool(){ Store.set(KEY_CFGP,JSON.stringify(CFGPOOL)); }
+function _cfgHash(str){ let h=0x811c9dc5; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=(h+((h<<1)+(h<<4)+(h<<7)+(h<<8)+(h<<24)))>>>0; } return h.toString(36)+'-'+str.length.toString(36); }
+function cfgPoolPut(cfg){
+  let str; try{ str=JSON.stringify(cfg); }catch(e){ return ''; }
+  const h=_cfgHash(str);
+  if(!CFGPOOL[h]){ CFGPOOL[h]=str; _cfgObj[h]=cfg; saveCfgPool(); }
+  else if(!_cfgObj[h]) _cfgObj[h]=cfg;
+  return h;
+}
+function cfgPoolGet(h){
+  if(_cfgObj[h]) return _cfgObj[h];
+  const str=CFGPOOL[h]; if(!str) return null;
+  try{ _cfgObj[h]=JSON.parse(str); }catch(e){ return null; }
+  return _cfgObj[h];
+}
+function hydrateRec(r){
+  if(r && !r.config && r.cfgRef){ const c=cfgPoolGet(r.cfgRef); r.config = c || CFG; }
+  return r;
+}
+function dehydrateRec(r){
+  if(!r || !r.config) return r;
+  const h=cfgPoolPut(r.config);
+  if(!h) return r;
+  const o=Object.assign({},r); o.cfgRef=h; delete o.config; return o;
+}
+let RECORDS = (()=>{ const r=Store.get(KEY_REC); if(r){try{ const a=JSON.parse(r); if(Array.isArray(a)) return a.map(hydrateRec); }catch(e){}} return []; })();
 function saveCfg(){ Store.set(KEY_CFG,JSON.stringify(CFG)); }
-function saveRec(){ Store.set(KEY_REC,JSON.stringify(RECORDS)); }
+function saveRec(){
+  const slim=RECORDS.map(dehydrateRec);
+  /* pool me sirf wahi config rakho jo abhi kisi record me use ho rahi hai */
+  const used={}; slim.forEach(r=>{ if(r && r.cfgRef) used[r.cfgRef]=1; });
+  /* Trash me pade records ki config bhi zinda rakho, warna restore par layout kho jayega */
+  try{ (TRASH||[]).forEach(t=>{ const it=t&&t.item; if(it && it.cfgRef) used[it.cfgRef]=1; }); }catch(e){}
+  let pruned=false;
+  Object.keys(CFGPOOL).forEach(h=>{ if(!used[h]){ delete CFGPOOL[h]; delete _cfgObj[h]; pruned=true; } });
+  if(pruned) saveCfgPool();
+  Store.set(KEY_REC,JSON.stringify(slim));
+}
 /* ---------- TRASH / RECYCLE BIN store ---------- */
 const KEY_TRASH='comsyn_trash_v1';
 let TRASH=(()=>{ const r=Store.get(KEY_TRASH); if(r){try{return JSON.parse(r);}catch(e){}} return []; })();
 function saveTrash(){ Store.set(KEY_TRASH,JSON.stringify(TRASH)); }
-function trashAdd(type,item){ try{ TRASH.unshift({tid:uid(),type:type,item:clone(item),deletedBy:(sessionStorage.getItem('comsyn_user')||'unknown'),deletedAt:new Date().toISOString()}); if(TRASH.length>300) TRASH.length=300; saveTrash(); }catch(e){} }
+function trashAdd(type,item){ try{ let _it=clone(item); if(type==='record') _it=dehydrateRec(_it); TRASH.unshift({tid:uid(),type:type,item:_it,deletedBy:(sessionStorage.getItem('comsyn_user')||'unknown'),deletedAt:new Date().toISOString()}); if(TRASH.length>300) TRASH.length=300; saveTrash(); }catch(e){} }
 // one-time: enable Multiple rows on Order Details (1 roll -> many orders). Runs once; user can still toggle later.
 (function(){ try{ if(!Store.get('comsyn_mr_orderdetails')){ const od=CFG.sections.find(s=>/order/i.test(s.title)); if(od && !od.multiRow){ od.multiRow=true; saveCfg(); } Store.set('comsyn_mr_orderdetails','1'); } }catch(e){} })();
 
@@ -4048,6 +4099,79 @@ function openModal({title,body,footer,wide,full}){
   return ov;
 }
 function closeModal(){ const o=document.getElementById('overlay'); if(o) o.remove(); }
+
+/* ===================================================================
+   STORAGE INFO  (admin only) — laptop/console ke bina hi pata chal jaye
+   ki data kitna bhar chuka hai aur kitna time bacha hai.
+   =================================================================== */
+function _stBytes(k){ try{ return (localStorage.getItem(k)||'').length; }catch(e){ return 0; } }
+function _stFmt(b){ return b>=1048576 ? (b/1048576).toFixed(2)+' MB' : (b/1024).toFixed(1)+' KB'; }
+function storageStats(){
+  const items=[
+    ['Cutting Records', KEY_REC],
+    ['Config Pool',     KEY_CFGP],
+    ['Orders',          KEY_ORD],
+    ['Batches',         KEY_BATCH],
+    ['Line Production', KEY_LINEP],
+    ['Trash',           KEY_TRASH],
+    ['Config',          KEY_CFG],
+    ['Order Config',    KEY_OCFG],
+    ['Stock Location',  KEY_LOC],
+    ['Extra',           KEY_EXTRA]
+  ].map(function(x){ return {name:x[0], bytes:_stBytes(x[1])}; })
+   .filter(function(x){ return x.bytes>0; })
+   .sort(function(a,b){ return b.bytes-a.bytes; });
+  let total=0;
+  try{
+    for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.indexOf('comsyn_')===0) total+=_stBytes(k); }
+  }catch(e){}
+  if(!total){ try{ Object.keys(localStorage).forEach(function(k){ if(k.indexOf('comsyn_')===0) total+=_stBytes(k); }); }catch(e){} }
+  if(!total) items.forEach(function(x){ total+=x.bytes; });
+  const nRec=(RECORDS||[]).length;
+  const recB=_stBytes(KEY_REC)+_stBytes(KEY_CFGP);
+  return { items:items, total:total, nRec:nRec, perRec: nRec? recB/nRec : 0 };
+}
+function showStorageInfo(){
+  const st=storageStats();
+  const LIMIT=5*1024*1024;                         /* localStorage ~5 MB (safe maankar) */
+  const pct=Math.min(100, st.total/LIMIT*100);
+  const left=Math.max(0, LIMIT-st.total);
+  const barCol = pct<50?'#1E9E6A' : pct<80?'#E8702A' : '#D1495B';
+  let daysTxt='—';
+  if(st.perRec>0){
+    const perDay=st.perRec*70;                     /* 70 entry/day ke hisaab se */
+    const days=Math.floor(left/perDay);
+    daysTxt = days>60 ? Math.round(days/30)+' mahine (70 entry/day pe)' : days+' din (70 entry/day pe)';
+  }
+  const rows=st.items.map(function(it){
+    const w=st.total?Math.max(2,it.bytes/st.total*100):0;
+    return '<tr><td style="padding:7px 8px;border-bottom:1px solid #eef2f7">'+esc(it.name)+
+      '<div style="height:4px;background:#eef2f7;border-radius:3px;margin-top:4px;overflow:hidden"><div style="height:100%;width:'+w.toFixed(1)+'%;background:#5b8fd6"></div></div></td>'+
+      '<td style="padding:7px 8px;border-bottom:1px solid #eef2f7;text-align:right;font-weight:800;white-space:nowrap">'+_stFmt(it.bytes)+'</td></tr>';
+  }).join('');
+  openModal({
+    title:'Storage Info',
+    body:'<div style="font-size:14px;line-height:1.6">'+
+      '<div style="background:#f7fafd;border:1px solid #e3ebf3;border-radius:12px;padding:13px 14px;margin-bottom:14px">'+
+        '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:#5a6b80;text-transform:uppercase;letter-spacing:.4px"><span>Device par bhara hua</span><span>'+pct.toFixed(1)+'%</span></div>'+
+        '<div style="height:10px;background:#e6edf5;border-radius:6px;margin:8px 0 10px;overflow:hidden"><div style="height:100%;width:'+pct.toFixed(1)+'%;background:'+barCol+'"></div></div>'+
+        '<div style="font-size:20px;font-weight:800;color:#0d1726">'+_stFmt(st.total)+' <span style="font-size:13px;color:#7a8b9f;font-weight:700">/ ~5 MB limit</span></div>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'+
+        '<div style="background:#fff8e1;border-radius:10px;padding:10px 12px"><div style="font-size:10.5px;font-weight:800;color:#7a6a3f;text-transform:uppercase">Records</div><div style="font-size:19px;font-weight:800;color:#0d1726">'+st.nRec+'</div></div>'+
+        '<div style="background:#eafaf0;border-radius:10px;padding:10px 12px"><div style="font-size:10.5px;font-weight:800;color:#3f7a5f;text-transform:uppercase">Per record</div><div style="font-size:19px;font-weight:800;color:#0d1726">'+(st.perRec?_stFmt(st.perRec):'—')+'</div></div>'+
+      '</div>'+
+      '<div style="background:#fff1e6;border:1px solid #f3d3ba;border-radius:10px;padding:11px 13px;margin-bottom:14px">'+
+        '<div style="font-size:10.5px;font-weight:800;color:#8a4b13;text-transform:uppercase;letter-spacing:.4px">Anadaza \u2014 kitna time bacha</div>'+
+        '<div style="font-size:17px;font-weight:800;color:#0d1726;margin-top:2px">'+esc(daysTxt)+'</div>'+
+      '</div>'+
+      '<table style="width:100%;border-collapse:collapse;font-size:13px">'+rows+'</table>'+
+      '<p style="margin:14px 0 0;font-size:12px;color:#7a8b9f;line-height:1.6">Ye device ke localStorage ka hisaab hai. Limit ke paas pahunchne par naye save fail hone lagte hain \u2014 tab tak Supabase table wali migration ho jani chahiye.</p>'+
+    '</div>',
+    footer:'<button class="btn" data-close>Close</button>'
+  });
+}
+
 
 /* custom confirm — native confirm() is blocked in many mobile webviews */
 function confirmModal(msg,onYes,danger){
@@ -8618,7 +8742,7 @@ function fmtTrashTime(iso){ try{ const d=new Date(iso); const p=n=>(n<10?'0':'')
 function restoreTrash(tid){
   const t=TRASH.find(x=>x.tid===tid); if(!t) return;
   const it=t.item||{}; let ok=false, dup=false;
-  if(t.type==='record'){ if(RECORDS.some(r=>r.id===it.id)) dup=true; else { RECORDS.unshift(it); saveRec(); ok=true; } }
+  if(t.type==='record'){ if(RECORDS.some(r=>r.id===it.id)) dup=true; else { RECORDS.unshift(hydrateRec(it)); saveRec(); ok=true; } }
   else if(t.type==='order'){ if(ORDERS.some(o=>o.id===it.id)) dup=true; else { ORDERS.unshift(it); saveOrders(); ok=true; } }
   else if(t.type==='batch'){ if(BATCHES.some(b=>b.id===it.id)) dup=true; else { BATCHES.unshift(it); saveBatches(); ok=true; } }
   else if(t.type==='linep'){ if(LINEP.some(x=>x.id===it.id)) dup=true; else { LINEP.unshift(it); saveLinep(); ok=true; } }
@@ -8660,7 +8784,7 @@ function renderTrash(){
 /* ===== REAL-TIME SYNC (plain fetch + 3s polling) ===== */
 (function(){
   if(!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
-  const SYNC_KEYS=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG,KEY_ROLLRET,KEY_DLRIGHTS,KEY_GPSSTRICT,KEY_TXTCASE];
+  const SYNC_KEYS=[KEY_CFG,KEY_CFGP,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG,KEY_ROLLRET,KEY_DLRIGHTS,KEY_GPSSTRICT,KEY_TXTCASE];
   let ready=false, suppress=false; const timers={}; const lastLocal={};
   const origSet=Store.set.bind(Store);
   Store.set=function(k,v){ origSet(k,v); try{_dgenBump();}catch(e){} if(ready && !suppress && SYNC_KEYS.indexOf(k)>=0){ lastLocal[k]=Date.now(); push(k,v); } };
@@ -8709,7 +8833,8 @@ function renderTrash(){
     suppress=true;
     try{
       if(k===KEY_CFG) CFG=parsed;
-      else if(k===KEY_REC) RECORDS=parsed;
+      else if(k===KEY_REC) RECORDS=(Array.isArray(parsed)?parsed.map(hydrateRec):parsed);
+      else if(k===KEY_CFGP){ CFGPOOL=parsed||{}; _cfgObj={}; RECORDS.forEach(r=>{ if(r&&r.cfgRef&&!r.config) hydrateRec(r); }); }
       else if(k===KEY_OCFG) ORDERCFG=parsed;
       else if(k===KEY_ORD) ORDERS=parsed;
       else if(k===KEY_LOC) LOC=parsed;
@@ -9390,6 +9515,8 @@ function renderTrash(){
     _startLockWatch();
     const pw=document.getElementById('loginPass'); if(pw) pw.addEventListener('keydown',function(e){ if(e.key==='Enter') doLogin(); });
     const lo=document.getElementById('logoutBtn'); if(lo) lo.onclick=doLogout;
+    const sbtn=document.getElementById('storageBtn');
+    if(sbtn){ sbtn.onclick=showStorageInfo; const _sv=function(){ try{ sbtn.style.display=isAdmin()?'inline-block':'none'; }catch(e){} }; _sv(); setInterval(_sv,1500); }
     var cancelBtn=document.getElementById('loginCancel'); var xBtn=document.getElementById('loginXbtn');
     var clearFn=function(){ var uu=document.getElementById('loginUser'),pp=document.getElementById('loginPass'); if(uu)uu.value=''; if(pp)pp.value=''; setMsg(''); };
     if(cancelBtn) cancelBtn.onclick=clearFn; if(xBtn) xBtn.onclick=clearFn;
