@@ -1890,6 +1890,7 @@ body.tvmode .tv-bar{display:flex}
     </nav>
     <div class="side-foot">
       <span class="dot"></span> <span id="userChip">—</span><br>
+      <button id="errBtn" style="display:none;margin-top:10px;margin-right:6px;padding:7px 14px;background:rgba(255,255,255,.08);color:#cfe0f0;border:1px solid rgba(255,255,255,.18);border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Error Log</button>
       <button id="storageBtn" style="display:none;margin-top:10px;margin-right:6px;padding:7px 14px;background:rgba(255,255,255,.08);color:#cfe0f0;border:1px solid rgba(255,255,255,.18);border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Storage Info</button>
       <button id="logoutBtn" style="margin-top:10px;padding:7px 14px;background:rgba(255,255,255,.08);color:#cfe0f0;border:1px solid rgba(255,255,255,.18);border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Logout</button>
     </div>
@@ -2059,8 +2060,85 @@ function saveRec(){
   let pruned=false;
   Object.keys(CFGPOOL).forEach(h=>{ if(!used[h]){ delete CFGPOOL[h]; delete _cfgObj[h]; pruned=true; } });
   if(pruned) saveCfgPool();
-  Store.set(KEY_REC,JSON.stringify(slim));
+  recCacheWrite(slim);
+  try{ if(typeof RECSYNC!=='undefined') RECSYNC.dirty(); }catch(e){}
 }
+
+/* =====================================================================
+   RECORDS CACHE -> IndexedDB  (STEP 5)
+   localStorage me sirf ~5 MB aata hai — 70 entry/day pe wo mahine-do
+   mahine me bhar jata tha aur naye save fail hone lagte.
+   IndexedDB par ye limit hai hi nahi (sau-sau MB aaram se).
+   Isliye ab cutting records IndexedDB me cache hote hain; localStorage
+   me sirf chhoti cheezein (config, orders, batch) rehti hain.
+   Agar kisi purane browser me IndexedDB na ho to apne aap localStorage
+   par wapas chala jata hai — kuch tootta nahi.
+   ===================================================================== */
+var IDB=(function(){
+  var dbp=null;
+  function ok(){ try{ return typeof indexedDB!=='undefined' && !!indexedDB; }catch(e){ return false; } }
+  function open(){
+    if(dbp) return dbp;
+    dbp=new Promise(function(res,rej){
+      try{
+        var rq=indexedDB.open('comsyn_erp',1);
+        rq.onupgradeneeded=function(){ var d=rq.result; if(!d.objectStoreNames.contains('kv')) d.createObjectStore('kv'); };
+        rq.onsuccess=function(){ res(rq.result); };
+        rq.onerror=function(){ rej(rq.error||new Error('idb open')); };
+        rq.onblocked=function(){ rej(new Error('idb blocked')); };
+      }catch(e){ rej(e); }
+    });
+    return dbp;
+  }
+  function get(k){ return open().then(function(d){ return new Promise(function(res,rej){
+    var q=d.transaction('kv','readonly').objectStore('kv').get(k);
+    q.onsuccess=function(){ res(q.result); }; q.onerror=function(){ rej(q.error); }; }); }); }
+  function set(k,v){ return open().then(function(d){ return new Promise(function(res,rej){
+    var t=d.transaction('kv','readwrite'); t.objectStore('kv').put(v,k);
+    t.oncomplete=function(){ res(true); }; t.onerror=function(){ rej(t.error); }; }); }); }
+  return { ok:ok, get:get, set:set };
+})();
+
+var _recIdbOn=false, _recWTimer=null, _recWPending=null;
+function recCacheWrite(slim){
+  try{ _dgenBump(); }catch(e){}
+  if(!IDB.ok()){ try{ Store.set(KEY_REC,JSON.stringify(slim)); }catch(e){} return; }
+  _recWPending=slim;
+  clearTimeout(_recWTimer);
+  _recWTimer=setTimeout(function(){
+    var data=_recWPending; _recWPending=null; if(!data) return;
+    IDB.set('records',data).then(function(){
+      _recIdbOn=true;
+      /* IDB me pahunch gaya -> localStorage se hata do, jagah khali ho jaye */
+      try{ if(localStorage.getItem(KEY_REC)!==null) localStorage.removeItem(KEY_REC); }catch(e){}
+    }).catch(function(){
+      _recIdbOn=false;
+      try{ Store.set(KEY_REC,JSON.stringify(data)); }catch(e){}
+    });
+  },700);
+}
+/* app khulte hi IndexedDB se records uthao (localStorage wale ke saath merge) */
+var RECCACHE_READY=(function(){
+  if(!IDB.ok()) return Promise.resolve(false);
+  return IDB.get('records').then(function(arr){
+    if(!Array.isArray(arr) || !arr.length){
+      /* pehli baar: localStorage wala data IDB me shift kar do */
+      if((RECORDS||[]).length) recCacheWrite(RECORDS.map(dehydrateRec));
+      return false;
+    }
+    _recIdbOn=true;
+    var byId={}; (RECORDS||[]).forEach(function(r){ if(r&&r.id) byId[r.id]=1; });
+    var added=0;
+    arr.forEach(function(r){ if(r&&r.id&&!byId[r.id]){ RECORDS.push(hydrateRec(r)); added++; } });
+    if(added){
+      RECORDS.sort(function(a,b){ return (b&&b.savedAt||0)-(a&&a.savedAt||0); });
+      try{ _dgenBump(); }catch(e){}
+      try{ if(typeof current!=='undefined' && current!=='entry') render(); }catch(e){}
+    }
+    try{ if(localStorage.getItem(KEY_REC)!==null) localStorage.removeItem(KEY_REC); }catch(e){}
+    return true;
+  }).catch(function(){ return false; });
+})();
 /* ---------- TRASH / RECYCLE BIN store ---------- */
 const KEY_TRASH='comsyn_trash_v1';
 let TRASH=(()=>{ const r=Store.get(KEY_TRASH); if(r){try{return JSON.parse(r);}catch(e){}} return []; })();
@@ -3071,7 +3149,7 @@ function renderCutSearch(body){
     document.getElementById('csResult').innerHTML=cutRecTable(list, !(roll||ord||file));
     (function(){ var mb=document.getElementById('csMore'); if(mb) mb.onclick=function(){ _cutShowN+=500; showRes(); }; })();
     document.getElementById('csResult').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>loadRecordIntoEntry(b.dataset.edit));
-    document.getElementById('csResult').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ const id=b.dataset.del; confirmModal('Delete this record?',()=>{ const _it=RECORDS.find(r=>r.id===id); if(_it) trashAdd('record',_it); RECORDS=RECORDS.filter(r=>r.id!==id); saveRec(); showRes(); toast('Record deleted','info'); },true); });
+    document.getElementById('csResult').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ const id=b.dataset.del; confirmModal('Delete this record?',()=>{ const _it=RECORDS.find(r=>r.id===id); if(_it) trashAdd('record',_it); RECORDS=RECORDS.filter(r=>r.id!==id); recDel(id); saveRec(); showRes(); toast('Record deleted','info'); },true); });
   };
   document.getElementById('csShow').onclick=showRes;
   document.getElementById('csClear').onclick=()=>{ document.getElementById('csRoll').value=''; document.getElementById('csOrder').value=''; document.getElementById('csFile').value=''; document.getElementById('csResult').innerHTML=''; };
@@ -3153,7 +3231,7 @@ function renderReports(body){
   body.innerHTML=html;
   body.querySelectorAll('[data-daypdf]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();downloadDayPDF(b.dataset.daypdf);});
   body.querySelectorAll('[data-dayview]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();openDayReport(b.dataset.dayview);});
-  body.querySelectorAll('[data-delday]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();const d=b.dataset.delday;confirmModal(`Delete all reports of ${fmtDate(d)}?`,()=>{RECORDS.filter(r=>r.date===d).forEach(r=>trashAdd('record',r));RECORDS=RECORDS.filter(r=>r.date!==d);saveRec();renderRecords();toast('Day deleted','info');},true);});
+  body.querySelectorAll('[data-delday]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();const d=b.dataset.delday;confirmModal(`Delete all reports of ${fmtDate(d)}?`,()=>{const _dids=RECORDS.filter(r=>r.date===d).map(r=>r.id);RECORDS.filter(r=>r.date===d).forEach(r=>trashAdd('record',r));RECORDS=RECORDS.filter(r=>r.date!==d);recDel(_dids);saveRec();renderRecords();toast('Day deleted','info');},true);});
 }
 
 function recCard(r){
@@ -3173,7 +3251,7 @@ function recCard(r){
 function delRecord(id){
   confirmModal('Delete this report?',()=>{
     const _it=RECORDS.find(r=>r.id===id); if(_it) trashAdd('record',_it);
-    RECORDS=RECORDS.filter(r=>r.id!==id); saveRec(); renderRecords(); toast('Report deleted','info');
+    RECORDS=RECORDS.filter(r=>r.id!==id); recDel(id); saveRec(); renderRecords(); toast('Report deleted','info');
   },true);
 }
 
@@ -3674,7 +3752,7 @@ function openDayReport(dateStr){
       if(b.getAttribute('data-armed')!=='1'){ b.setAttribute('data-armed','1'); b.textContent='Tap again to delete'; clearTimeout(b._t); b._t=setTimeout(()=>{ b.removeAttribute('data-armed'); b.textContent='Delete'; },2500); return; }
       const ids=b.getAttribute('data-del-ids').split(',');
       RECORDS.filter(x=>ids.includes(x.id)).forEach(r=>trashAdd('record',r));
-      RECORDS=RECORDS.filter(x=>!ids.includes(x.id)); saveRec(); renderRecords();
+      RECORDS=RECORDS.filter(x=>!ids.includes(x.id)); recDel(ids); saveRec(); renderRecords();
       closeModal(); toast('Deleted','info');
       if(RECORDS.some(x=>x.date===dateStr)) openDayReport(dateStr);
     };
@@ -4108,7 +4186,6 @@ function _stBytes(k){ try{ return (localStorage.getItem(k)||'').length; }catch(e
 function _stFmt(b){ return b>=1048576 ? (b/1048576).toFixed(2)+' MB' : (b/1024).toFixed(1)+' KB'; }
 function storageStats(){
   const items=[
-    ['Cutting Records', KEY_REC],
     ['Config Pool',     KEY_CFGP],
     ['Orders',          KEY_ORD],
     ['Batches',         KEY_BATCH],
@@ -4117,7 +4194,8 @@ function storageStats(){
     ['Config',          KEY_CFG],
     ['Order Config',    KEY_OCFG],
     ['Stock Location',  KEY_LOC],
-    ['Extra',           KEY_EXTRA]
+    ['Extra',           KEY_EXTRA],
+    ['Cutting Records (purana)', KEY_REC]
   ].map(function(x){ return {name:x[0], bytes:_stBytes(x[1])}; })
    .filter(function(x){ return x.bytes>0; })
    .sort(function(a,b){ return b.bytes-a.bytes; });
@@ -4125,48 +4203,42 @@ function storageStats(){
   try{
     for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.indexOf('comsyn_')===0) total+=_stBytes(k); }
   }catch(e){}
-  if(!total){ try{ Object.keys(localStorage).forEach(function(k){ if(k.indexOf('comsyn_')===0) total+=_stBytes(k); }); }catch(e){} }
   if(!total) items.forEach(function(x){ total+=x.bytes; });
-  const nRec=(RECORDS||[]).length;
-  const recB=_stBytes(KEY_REC)+_stBytes(KEY_CFGP);
-  return { items:items, total:total, nRec:nRec, perRec: nRec? recB/nRec : 0 };
+  return { items:items, total:total, nRec:(RECORDS||[]).length, idb:_recIdbOn };
 }
 function showStorageInfo(){
   const st=storageStats();
-  const LIMIT=5*1024*1024;                         /* localStorage ~5 MB (safe maankar) */
+  const LIMIT=5*1024*1024;
   const pct=Math.min(100, st.total/LIMIT*100);
-  const left=Math.max(0, LIMIT-st.total);
   const barCol = pct<50?'#1E9E6A' : pct<80?'#E8702A' : '#D1495B';
-  let daysTxt='—';
-  if(st.perRec>0){
-    const perDay=st.perRec*70;                     /* 70 entry/day ke hisaab se */
-    const days=Math.floor(left/perDay);
-    daysTxt = days>60 ? Math.round(days/30)+' mahine (70 entry/day pe)' : days+' din (70 entry/day pe)';
-  }
   const rows=st.items.map(function(it){
     const w=st.total?Math.max(2,it.bytes/st.total*100):0;
     return '<tr><td style="padding:7px 8px;border-bottom:1px solid #eef2f7">'+esc(it.name)+
       '<div style="height:4px;background:#eef2f7;border-radius:3px;margin-top:4px;overflow:hidden"><div style="height:100%;width:'+w.toFixed(1)+'%;background:#5b8fd6"></div></div></td>'+
       '<td style="padding:7px 8px;border-bottom:1px solid #eef2f7;text-align:right;font-weight:800;white-space:nowrap">'+_stFmt(it.bytes)+'</td></tr>';
   }).join('');
+  const recBox = st.idb
+    ? '<div style="background:#eafaf0;border:1px solid #c3e9d4;border-radius:10px;padding:11px 13px;margin-bottom:14px">'+
+        '<div style="font-size:10.5px;font-weight:800;color:#0C5F3E;text-transform:uppercase;letter-spacing:.4px">Cutting Records</div>'+
+        '<div style="font-size:17px;font-weight:800;color:#0d1726;margin-top:2px">'+st.nRec+' records &middot; IndexedDB me</div>'+
+        '<div style="font-size:11.5px;color:#4a6b5c;margin-top:3px">Yahan 5 MB wali limit nahi lagti. Asli data Supabase table me hai.</div>'+
+      '</div>'
+    : '<div style="background:#fff1e6;border:1px solid #f3d3ba;border-radius:10px;padding:11px 13px;margin-bottom:14px">'+
+        '<div style="font-size:10.5px;font-weight:800;color:#8a4b13;text-transform:uppercase;letter-spacing:.4px">Cutting Records</div>'+
+        '<div style="font-size:17px;font-weight:800;color:#0d1726;margin-top:2px">'+st.nRec+' records &middot; localStorage me</div>'+
+        '<div style="font-size:11.5px;color:#8a6b4b;margin-top:3px">IndexedDB abhi chalu nahi hui \u2014 ek entry save karke dobara kholo.</div>'+
+      '</div>';
   openModal({
     title:'Storage Info',
     body:'<div style="font-size:14px;line-height:1.6">'+
+      recBox+
       '<div style="background:#f7fafd;border:1px solid #e3ebf3;border-radius:12px;padding:13px 14px;margin-bottom:14px">'+
-        '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:#5a6b80;text-transform:uppercase;letter-spacing:.4px"><span>Device par bhara hua</span><span>'+pct.toFixed(1)+'%</span></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:#5a6b80;text-transform:uppercase;letter-spacing:.4px"><span>Baki data (localStorage)</span><span>'+pct.toFixed(1)+'%</span></div>'+
         '<div style="height:10px;background:#e6edf5;border-radius:6px;margin:8px 0 10px;overflow:hidden"><div style="height:100%;width:'+pct.toFixed(1)+'%;background:'+barCol+'"></div></div>'+
         '<div style="font-size:20px;font-weight:800;color:#0d1726">'+_stFmt(st.total)+' <span style="font-size:13px;color:#7a8b9f;font-weight:700">/ ~5 MB limit</span></div>'+
       '</div>'+
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'+
-        '<div style="background:#fff8e1;border-radius:10px;padding:10px 12px"><div style="font-size:10.5px;font-weight:800;color:#7a6a3f;text-transform:uppercase">Records</div><div style="font-size:19px;font-weight:800;color:#0d1726">'+st.nRec+'</div></div>'+
-        '<div style="background:#eafaf0;border-radius:10px;padding:10px 12px"><div style="font-size:10.5px;font-weight:800;color:#3f7a5f;text-transform:uppercase">Per record</div><div style="font-size:19px;font-weight:800;color:#0d1726">'+(st.perRec?_stFmt(st.perRec):'—')+'</div></div>'+
-      '</div>'+
-      '<div style="background:#fff1e6;border:1px solid #f3d3ba;border-radius:10px;padding:11px 13px;margin-bottom:14px">'+
-        '<div style="font-size:10.5px;font-weight:800;color:#8a4b13;text-transform:uppercase;letter-spacing:.4px">Anadaza \u2014 kitna time bacha</div>'+
-        '<div style="font-size:17px;font-weight:800;color:#0d1726;margin-top:2px">'+esc(daysTxt)+'</div>'+
-      '</div>'+
       '<table style="width:100%;border-collapse:collapse;font-size:13px">'+rows+'</table>'+
-      '<p style="margin:14px 0 0;font-size:12px;color:#7a8b9f;line-height:1.6">Ye device ke localStorage ka hisaab hai. Limit ke paas pahunchne par naye save fail hone lagte hain \u2014 tab tak Supabase table wali migration ho jani chahiye.</p>'+
+      '<p style="margin:14px 0 0;font-size:12px;color:#7a8b9f;line-height:1.6">Records ab IndexedDB me cache hote hain aur asli copy Supabase table me hai, isliye ye bar sirf config/orders/batch jaisi chhoti cheezon ka hai \u2014 ye dheere badhta hai.</p>'+
     '</div>',
     footer:'<button class="btn" data-close>Close</button>'
   });
@@ -5229,7 +5301,7 @@ function trashHasId(type,id){ return TRASH.some(t=>t.type===type && t.item && t.
 function purgeTrashed(){
   let ch=false;
   try{
-    const rl=RECORDS.length; RECORDS=RECORDS.filter(r=>!trashHasId('record',r.id)); if(RECORDS.length!==rl){ saveRec(); ch=true; }
+    const rl=RECORDS.length; const _pd=RECORDS.filter(r=>trashHasId('record',r.id)).map(r=>r.id); RECORDS=RECORDS.filter(r=>!trashHasId('record',r.id)); if(RECORDS.length!==rl){ recDel(_pd); saveRec(); ch=true; }
     const ol=ORDERS.length;  ORDERS=ORDERS.filter(o=>!trashHasId('order',o.id));   if(ORDERS.length!==ol){ saveOrders(); ch=true; }
     const bl=BATCHES.length; BATCHES=BATCHES.filter(b=>!trashHasId('batch',b.id)); if(BATCHES.length!==bl){ saveBatches(); ch=true; }
     const ll=LINEP.length;   LINEP=LINEP.filter(x=>!trashHasId('linep',x.id));    if(LINEP.length!==ll){ saveLinep(); ch=true; }
@@ -5435,37 +5507,107 @@ function _eq(a,b){ return String(a??'').trim().toLowerCase()===String(b??'').tri
 function _secBy(cfg,re){ return (cfg.sections||[]).find(s=>re.test(s.title)); }
 function _colBy(sec,re){ return sec&&(sec.columns||[]).find(c=>re.test(c.label)); }
 function _findColAnySec(cfg,re){ for(const s of (cfg.sections||[])){ const c=_colBy(s,re); if(c) return {sec:s,col:c}; } return null; }
-function autoCutDone(order, compName, excludeId){
-  const oNo=ordVal(order,/order\s*no/i), oFile=ordVal(order,/file\s*no/i), oGsm=ordVal(order,/gsm/i), oSize=ordVal(order,/bag\s*size/i);
-  if(!oNo) return 0;
-  const cn=String(compName).trim().toLowerCase();
-  let total=0;
-  (RECORDS||[]).forEach(r=>{
-    if(excludeId && r.id===excludeId) return;
-    const cfg=r.config; if(!cfg) return;
-    const odSec=_secBy(cfg,/order/i)||cfg.sections[0]; if(!odSec) return;
-    const noCol=_colBy(odSec,/order\s*no/i); if(!noCol) return;
-    const fileCol=_colBy(odSec,/file\s*no/i);
-    const odRows=r.sections[odSec.id]||[];
-    const matched=odRows.some(row=>{
-      if(!_eq(row[noCol.id],oNo)) return false;
-      if(fileCol && oFile && !_eq(row[fileCol.id],oFile)) return false;
-      return true;
-    });
-    if(!matched) return;
-    if(oGsm){ const g=_findColAnySec(cfg,/gsm/i); if(g){ const ok=(r.sections[g.sec.id]||[]).some(row=>_eq(row[g.col.id],oGsm)); if(!ok) return; } }
-    if(oSize){ const z=_findColAnySec(cfg,/bag\s*size|size/i); if(z){ const ok=(r.sections[z.sec.id]||[]).some(row=>_eq(row[z.col.id],oSize)); if(!ok) return; } }
-    const ciSec=_secBy(cfg,/cut\s*item/i); if(!ciSec) return;
+/* =====================================================================
+   CUT INDEX  (STEP 6)
+   Pehle autoCutDone har baar SAARE records ko kholta tha aur unki config
+   parse karta tha — aur ye har order ke har component ke liye alag se.
+   31 order x 3 component x 20,000 record = lagbhag 19 lakh scan har
+   render par. Yahi asli hang/lag ki wajah banti.
+   Ab har record ka ek chhota summary banta hai (~150 bytes vs ~2 KB) aur
+   order number se index ho jata hai. Ab sirf usi order ke records dekhe
+   jate hain — 19 lakh ki jagah gine-chune.
+   Hisaab bilkul wahi hai jo pehle tha: order no + file no + gsm + bag
+   size ka match, aur component naam ka wahi fuzzy match.
+   ===================================================================== */
+function recSummary(r){
+  const cfg=r&&r.config; if(!cfg) return null;
+  const odSec=_secBy(cfg,/order/i)||(cfg.sections||[])[0]; if(!odSec) return null;
+  const noCol=_colBy(odSec,/order\s*no/i); if(!noCol) return null;
+  const fileCol=_colBy(odSec,/file\s*no/i);
+  const pairs=[];
+  ((r.sections||{})[odSec.id]||[]).forEach(row=>{
+    const on=String(row[noCol.id]??'').trim(); if(!on) return;
+    pairs.push([on, fileCol?String(row[fileCol.id]??'').trim():'']);
+  });
+  if(!pairs.length) return null;
+  const g=_findColAnySec(cfg,/gsm/i);
+  const z=_findColAnySec(cfg,/bag\s*size|size/i);
+  const gv = g ? ((r.sections||{})[g.sec.id]||[]).map(row=>String(row[g.col.id]??'').trim()) : null;
+  const zv = z ? ((r.sections||{})[z.sec.id]||[]).map(row=>String(row[z.col.id]??'').trim()) : null;
+  const comps={};
+  const ciSec=_secBy(cfg,/cut\s*item/i);
+  if(ciSec){
     const nameCol=_colBy(ciSec,/name/i), pcsCol=_colBy(ciSec,/pcs|pieces/i);
-    if(!nameCol||!pcsCol) return;
-    (r.sections[ciSec.id]||[]).forEach(row=>{
-      const nm=String(row[nameCol.id]??'').trim().toLowerCase();
-      if(nm && (nm===cn || nm.includes(cn) || cn.includes(nm))) total+=num(row[pcsCol.id]);
+    if(nameCol&&pcsCol){
+      ((r.sections||{})[ciSec.id]||[]).forEach(row=>{
+        const nm=String(row[nameCol.id]??'').trim(); if(!nm) return;
+        const k=nm.toLowerCase();
+        comps[k]=(comps[k]||0)+num(row[pcsCol.id]);
+      });
+    }
+  }
+  return { id:r.id, p:pairs, hasFile:!!fileCol, g:gv, z:zv, c:comps };
+}
+var _cutIdx=null, _cutIdxGen=-1, _cutMemo=null;
+function _k(v){ return String(v??'').trim().toLowerCase(); }
+/* Index teen tarah se: file-wale records order+file par, bina-file wale
+   sirf order par. Isse har sawal me sirf gine-chune records dekhne padte
+   hain, poori list nahi. */
+function cutIndex(){
+  if(_cutIdx && _cutIdxGen===_DGEN) return _cutIdx;
+  const withF={}, noF={};
+  (RECORDS||[]).forEach(r=>{
+    const s=recSummary(r); if(!s) return;
+    const seen={};
+    s.p.forEach(pr=>{
+      const on=_k(pr[0]); if(!on) return;
+      if(s.hasFile){
+        const kk=on+'\u0000'+_k(pr[1]);
+        if(seen[kk]) return; seen[kk]=1;
+        (withF[kk]=withF[kk]||[]).push(s);
+      } else {
+        if(seen[on]) return; seen[on]=1;
+        (noF[on]=noF[on]||[]).push(s);
+      }
     });
   });
+  /* jab order me file no na ho, tab file wale saare records bhi dekhne padte hain.
+     Ek hi record do baar na aaye (ek order ke do file rows ho sakte hain). */
+  const allByOn={}, _seenOn={};
+  Object.keys(withF).forEach(kk=>{ const on=kk.split('\u0000')[0];
+    const bucket=(allByOn[on]=allByOn[on]||[]);
+    const seen=(_seenOn[on]=_seenOn[on]||{});
+    withF[kk].forEach(s=>{ if(seen[s.id]) return; seen[s.id]=1; bucket.push(s); });
+  });
+  _cutIdx={withF:withF, noF:noF, allByOn:allByOn};
+  _cutIdxGen=_DGEN; _cutMemo={};
+  return _cutIdx;
+}
+function autoCutDone(order, compName, excludeId){
+  const oNo=ordVal(order,/order\s*no/i), oFile=ordVal(order,/file\s*no/i),
+        oGsm=ordVal(order,/gsm/i), oSize=ordVal(order,/bag\s*size/i);
+  if(!oNo) return 0;
+  const cn=_k(compName);
+  const idx=cutIndex();
+  const memoKey=_k(oNo)+'|'+_k(oFile)+'|'+_k(oGsm)+'|'+_k(oSize)+'|'+cn+'|'+(excludeId||'');
+  if(_cutMemo && memoKey in _cutMemo) return _cutMemo[memoKey];
+  const on=_k(oNo);
+  let list;
+  if(oFile) list=(idx.withF[on+'\u0000'+_k(oFile)]||[]).concat(idx.noF[on]||[]);
+  else      list=(idx.allByOn[on]||[]).concat(idx.noF[on]||[]);
+  let total=0;
+  for(let i=0;i<list.length;i++){
+    const s=list[i];
+    if(excludeId && s.id===excludeId) continue;
+    if(oGsm && s.g && !s.g.some(v=>_eq(v,oGsm))) continue;
+    if(oSize && s.z && !s.z.some(v=>_eq(v,oSize))) continue;
+    for(const nm in s.c){
+      if(nm===cn || nm.indexOf(cn)>=0 || cn.indexOf(nm)>=0) total+=s.c[nm];
+    }
+  }
+  if(_cutMemo) _cutMemo[memoKey]=total;
   return total;
 }
-function autoAllDone(o){ const cs=orderComponents(o); return cs.length>0 && cs.every(c=>autoCutDone(o,c.name)>=c.qty); }
 function anyCompCut(o){ const cs=orderComponents(o); return cs.some(c=>autoCutDone(o,c.name)>0); }
 /* New → Balance jab koi ek component cut ho.
    Balance/New → Under Process TABHI jab SAARE components ki cut qty
@@ -7193,7 +7335,7 @@ function _muCfgRestore(){
 
 function _muBackup(){
   try{
-    var keys=[KEY_CFG,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG];
+    var keys=[KEY_CFG,KEY_CFGP,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG];
     var out={_app:'COMSYN ERP', _at:new Date().toISOString(), data:{}};
     var n=0, sz=0;
     keys.forEach(function(k){ var v=null; try{ v=localStorage.getItem(k); }catch(e){}
@@ -8038,6 +8180,16 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
 /* ===================== SUPABASE REAL-TIME SYNC (multi-user live) =====================
    Niche ki 2 lines me apne Supabase ke values paste karo.
    Khaali chhodoge to app local-only chalega (bilkul pehle jaisa, kuch nahi tootega). */
+/* ---------------------------------------------------------------------
+   APP_ENV — 'live' ya 'test'
+   TEST COPY banate waqt sirf ye do line badalni hain:
+     APP_ENV        = 'test'
+     SUPABASE_URL   = test project ka URL
+     SUPABASE_ANON_KEY = test project ki anon key
+   'test' hote hi upar laal patti aa jayegi, taaki galti se test copy me
+   asli entry na ho jaye.
+   --------------------------------------------------------------------- */
+const APP_ENV = 'live';
 const SUPABASE_URL      = 'https://ennxqzqtnwsfeazjvspz.supabase.co';   /* project URL */
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVubnhxenF0bndzZmVhemp2c3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2NDgxNzEsImV4cCI6MjA5ODIyNDE3MX0.1GL7aCBe3sH43B2QNKyDDBaMXTTCjDQs0XsYRWVrycw';   /* anon public key */
 /* ===== Supabase REST helpers (plain fetch — Android webview-safe, no supabase-js) ===== */
@@ -8742,7 +8894,9 @@ function fmtTrashTime(iso){ try{ const d=new Date(iso); const p=n=>(n<10?'0':'')
 function restoreTrash(tid){
   const t=TRASH.find(x=>x.tid===tid); if(!t) return;
   const it=t.item||{}; let ok=false, dup=false;
-  if(t.type==='record'){ if(RECORDS.some(r=>r.id===it.id)) dup=true; else { RECORDS.unshift(hydrateRec(it)); saveRec(); ok=true; } }
+  /* pehle Trash se hatao, tabhi wapas daalo — warna purgeTrashed dobara
+     usi record ko utha kar hata sakta hai */
+  if(t.type==='record'){ if(RECORDS.some(r=>r.id===it.id)) dup=true; else { TRASH=TRASH.filter(x=>x.tid!==tid); saveTrash(); RECORDS.unshift(hydrateRec(it)); saveRec(); ok=true; } }
   else if(t.type==='order'){ if(ORDERS.some(o=>o.id===it.id)) dup=true; else { ORDERS.unshift(it); saveOrders(); ok=true; } }
   else if(t.type==='batch'){ if(BATCHES.some(b=>b.id===it.id)) dup=true; else { BATCHES.unshift(it); saveBatches(); ok=true; } }
   else if(t.type==='linep'){ if(LINEP.some(x=>x.id===it.id)) dup=true; else { LINEP.unshift(it); saveLinep(); ok=true; } }
@@ -8781,10 +8935,276 @@ function renderTrash(){
   const et=document.getElementById('emptyTrash'); if(et) et.onclick=()=>confirmModal('Pura Trash khali karein? Saare items HAMESHA ke liye delete ho jayenge.',()=>{ TRASH=[]; saveTrash(); renderTrash(); toast('Trash emptied','info'); },true);
 }
 
+function recDel(ids){ try{ RECSYNC.del(Array.isArray(ids)?ids:[ids]); }catch(e){} }
+/* =====================================================================
+   RECSYNC — cutting records ka apna sync (STEP 3)
+   Pehle: ek entry save = PURA records array upload (mahine bhar me MB me).
+   Ab:    ek entry save = SIRF wahi ek row upload (~2 KB), chahe database
+          me 50,000 record ho.
+   Download bhi delta hai — sirf jo badla wahi aata hai (comsyn_rec_since).
+   localStorage sirf offline cache ke liye; asli jagah ab Supabase table hai.
+   Agar naye RPC kisi wajah se na chalein to module apne aap OFF ho jata
+   hai aur app purane tarike se chalta rehta hai (kuch nahi tootta).
+   ===================================================================== */
+var RECSYNC=(function(){
+  var KEY_SINCE='comsyn_rec_since_v1';
+  var on=false, off=false, booted=false, busy=false, pushing=false;
+  var sig={};                 /* id -> uska JSON (kya badla ye pata karne ke liye) */
+  var since=null, lastVer='', dirtyTimer=null, pendingDel={};
+  function creds(){ try{ return {u:sessionStorage.getItem('comsyn_user'),p:sessionStorage.getItem('comsyn_pass')}; }catch(e){ return {u:null,p:null}; } }
+  function rpc(fn,body){
+    return fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:SB_HEADERS,body:JSON.stringify(body)})
+      .then(function(r){ if(!r.ok) throw new Error('http '+r.status); return r.json(); });
+  }
+  function slimAll(){ try{ return (RECORDS||[]).map(dehydrateRec); }catch(e){ return []; } }
+  function rebuildSig(){ sig={}; slimAll().forEach(function(r){ if(r&&r.id){ try{ sig[r.id]=JSON.stringify(r); }catch(e){} } }); }
+  function getSince(){ try{ return localStorage.getItem(KEY_SINCE)||null; }catch(e){ return null; } }
+  function setSince(v){ since=v; try{ if(v) localStorage.setItem(KEY_SINCE,v); }catch(e){} }
+
+  /* ---- server se aaye records ko memory me milao ---- */
+  function merge(rows){
+    if(!rows || !rows.length) return false;
+    var changed=false, byId={};
+    (RECORDS||[]).forEach(function(r,i){ if(r&&r.id) byId[r.id]=i; });
+    rows.forEach(function(row){
+      if(!row || !row.id) return;
+      if(row.updated_at && (!since || row.updated_at>since)) setSince(row.updated_at);
+      var at=byId[row.id];
+      if(row.deleted){
+        if(at!==undefined){ RECORDS.splice(at,1); byId={}; (RECORDS||[]).forEach(function(r,i){ if(r&&r.id) byId[r.id]=i; }); delete sig[row.id]; changed=true; }
+        return;
+      }
+      var rec=row.data; if(!rec || !rec.id) return;
+      var js; try{ js=JSON.stringify(dehydrateRec(rec)); }catch(e){ js=''; }
+      if(sig[rec.id]===js) return;                 /* wahi hai jo already hai */
+      sig[rec.id]=js;
+      hydrateRec(rec);
+      if(at!==undefined) RECORDS[at]=rec;
+      else { RECORDS.unshift(rec); byId={}; (RECORDS||[]).forEach(function(r,i){ if(r&&r.id) byId[r.id]=i; }); }
+      changed=true;
+    });
+    if(changed){
+      RECORDS.sort(function(a,b){ return (b&&b.savedAt||0)-(a&&a.savedAt||0); });
+      try{ localStorage.setItem(KEY_REC,JSON.stringify(slimAll())); }catch(e){}
+      try{ _dgenBump(); }catch(e){}
+      try{ if(current!=='entry') render(); }catch(e){}
+    }
+    return changed;
+  }
+
+  /* ---- purane record pehli baar table me bhejo (Step 4 — apne aap) ---- */
+  function migrate(c){
+    var all=slimAll(); if(!all.length){ setSince(new Date().toISOString()); return Promise.resolve(); }
+    var i=0, CH=100;
+    function next(){
+      if(i>=all.length) return rpc('comsyn_rec_ver',{u:c.u,p:c.p}).then(function(j){ if(j&&j.mx) setSince(j.mx); });
+      var part=all.slice(i,i+CH); i+=CH;
+      return rpc('comsyn_rec_upsert',{u:c.u,p:c.p,recs:part}).then(next);
+    }
+    return next().then(function(){ try{ toast('Purane '+all.length+' records cloud table me shift ho gaye','ok'); }catch(e){} });
+  }
+
+  /* ---- pehli baar: sab kuch page-by-page utha lo ---- */
+  function pullAll(c,from){
+    var got=0;
+    function page(cur){
+      return rpc('comsyn_rec_since',{u:c.u,p:c.p,since:cur,lim:500}).then(function(rows){
+        if(!rows || !rows.length) return;
+        got+=rows.length; merge(rows);
+        var last=rows[rows.length-1].updated_at;
+        if(rows.length>=500 && last && last!==cur) return page(last);
+      });
+    }
+    return page(from||null).then(function(){ return got; });
+  }
+
+  function boot(){
+    var c=creds(); if(!c.u||!c.p) return;
+    if(booted||off) return; booted=true; busy=true;
+    rebuildSig();
+    since=getSince();
+    rpc('comsyn_rec_ver',{u:c.u,p:c.p})
+      .then(function(j){
+        if(j && j.error) throw new Error(j.error);
+        var nServer=(j&&j.n)?Number(j.n):0;
+        /* server khali + local paas data => purana data upload karo */
+        if(nServer===0 && (RECORDS||[]).length>0) return migrate(c);
+        /* warna server se le aao */
+        return pullAll(c, since).then(function(){ if(j&&j.mx&&!since) setSince(j.mx); });
+      })
+      .then(function(){ on=true; })
+      .catch(function(e){
+        off=true;                                  /* naye RPC nahi mile -> purana tarika chalta rahe */
+        try{ SYNC_KEYS.indexOf(KEY_REC)<0 && SYNC_KEYS.push(KEY_REC); }catch(e2){}
+        console.warn('RECSYNC off:',e&&e.message);
+      })
+      .then(function(){ busy=false; });
+  }
+
+  /* ---- har 3 sec: sasta version check, badla ho tabhi delta ---- */
+  function tick(){
+    if(!on||off||busy) return;
+    var c=creds(); if(!c.u||!c.p) return;
+    busy=true;
+    rpc('comsyn_rec_ver',{u:c.u,p:c.p})
+      .then(function(j){
+        if(!j || j.error) return;
+        var v=String(j.mx||'')+'|'+String(j.n||0);
+        if(v===lastVer) return;
+        lastVer=v;
+        return pullAll(c, since);
+      })
+      .catch(function(){})
+      .then(function(){ busy=false; });
+  }
+
+  /* ---- save: sirf badle hue records bhejo ---- */
+  function flush(){
+    if(!on||off||pushing) return;
+    var c=creds(); if(!c.u||!c.p) return;
+    var all=slimAll(), live={}, out=[];
+    all.forEach(function(r){
+      if(!r||!r.id) return; live[r.id]=1;
+      var js; try{ js=JSON.stringify(r); }catch(e){ return; }
+      if(sig[r.id]!==js){ sig[r.id]=js; out.push(r); }
+    });
+    /* DELETE sirf tab jab user ne sach me delete kiya ho (markDel se aaya ho).
+       Andaza lagana khatarnak hai — cache abhi load na hui ho to poore
+       records server se ud sakte the. */
+    var del=[];
+    Object.keys(pendingDel).forEach(function(id){
+      if(live[id]){                                  /* Trash se restore ho gaya */
+        delete sig[id];
+        var back=null; for(var i=0;i<all.length;i++){ if(all[i]&&all[i].id===id){ back=all[i]; break; } }
+        if(back){ var j2; try{ j2=JSON.stringify(back); }catch(e){ j2=''; }
+          sig[id]=j2; if(out.indexOf(back)<0) out.push(back); }
+        return;
+      }
+      del.push(id); delete sig[id];
+    });
+    pendingDel={};
+    if(!out.length && !del.length) return;
+    pushing=true;
+    var jobs=[];
+    if(out.length) jobs.push(rpc('comsyn_rec_upsert',{u:c.u,p:c.p,recs:out}));
+    if(del.length) jobs.push(rpc('comsyn_rec_delete',{u:c.u,p:c.p,ids:del}));
+    Promise.all(jobs)
+      .then(function(res){
+        var bad=res.filter(function(j){ return j&&j.error; })[0];
+        if(bad){ try{ toast('\u26A0\uFE0F Cloud save nahi hua — '+bad.error,'err'); }catch(e){} out.forEach(function(r){ delete sig[r.id]; }); return; }
+        return rpc('comsyn_rec_ver',{u:c.u,p:c.p}).then(function(j){ if(j&&j.mx){ setSince(j.mx); lastVer=String(j.mx)+'|'+String(j.n||0); } });
+      })
+      .catch(function(){ out.forEach(function(r){ delete sig[r.id]; }); })   /* agli baar dobara try hoga */
+      .then(function(){ pushing=false; });
+  }
+  function markDirty(){ if(off) return; clearTimeout(dirtyTimer); dirtyTimer=setTimeout(flush,500); }
+  function markDel(ids){ if(off) return; (ids||[]).forEach(function(id){ if(id) pendingDel[id]=1; }); markDirty(); }
+  return { start:function(){ try{ RECCACHE_READY.then(boot); }catch(e){ boot(); } },
+           tick:tick, dirty:markDirty, del:markDel, isOn:function(){ return on&&!off; } };
+})();
+
+/* =====================================================================
+   ERROR ALERT  —  app me kahin bhi error aaye to Supabase me log ho jaye.
+   User ko kuch dikhega nahi (unka kaam nahi rukega), par admin
+   sidebar ke "Error Log" se dekh sakta hai ki kis device par,
+   kis screen par, kya error aa raha hai.
+   Ek jaisi error baar-baar spam na ho isliye throttle laga hai.
+   ===================================================================== */
+var ERRLOG=(function(){
+  var seen={}, sent=0, MAXPERSESSION=25;
+  function log(msg,src,line,col,stack){
+    try{
+      if(!SUPABASE_URL || sent>=MAXPERSESSION) return;
+      msg=String(msg||'').slice(0,400);
+      if(!msg || /ResizeObserver|Script error/i.test(msg)) return;   /* bekaar shor */
+      var key=msg+'|'+String(src||'').slice(-40)+'|'+line;
+      var now=Date.now();
+      if(seen[key] && now-seen[key]<60000) return;                  /* 1 min me ek hi baar */
+      seen[key]=now; sent++;
+      var u=''; try{ u=sessionStorage.getItem('comsyn_user')||''; }catch(e){}
+      var dev=''; try{ dev=(typeof _deviceId==='function')?_deviceId():''; }catch(e){}
+      fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_err_log',{
+        method:'POST', headers:SB_HEADERS,
+        body:JSON.stringify({
+          u:u, msg:msg,
+          src:String(src||'').slice(0,200)+':'+line+':'+col,
+          stack:String(stack||'').slice(0,1500),
+          page:String((typeof current!=='undefined'?current:'')||'')+' | '+String(APP_ENV),
+          dev:String(dev).slice(0,80),
+          ua:String(navigator.userAgent||'').slice(0,200)
+        })
+      }).catch(function(){});
+    }catch(e){}
+  }
+  try{
+    window.addEventListener('error',function(e){
+      log(e.message, e.filename, e.lineno, e.colno, e.error&&e.error.stack);
+      try{ showRecoverBar(); }catch(x){}
+    });
+    window.addEventListener('unhandledrejection',function(e){
+      var r=e.reason||{};
+      log('Unhandled: '+(r.message||r), '', 0, 0, r.stack);
+    });
+  }catch(e){}
+  /* User ke liye: agar error se screen adhuri reh jaye to wo phansa na rahe.
+     Ek halki si patti niche aati hai — Reload dabao, kaam chalu.
+     Data pehle se cloud me save hai, isliye reload se kuch nahi jata. */
+  var barShown=false;
+  function showRecoverBar(){
+    if(barShown) return; barShown=true;
+    try{
+      var d=document.createElement('div');
+      d.style.cssText='position:fixed;left:12px;right:12px;bottom:14px;z-index:99998;background:#12243a;color:#fff;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px/1.45 system-ui,sans-serif';
+      d.innerHTML='<span style="flex:1">Kuch technical dikkat aayi. Screen adhuri lage to Reload karein \u2014 aapka data safe hai.</span>'+
+        '<button id="_rcRl" style="background:#E8702A;color:#fff;border:none;border-radius:8px;padding:8px 14px;font:800 13px system-ui,sans-serif;cursor:pointer">Reload</button>'+
+        '<button id="_rcX" style="background:transparent;color:#9fb6cd;border:none;font-size:19px;line-height:1;cursor:pointer;padding:0 4px">\u00d7</button>';
+      function put(){ document.body.appendChild(d);
+        var a=document.getElementById('_rcRl'), b=document.getElementById('_rcX');
+        if(a) a.onclick=function(){ location.reload(); };
+        if(b) b.onclick=function(){ d.remove(); };
+      }
+      if(document.body) put(); else document.addEventListener('DOMContentLoaded',put);
+    }catch(e){}
+  }
+  return { log:log, recover:showRecoverBar,
+           manual:function(where,err){ log('['+where+'] '+((err&&err.message)||err), '', 0, 0, err&&err.stack); } };
+})();
+function showErrorLog(){
+  var c=null; try{ c={u:sessionStorage.getItem('comsyn_user'),p:sessionStorage.getItem('comsyn_pass')}; }catch(e){}
+  openModal({ title:'Error Log', body:'<div id="elBody" style="font-size:14px;color:#7a8b9f">Load ho raha hai\u2026</div>',
+    footer:'<button class="btn" data-close>Close</button>' });
+  fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_err_list',{method:'POST',headers:SB_HEADERS,body:JSON.stringify({u:c&&c.u,p:c&&c.p,lim:60})})
+    .then(function(r){ return r.ok?r.json():null; })
+    .then(function(rows){
+      var el=document.getElementById('elBody'); if(!el) return;
+      if(!rows || !rows.length){ el.innerHTML='<div style="padding:26px 6px;text-align:center;color:#1E9E6A;font-size:15px;font-weight:700">\u2714 Koi error nahi \u2014 sab theek chal raha hai</div>'; return; }
+      el.innerHTML='<div style="font-size:12px;color:#7a8b9f;margin-bottom:10px">Pichhle 30 din \u2014 '+rows.length+' error</div>'+
+        rows.map(function(e){
+          var when=''; try{ when=new Date(e.at).toLocaleString('en-GB'); }catch(x){}
+          return '<div style="border:1px solid #f0d5d5;background:#fff8f8;border-radius:10px;padding:10px 12px;margin-bottom:9px">'+
+            '<div style="font-size:13.5px;font-weight:800;color:#8E2244;word-break:break-word">'+esc(e.msg||'')+'</div>'+
+            '<div style="font-size:11.5px;color:#7a8b9f;margin-top:4px">'+esc(when)+(e.username?' \u00b7 '+esc(e.username):'')+(e.page?' \u00b7 '+esc(e.page):'')+'</div>'+
+            (e.src?'<div style="font-size:11px;color:#9aa8b8;margin-top:2px;word-break:break-all">'+esc(e.src)+'</div>':'')+
+          '</div>';
+        }).join('');
+    })
+    .catch(function(){ var el=document.getElementById('elBody'); if(el) el.innerHTML='<div style="color:#D1495B">Error log nahi mila \u2014 SQL chala hai ya nahi check karo.</div>'; });
+}
+/* TEST COPY ki laal patti */
+(function(){
+  if(APP_ENV==='live') return;
+  try{
+    var b=document.createElement('div');
+    b.textContent='TEST COPY \u2014 ye asli data nahi hai';
+    b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#D1495B;color:#fff;font:800 12px/1 system-ui,sans-serif;letter-spacing:.6px;text-align:center;padding:7px 6px';
+    document.addEventListener('DOMContentLoaded',function(){ document.body.appendChild(b); document.body.style.paddingTop='26px'; });
+  }catch(e){}
+})();
+
 /* ===== REAL-TIME SYNC (plain fetch + 3s polling) ===== */
 (function(){
   if(!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
-  const SYNC_KEYS=[KEY_CFG,KEY_CFGP,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG,KEY_ROLLRET,KEY_DLRIGHTS,KEY_GPSSTRICT,KEY_TXTCASE];
+  const SYNC_KEYS=[KEY_CFG,KEY_CFGP,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG,KEY_ROLLRET,KEY_DLRIGHTS,KEY_GPSSTRICT,KEY_TXTCASE];
   let ready=false, suppress=false; const timers={}; const lastLocal={};
   const origSet=Store.set.bind(Store);
   Store.set=function(k,v){ origSet(k,v); try{_dgenBump();}catch(e){} if(ready && !suppress && SYNC_KEYS.indexOf(k)>=0){ lastLocal[k]=Date.now(); push(k,v); } };
@@ -8833,7 +9253,6 @@ function renderTrash(){
     suppress=true;
     try{
       if(k===KEY_CFG) CFG=parsed;
-      else if(k===KEY_REC) RECORDS=(Array.isArray(parsed)?parsed.map(hydrateRec):parsed);
       else if(k===KEY_CFGP){ CFGPOOL=parsed||{}; _cfgObj={}; RECORDS.forEach(r=>{ if(r&&r.cfgRef&&!r.config) hydrateRec(r); }); }
       else if(k===KEY_OCFG) ORDERCFG=parsed;
       else if(k===KEY_ORD) ORDERS=parsed;
@@ -8904,12 +9323,14 @@ function renderTrash(){
   function _syncTick(){
     if(typeof document!=='undefined' && document.hidden) return;  /* app screen par nahi -> ruko */
     if(_svOff) pull(); else _verCheck();
+    try{ RECSYNC.tick(); }catch(e){}
   }
   function _syncLoop(){
     clearTimeout(_sTimer);
     _sTimer=setTimeout(function(){ _syncTick(); _syncLoop(); }, _svOff?SYNC_SLOW:SYNC_FAST);
   }
   pull();
+  try{ RECSYNC.start(); }catch(e){}
   _syncLoop();
   try{ document.addEventListener('visibilitychange',function(){ if(!document.hidden){ _syncTick(); _syncLoop(); } }); }catch(e){}
 })();
@@ -9516,7 +9937,9 @@ function renderTrash(){
     const pw=document.getElementById('loginPass'); if(pw) pw.addEventListener('keydown',function(e){ if(e.key==='Enter') doLogin(); });
     const lo=document.getElementById('logoutBtn'); if(lo) lo.onclick=doLogout;
     const sbtn=document.getElementById('storageBtn');
-    if(sbtn){ sbtn.onclick=showStorageInfo; const _sv=function(){ try{ sbtn.style.display=isAdmin()?'inline-block':'none'; }catch(e){} }; _sv(); setInterval(_sv,1500); }
+    const ebtn=document.getElementById('errBtn');
+    if(sbtn||ebtn){ const _sv=function(){ try{ const a=isAdmin()?'inline-block':'none'; if(sbtn) sbtn.style.display=a; if(ebtn) ebtn.style.display=a; }catch(e){} };
+      if(sbtn) sbtn.onclick=showStorageInfo; if(ebtn) ebtn.onclick=showErrorLog; _sv(); setInterval(_sv,1500); }
     var cancelBtn=document.getElementById('loginCancel'); var xBtn=document.getElementById('loginXbtn');
     var clearFn=function(){ var uu=document.getElementById('loginUser'),pp=document.getElementById('loginPass'); if(uu)uu.value=''; if(pp)pp.value=''; setMsg(''); };
     if(cancelBtn) cancelBtn.onclick=clearFn; if(xBtn) xBtn.onclick=clearFn;
