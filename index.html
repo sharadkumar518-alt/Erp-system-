@@ -830,6 +830,15 @@ table.dt tbody tr:hover td{background:rgba(232,112,42,.04)}
 .be-req{font-size:12px;color:var(--muted)}
 .be-req b{color:var(--blue)}
 .be-ready{width:115px;flex:none;min-width:95px;border:1.5px solid var(--line-2);border-radius:8px;padding:8px 10px;font-size:14px;font-weight:700;color:var(--steel);font-family:'JetBrains Mono',monospace}
+.be-inputs{display:flex;flex-direction:column;gap:6px;flex:none;width:132px}
+.be-inputs .be-ready{width:100%;min-width:0}
+.be-loc{width:100%;border:1.5px solid var(--line-2);border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;color:var(--steel)}
+.be-loc:focus,.be-ready:focus{outline:none;border-color:var(--amber)}
+.be-cap{font-size:11.5px;font-weight:700;color:#1E9E6A}
+.be-cap.be-cap0{color:#D1495B}
+.be-row.be-off{opacity:.72;background:#f6f7f9}
+.be-row.be-off .be-ready,.be-row.be-off .be-loc{background:#eef1f5;cursor:not-allowed}
+@media(max-width:520px){.be-inputs{width:120px}.be-row{gap:8px;padding:9px}}
 .be-ready:focus,.be-man input:focus{border-color:var(--amber);outline:none;box-shadow:0 0 0 3px rgba(232,112,42,.14)}
 .be-note{font-size:12px;color:var(--muted);background:var(--amber-soft);border-radius:8px;padding:8px 11px}
 .bday{margin-bottom:20px}
@@ -5716,7 +5725,7 @@ function xCompLocations(order,compKey){
   (typeof BATCHES!=='undefined'?BATCHES:[]).filter(b=>b.orderId===order.id).forEach(b=>{
     const entries=(b.log&&b.log.length)?b.log:[{items:b.ready||{}}];
     let q=0; entries.forEach(e=>{ q+=num((e.items||{})[compKey]||0); });
-    if(q>0){ const L=String(b.location||'').trim()||'—'; agg[L]=(agg[L]||0)+q; }
+    if(q>0){ const L=String((b.locs&&b.locs[compKey])||b.location||'').trim()||'—'; agg[L]=(agg[L]||0)+q; }
   });
   return Object.keys(agg).map(L=>({loc:L,qty:agg[L]}));
 }
@@ -5929,7 +5938,14 @@ function compIssueData(fileNo,sfNo){
   const meta=batchOrderMeta(order);
   const batches=(BATCHES||[]).filter(b=>b.orderId===order.id).slice().sort((a,b)=>(a.savedAt||0)-(b.savedAt||0));
   const rows=[];
-  batches.forEach(b=>{ const entries=(b.log&&b.log.length)?b.log:[{at:b.savedAt||0, items:b.ready||{}}]; entries.forEach(e=>{ rows.push({ when:e.at||b.savedAt||0, location:b.location||'', items:e.items||{} }); }); });
+  batches.forEach(b=>{ const entries=(b.log&&b.log.length)?b.log:[{at:b.savedAt||0, items:b.ready||{}}]; entries.forEach(e=>{
+    /* us entry me jin component ki qty gayi, unhi ki location dikhao */
+    let loc=''; const seen=[];
+    Object.keys(e.items||{}).forEach(function(ck){ if(!num(e.items[ck])) return;
+      const v=String((e.locs&&e.locs[ck])||(b.locs&&b.locs[ck])||b.location||'').trim();
+      if(v && seen.indexOf(v)<0) seen.push(v); });
+    loc=seen.join(', ')||b.location||'';
+    rows.push({ when:e.at||b.savedAt||0, location:loc, items:e.items||{} }); }); });
   rows.sort((a,b)=>(a.when||0)-(b.when||0));
   const tot={}; comps.forEach(c=>tot[c.key]=0);
   rows.forEach(r=>{ comps.forEach(c=>{ tot[c.key]+=num(r.items[c.key]||0); }); });
@@ -6436,7 +6452,7 @@ function batchCardView(b,opts){
       ? `<button class="btn btn-green b-crep" data-bcrep="${b.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M3 11h18M3 17h12"/></svg>Component Report</button>`
       : '';
     footer=`<div class="bcard-actions">
-      <span class="b-status ${st?'ok':'pend'}">${st?'COMPLETE':'UNDER PROCESS'}</span><span style="flex:1"></span>
+      <span style="flex:1"></span>
       ${crBtn}
       ${editBtn}
       <button class="btn btn-ghost b-del" data-bid="${b.id}">Delete</button>
@@ -6526,30 +6542,89 @@ function batchExportBar(){
 function openBatchEditor(b){
   const o=batchOrder(b); if(!o){ toast('Order nahi mila','err'); return; }
   const comps=orderComponents(o);
-  const compRows=comps.map(c=>{ const rd=num((b.ready||{})[c.key]||0); const bal=Math.max(0,c.qty-rd); return `<div class="be-row">
-      <div class="be-cinfo"><span class="be-c">${esc(c.name)}</span><span class="be-req">Req ${c.qty} · Ready <b>${rd}</b> · Bal ${bal}</span></div>
-      <input type="number" min="0" class="be-ready" data-ck="${esc(c.key)}" value="" placeholder="+ add qty"></div>`; }).join('');
+  b.locs=b.locs||{};
+  /* Har component ki apni limit: uski cutting qty se zyada batch me nahi ja sakta.
+     Aur apni alag location, kyunki 5 component 5 jagah rakhe ho sakte hain. */
+  const compRows=comps.map(c=>{
+    const rd=num((b.ready||{})[c.key]||0);
+    const cut=autoCutDone(o,c.name);
+    const canAdd=Math.max(0, Math.min(c.qty, cut) - rd);
+    const loc=String(b.locs[c.key]||b.location||'').trim();
+    const qtyBox = canAdd>0
+      ? `<input type="number" min="0" max="${canAdd}" class="be-ready" data-ck="${esc(c.key)}" data-max="${canAdd}" value="" placeholder="+ add qty">`
+      : `<input type="number" class="be-ready" disabled value="" placeholder="\u2014" title="${cut<=0?'Cutting qty 0 hai':'Poori cutting qty batch me ja chuki'}">`;
+    return `<div class="be-row${canAdd>0?'':' be-off'}">
+      <div class="be-cinfo">
+        <span class="be-c">${esc(c.name)}</span>
+        <span class="be-req">Req ${c.qty} · Ready <b>${rd}</b> · Cutting <b>${cut}</b></span>
+        <span class="be-cap ${canAdd>0?'':'be-cap0'}">${canAdd>0?('Max de sakte ho: '+canAdd):(cut<=0?'Cutting qty 0 \u2014 abhi kuch nahi de sakte':'Poori cutting qty ja chuki')}</span>
+      </div>
+      <div class="be-inputs">
+        ${qtyBox}
+        <input class="be-loc" data-lk="${esc(c.key)}" value="${esc(loc)}" placeholder="Location" ${canAdd>0?'':'disabled'}>
+      </div>
+    </div>`;
+  }).join('');
   const manual = `<div class="be-man">
       <label>Type<input class="be-f" data-f="type" value="${esc(b.type||'')}"></label>
       <label>Pattern<input class="be-f" data-f="pattern" value="${esc(b.pattern||'')}"></label>
-      <label>Location<input class="be-f" data-f="location" value="${esc(b.location||'')}"></label>
     </div>`;
-  const note = `<div class="be-note">Sirf aaj ki nayi ready qty daalo — wo purani value me <b>add</b> ho jayegi (jaise 10 + 50 = 60). Khaali chhodoge to koi change nahi. Qty bharte hi date aaj ki ho jayegi.</div>`;
+  const note = `<div class="be-note">Sirf aaj ki nayi ready qty daalo — wo purani value me <b>add</b> ho jayegi (jaise 10 + 50 = 60). Khaali chhodoge to koi change nahi. Qty bharte hi date aaj ki ho jayegi.<br><b>Qty utni hi de sakte ho jitni cutting hui hai</b>, aur qty ke saath uski <b>Location</b> bharni zaroori hai.</div>`;
   openModal({ title:'Edit Batch — Add Ready Qty', body:`<div class="be-wrap">${manual}${note}<div class="be-comps">${compRows||'<div style="color:var(--muted)">Koi component nahi</div>'}</div></div>`,
     footer:`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="beSave">Save</button>` });
   document.getElementById('beSave').onclick=()=>{
+    /* ---- pehle jaanch, tabhi kuch save ---- */
+    const adds=[];
+    let bad='';
+    document.querySelectorAll('.be-ready').forEach(i=>{
+      if(bad || i.disabled) return;
+      const raw=i.value.trim(); if(raw==='') return;
+      const av=num(raw), ck=i.dataset.ck, mx=num(i.dataset.max||0);
+      const nm=(comps.find(c=>String(c.key)===String(ck))||{}).name||'Component';
+      if(av<0){ bad=nm+': qty minus me nahi ho sakti'; return; }
+      if(av===0) return;
+      if(av>mx){ bad=nm+': cutting qty se zyada nahi de sakte (max '+mx+')'; return; }
+      const li=document.querySelector('.be-loc[data-lk="'+ck+'"]');
+      const lv=li?li.value.trim():'';
+      if(!lv){ bad=nm+': location bharna zaroori hai'; return; }
+      adds.push({ck:ck, av:av, loc:lv});
+    });
+    if(bad){ toast(bad,'err'); return; }
+    if(!adds.length){
+      /* sirf location/type/pattern badla ho to wahi save kar do */
+      document.querySelectorAll('.be-f').forEach(i=>{ b[i.dataset.f]=i.value.trim(); });
+      document.querySelectorAll('.be-loc').forEach(i=>{ const v=i.value.trim(); if(v) b.locs[i.dataset.lk]=v; });
+      b.location=_batchLocSummary(b);
+      saveBatches(); closeModal(); toast('Batch updated','ok'); renderBatch(); return;
+    }
     const wasComplete=(b.status==='complete');
     document.querySelectorAll('.be-f').forEach(i=>{ b[i.dataset.f]=i.value.trim(); });
     b.ready=b.ready||{};
     if(!b.log || !b.log.length){ const _init=_logItems(b.ready); b.log = Object.keys(_init).length ? [{at:b.savedAt||Date.now(), items:_init}] : []; }
-    let touched=false; const _delta={};
-    document.querySelectorAll('.be-ready').forEach(i=>{ const add=i.value.trim(); if(add!==''){ const av=num(add); const cur=num(b.ready[i.dataset.ck]||0); b.ready[i.dataset.ck]=cur+av; if(av){ _delta[i.dataset.ck]=(_delta[i.dataset.ck]||0)+av; } touched=true; } });
-    if(touched){ b.date=todayISO(); if(Object.keys(_delta).length){ b.log.push({at:Date.now(), items:_delta}); } }
+    const _delta={}, _dlocs={};
+    adds.forEach(x=>{
+      b.ready[x.ck]=num(b.ready[x.ck]||0)+x.av;
+      _delta[x.ck]=(_delta[x.ck]||0)+x.av;
+      _dlocs[x.ck]=x.loc;
+      b.locs[x.ck]=x.loc;
+    });
+    /* jin component me qty nahi dali par location badli, wo bhi rakh lo */
+    document.querySelectorAll('.be-loc').forEach(i=>{ const v=i.value.trim(); if(v) b.locs[i.dataset.lk]=v; });
+    b.date=todayISO();
+    b.log.push({at:Date.now(), items:_delta, locs:_dlocs});
+    b.location=_batchLocSummary(b);
     if(wasComplete) b.completeEditUsed=true;   // Complete me edit sirf ek baar
     recomputeBatch(b); saveBatches(); closeModal();
     toast(b.status==='complete'?'Batch complete ho gaya':'Batch updated','ok');
     renderBatch();
   };
+}
+/* Batch card ke header/PDF/Excel me ek hi line me location dikhani hoti hai,
+   isliye saari alag-alag locations ko jod kar rakh dete hain. */
+function _batchLocSummary(b){
+  const seen=[], L=b.locs||{};
+  Object.keys(L).forEach(function(k){ const v=String(L[k]||'').trim(); if(v && seen.indexOf(v)<0) seen.push(v); });
+  return seen.join(', ');
 }
 function renderBatch(){
   const c=document.getElementById('content');
