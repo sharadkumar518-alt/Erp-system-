@@ -9112,14 +9112,16 @@ var RECSYNC=(function(){
    ===================================================================== */
 var ERRLOG=(function(){
   var seen={}, sent=0, MAXPERSESSION=25;
+  /* true lautata hai sirf tab jab error sach me log hui.
+     Isi par user wali patti dikhti hai — bekaar shor par nahi. */
   function log(msg,src,line,col,stack){
     try{
-      if(!SUPABASE_URL || sent>=MAXPERSESSION) return;
+      if(!SUPABASE_URL || sent>=MAXPERSESSION) return false;
       msg=String(msg||'').slice(0,400);
-      if(!msg || /ResizeObserver|Script error/i.test(msg)) return;   /* bekaar shor */
+      if(!msg || /ResizeObserver|Script error|Load failed|Failed to fetch|NetworkError/i.test(msg)) return false;
       var key=msg+'|'+String(src||'').slice(-40)+'|'+line;
       var now=Date.now();
-      if(seen[key] && now-seen[key]<60000) return;                  /* 1 min me ek hi baar */
+      if(seen[key] && now-seen[key]<60000) return false;            /* 1 min me ek hi baar */
       seen[key]=now; sent++;
       var u=''; try{ u=sessionStorage.getItem('comsyn_user')||''; }catch(e){}
       var dev=''; try{ dev=(typeof _deviceId==='function')?_deviceId():''; }catch(e){}
@@ -9134,16 +9136,19 @@ var ERRLOG=(function(){
           ua:String(navigator.userAgent||'').slice(0,200)
         })
       }).catch(function(){});
-    }catch(e){}
+      return true;
+    }catch(e){ return false; }
   }
   try{
     window.addEventListener('error',function(e){
-      log(e.message, e.filename, e.lineno, e.colno, e.error&&e.error.stack);
-      try{ showRecoverBar(); }catch(x){}
+      /* image/script load fail hona alag cheez hai — wo code ki error nahi */
+      if(e && e.target && e.target!==window) return;
+      var real=log(e.message, e.filename, e.lineno, e.colno, e.error&&e.error.stack);
+      if(real){ try{ showRecoverBar(); }catch(x){} }
     });
     window.addEventListener('unhandledrejection',function(e){
       var r=e.reason||{};
-      log('Unhandled: '+(r.message||r), '', 0, 0, r.stack);
+      log('Unhandled: '+(r.message||r), '', 0, 0, r.stack);   /* ispe patti nahi — background ki cheez hai */
     });
   }catch(e){}
   /* User ke liye: agar error se screen adhuri reh jaye to wo phansa na rahe.
