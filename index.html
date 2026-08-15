@@ -7491,6 +7491,16 @@ function _muBackup(){
     var n=0, sz=0;
     keys.forEach(function(k){ var v=null; try{ v=localStorage.getItem(k); }catch(e){}
       if(v){ out.data[k]=v; n++; sz+=v.length; } });
+    /* Records ab localStorage me nahi, IndexedDB/memory me hote hain —
+       inhe seedha RECORDS se lo, warna backup file khaali reh jayegi. */
+    try{
+      if(!out.data[KEY_REC] && (RECORDS||[]).length){
+        var rv=JSON.stringify(RECORDS.map(dehydrateRec));
+        out.data[KEY_REC]=rv; n++; sz+=rv.length;
+      }
+    }catch(e){}
+    var nRec=0; try{ nRec=(RECORDS||[]).length; }catch(e){}
+    out._records=nRec;
     if(!n){ toast('Backup ke liye data nahi mila \u2014 pehle data load hone do','err'); return; }
     var blob=new Blob([JSON.stringify(out)],{type:'application/json'});
     var url=URL.createObjectURL(blob);
@@ -7498,7 +7508,7 @@ function _muBackup(){
     a.href=url; a.download='comsyn-backup-'+todayISO()+'.json';
     document.body.appendChild(a); a.click();
     setTimeout(function(){ try{ URL.revokeObjectURL(url); a.remove(); }catch(e){} },1500);
-    toast('\u2705 Backup file ban gayi \u2014 '+n+' items, '+Math.round(sz/1024)+' KB. Surakshit jagah rakh lo','ok');
+    toast('\u2705 Backup ban gaya \u2014 '+nRec+' records, '+Math.round(sz/1024)+' KB. Surakshit jagah rakh lo','ok');
   }catch(e){ toast('Backup nahi bana \u2014 dobara koshish karo','err'); }
 }
 
