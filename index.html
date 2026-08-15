@@ -9360,6 +9360,23 @@ function showErrorLog(){
     })
     .catch(function(){ var el=document.getElementById('elBody'); if(el) el.innerHTML='<div style="color:#D1495B">Error log nahi mila \u2014 SQL chala hai ya nahi check karo.</div>'; });
 }
+/* PWA manifest me start_url/scope live link par fix tha. Isse test copy
+   install karne par bhi LIVE app khulti. Ab wo apne aap usi link ka ban
+   jata hai jahan file chal rahi hai, aur test copy ka naam bhi alag. */
+(function(){
+  try{
+    var l=document.querySelector('link[rel="manifest"]');
+    if(!l) return;
+    var href=l.getAttribute('href')||'';
+    var i=href.indexOf(',');
+    if(i<0) return;
+    var m=JSON.parse(decodeURIComponent(href.slice(i+1)));
+    var base=location.origin+location.pathname.replace(/[^/]*$/,'');
+    m.start_url=base; m.scope=base;
+    if(APP_ENV!=='live'){ m.name='COMSYN ERP \u2014 TEST'; m.short_name='COMSYN TEST'; }
+    l.setAttribute('href','data:application/manifest+json;charset=utf-8,'+encodeURIComponent(JSON.stringify(m)));
+  }catch(e){}
+})();
 /* TEST COPY ki laal patti */
 (function(){
   if(APP_ENV==='live') return;
