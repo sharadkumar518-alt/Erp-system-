@@ -870,6 +870,7 @@ table.dt tbody tr:hover td{background:rgba(232,112,42,.04)}
 .comp-add{margin-top:12px}
 .comp-hint{font-size:11.5px;color:var(--muted-2);margin-top:10px;line-height:1.5}
 .ord-comp-chips{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 2px}
+.cchip-len{font-weight:700;color:#8a99ad;font-size:.92em}
 .cchip{font-size:12px;color:var(--steel);background:#fff8f3;border:1px solid #f6d9c2;border-radius:20px;padding:4px 11px}
 .cchip b{color:var(--amber);margin-left:3px}
 /* ============================================================
@@ -2632,7 +2633,7 @@ function comboOptions(el){
 function comboSetDraft(el,val){
   if(el.dataset && el.dataset.of) return; // order form reads inputs directly on save
   if(el.id && el.id.indexOf('hf_')===0){ DRAFT.headers[el.id.slice(3)]=val; refreshSummary(); return; }
-  const tb=el.closest('table.dt'); if(tb){ const sid=tb.dataset.sec; const tr=el.closest('tr'); const ri=+tr.dataset.row; if(DRAFT.sections[sid]&&DRAFT.sections[sid][ri]) DRAFT.sections[sid][ri][el.dataset.col]=val; const _sec=CFG.sections.find(s=>s.id===sid); if(_sec&&/cut\s*item/i.test(_sec.title)){ const _nc=_sec.columns.find(c=>/name/i.test(c.label)); if(_nc&&el.dataset.col===_nc.id){ const _lc=_sec.columns.find(c=>/length/i.test(c.label)); if(_lc){ const _len=entryCutLenFor(val); if(DRAFT.sections[sid]&&DRAFT.sections[sid][ri]) DRAFT.sections[sid][ri][_lc.id]=_len; const _li=tr&&tr.querySelector(`[data-col="${_lc.id}"]`); if(_li) _li.value=_len; } } } CFG.sections.forEach(s=>{ if(s.columns.some(c=>c.type==='formula')) recomputeSection(s.id); }); refreshCutExtra(); }
+  const tb=el.closest('table.dt'); if(tb){ const sid=tb.dataset.sec; const tr=el.closest('tr'); const ri=+tr.dataset.row; if(DRAFT.sections[sid]&&DRAFT.sections[sid][ri]) DRAFT.sections[sid][ri][el.dataset.col]=val; const _sec=CFG.sections.find(s=>s.id===sid); if(_sec&&/cut\s*item/i.test(_sec.title)){ const _nc=_sec.columns.find(c=>/name/i.test(c.label)); if(_nc&&el.dataset.col===_nc.id){ const _lc=_sec.columns.find(c=>/length/i.test(c.label)); if(_lc){ const _len=entryCutLenFor(val); if(DRAFT.sections[sid]&&DRAFT.sections[sid][ri]) DRAFT.sections[sid][ri][_lc.id]=_len; const _li=tr&&tr.querySelector(`[data-col="${_lc.id}"]`); if(_li) _li.value=_len; } } } if(_sec&&/order/i.test(_sec.title)){ const _oc=_sec.columns.find(c=>c.id===el.dataset.col); if(_oc&&/order\s*no|file\s*no/i.test(_oc.label)){ try{ refreshCutLengths(); }catch(e){} } } CFG.sections.forEach(s=>{ if(s.columns.some(c=>c.type==='formula')) recomputeSection(s.id); }); refreshCutExtra(); }
 }
 function showCombo(inp){
   const opts=comboOptions(inp); if(!opts.length){ hideCombo(); return; }
@@ -2744,6 +2745,20 @@ function entryExtraFor(sec, ri){
   const after=before+num(row[pcsCol.id]);
   const extra=Math.max(0, after-required)-Math.max(0, before-required);
   return extra>0? String(Math.round(extra)) : '';
+}
+function refreshCutLengths(){
+  const ci=CFG.sections.find(s=>/cut\s*item/i.test(s.title)); if(!ci) return;
+  const nameCol=ci.columns.find(c=>/name/i.test(c.label));
+  const lenCol=ci.columns.find(c=>/length/i.test(c.label));
+  if(!nameCol||!lenCol) return;
+  const rows=DRAFT.sections[ci.id]||[];
+  const tbl=document.querySelector(`table.dt[data-sec="${ci.id}"]`);
+  rows.forEach((row,ri)=>{
+    const nm=String(row[nameCol.id]??'').trim(); if(!nm) return;
+    const len=entryCutLenFor(nm);
+    if(DRAFT.sections[ci.id]&&DRAFT.sections[ci.id][ri]) DRAFT.sections[ci.id][ri][lenCol.id]=len;
+    if(tbl){ const tr=tbl.querySelector(`tbody tr[data-row="${ri}"]`); const inp=tr&&tr.querySelector(`[data-col="${lenCol.id}"]`); if(inp) inp.value=len; }
+  });
 }
 function refreshCutExtra(){
   CFG.sections.forEach(sec=>{
@@ -2985,7 +3000,7 @@ function extraCutCheck(){
     if(dc<=0) continue;
     const existing=autoCutDone(o,c.name,editingId);
     const projected=existing+dc;
-    if(projected> c.qty+1000) return {comp:c.name, required:c.qty, projected, max:c.qty+1000};
+    if(projected> c.qty+XCUTLIMIT) return {comp:c.name, required:c.qty, projected, max:c.qty+XCUTLIMIT};
   }
   return null;
 }
@@ -2996,10 +3011,21 @@ function saveEntry(){
   const any=Object.values(DRAFT.sections).some(rows=>rows.some(r=>Object.values(r).some(v=>String(v).trim()!=='')));
   if(!any){ toast('Add at least one row of data','err'); return; }
   const _ex=extraCutCheck();
-  if(_ex){ toast(`Something went wrong — Extra cutting! "${_ex.comp}" max ${_ex.max} tak allowed (required ${_ex.required} + 1000 extra). Abhi total ${_ex.projected} ho raha hai.`,'err'); return; }
+  if(_ex){ toast(`Something went wrong — Extra cutting! "${_ex.comp}" max ${_ex.max} tak allowed (required ${_ex.required} + ${XCUTLIMIT} extra). Abhi total ${_ex.projected} ho raha hai.`,'err'); return; }
   const s=computeSummary();
   const complete=entryComplete(DRAFT.sections, CFG);
   const now=new Date().toISOString();
+  /* Location zaroori — tabhi jab entry complete ho rahi ho (Wastage bhari hai).
+     Adhoori roll-start entry par location nahi maangte. */
+  if(complete){
+    const _lsec=CFG.sections.find(x=>/location/i.test(x.title));
+    if(_lsec){
+      const _lcol=(_lsec.columns||[]).find(c=>/location/i.test(c.label))||(_lsec.columns||[])[0];
+      const _lok=_lcol && (DRAFT.sections[_lsec.id]||[]).some(r=>String(r[_lcol.id]??'').trim()!=='');
+      if(!_lok){ toast('\u26D4 Location bharna zaroori hai \u2014 tabhi entry save hogi','err'); return; }
+    }
+  }
+
   if(editingId){
     const rec=RECORDS.find(r=>r.id===editingId);
     if(rec){
@@ -5183,10 +5209,12 @@ function renderDropLists(){
     +   '</div>'
     + '</div></div>'
     + (isAdmin()?caseBarHtml():'')
+    + (isAdmin()?xcutHtml():'')
     + '<div id="dlList">'+dlCardsHtml()+'</div></div>';
   bindDropLists();
   (function(){ var ab=document.getElementById('dlAccess'); if(ab) ab.onclick=dlAccessOpen; })();
   bindCaseBar();
+  bindXcut();
   try{ if(window._comsynPaint) window._comsynPaint(); }catch(e){}
 }
 
@@ -5256,6 +5284,13 @@ let TXTCASE=(function(){
   return 'off';
 })();
 function saveTxtCase(){ Store.set(KEY_TXTCASE,JSON.stringify(TXTCASE)); }
+
+const KEY_XCUT='comsyn_xcut_v1';
+let XCUTLIMIT=(function(){
+  try{ var r=Store.get(KEY_XCUT); if(r!=null && r!==''){ var v=parseInt(JSON.parse(r),10); if(!isNaN(v)&&v>=0) return v; } }catch(e){}
+  return 1000;
+})();
+function saveXcut(){ Store.set(KEY_XCUT,JSON.stringify(XCUTLIMIT)); }
 function applyCase(s){
   var v=String(s==null?'':s);
   if(!v.trim()) return v;
@@ -5313,6 +5348,29 @@ function caseBarHtml(){
     + '</div>'
     + '<div class="cs-eg">Jaise: <b id="csEg">'+esc(applyCase('sonu kumar'))+'</b></div>'
     + '</div></div>';
+}
+function xcutHtml(){
+  return '<div class="card" style="margin-bottom:14px"><div class="card-body cs-wrap">'
+    + '<div><div class="cs-t">EXTRA CUT LIMIT</div>'
+    + '<div class="cs-s">Kisi component ki cutting order qty se kitni <b>zyada</b> tak allowed hai. Isse zyada save nahi hogi. Turant lagta hai.</div></div>'
+    + '<span style="flex:1"></span>'
+    + '<div style="display:flex;align-items:center;gap:8px">'
+    +   '<input type="number" id="xcutIn" min="0" step="1" value="'+esc(String(XCUTLIMIT))+'" class="be-ready" data-nocase style="width:120px;text-align:center">'
+    +   '<button type="button" class="btn btn-primary" id="xcutSave">Save</button>'
+    + '</div>'
+    + '<div class="cs-eg">Abhi: order qty + <b id="xcutEg">'+esc(String(XCUTLIMIT))+'</b> tak</div>'
+    + '</div></div>';
+}
+function bindXcut(){
+  var b=document.getElementById('xcutSave'); if(!b) return;
+  b.onclick=function(){
+    var el=document.getElementById('xcutIn'); if(!el) return;
+    var v=parseInt(el.value,10);
+    if(isNaN(v)||v<0){ toast('Sahi number likho (0 ya usse zyada)','err'); return; }
+    XCUTLIMIT=v; saveXcut();
+    var eg=document.getElementById('xcutEg'); if(eg) eg.textContent=String(v);
+    toast('Extra cut limit set: '+v,'ok');
+  };
 }
 function bindCaseBar(){
   document.querySelectorAll('[data-case]').forEach(function(b){
@@ -5781,7 +5839,7 @@ function xLocCell(order,c){
 function xTableHtml(item){
   const rows=item.rows.map(c=>`<tr>
       <td>${esc(c.name)}</td>
-      <td>${c.cutLen===''||c.cutLen==null?'—':esc(String(c.cutLen))}</td>
+      <td>${c.cutLen===''||c.cutLen==null?'—':esc(String(c.cutLen))+' cm'}</td>
       <td>${c.qty}</td>
       <td>${c.cut}</td>
       <td>+${c.extra}</td>
@@ -5866,9 +5924,10 @@ function compTableHtml(o,showLive){
   const rows=comps.map((c,ri)=>{
     const cut=autoCutDone(o,c.name), bal=c.qty-cut, extra=cut>c.qty?cut-c.qty:0;
     const zb=ri%2?'background:#fbfdf7;':'background:#fff;';
-    return `<tr><td style="${_bd}background:#fffbeb;font-weight:800;padding:8px 10px;text-align:left;color:#12243a">${esc(c.name)}</td><td style="${_tdc}${zb}">${c.qty}</td><td style="${_tdc}background:#e2efda">${cut}</td><td style="${_tdc}${bal<=0?'background:#e2efda':'background:#fadee4;color:#8c1e32;font-weight:800'}">${bal<=0?'<span class="chip chip-done">Done</span>':bal}</td><td style="${_tdc}background:#ffeed6">${extra>0?'<span class="chip chip-extra">+'+extra+'</span>':''}</td></tr>`;
+    const _cl=(c.cutLen===''||c.cutLen==null)?'\u2014':(esc(c.cutLen)+' cm');
+    return `<tr><td style="${_bd}background:#fffbeb;font-weight:800;padding:8px 10px;text-align:left;color:#12243a">${esc(c.name)}</td><td style="${_tdc}${zb}">${_cl}</td><td style="${_tdc}${zb}">${c.qty}</td><td style="${_tdc}background:#e2efda">${cut}</td><td style="${_tdc}${bal<=0?'background:#e2efda':'background:#fadee4;color:#8c1e32;font-weight:800'}">${bal<=0?'<span class="chip chip-done">Done</span>':bal}</td><td style="${_tdc}background:#ffeed6">${extra>0?'<span class="chip chip-extra">+'+extra+'</span>':''}</td></tr>`;
   }).join('');
-  return `<div class="ord-comp"><div style="font-weight:800;color:#12243a;margin:0 0 7px;font-size:13.5px">Order Qty :- <span style="color:#1b6ca8">${esc(String(oq||'\u2014'))}</span></div><table style="border-collapse:collapse;width:100%"><thead><tr><th style="${_th};text-align:left">Component</th><th style="${_th}">Qty</th><th style="${_th}">Cut Done</th><th style="${_th}">Balance</th><th style="${_th}">Extra</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="ord-comp"><div style="font-weight:800;color:#12243a;margin:0 0 7px;font-size:13.5px">Order Qty :- <span style="color:#1b6ca8">${esc(String(oq||'\u2014'))}</span></div><table style="border-collapse:collapse;width:100%"><thead><tr><th style="${_th};text-align:left">Component</th><th style="${_th}">Cut Length</th><th style="${_th}">Qty</th><th style="${_th}">Cut Done</th><th style="${_th}">Balance</th><th style="${_th}">Extra</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function openOrderEdit(id){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
@@ -5918,13 +5977,14 @@ function orderCardHtml(o,sub,nf){
   const rows=showFields.map(f=>`<div class="ord-kv"><span>${esc(f.label)}</span><b>${esc(o.vals[f.id]||'—')}</b></div>`).join('');
   let extra='';
   if(sub==='balance'||sub==='process'||sub==='complete') extra=compTableHtml(o, sub==='balance');
-  else if(sub==='new'){ const cs=orderComponents(o); if(cs.length) extra=`<div class="ord-comp-chips">${cs.map(c=>`<span class="cchip">${esc(c.name)} <b>${c.qty}</b></span>`).join('')}</div>`; }
+  else if(sub==='new'){ const cs=orderComponents(o); if(cs.length) extra=`<div class="ord-comp-chips">${cs.map(c=>`<span class="cchip">${esc(c.name)} <b>${c.qty}</b>${(c.cutLen!==''&&c.cutLen!=null)?` <span class="cchip-len">\u00b7 ${esc(c.cutLen)} cm</span>`:''}</span>`).join('')}</div>`; }
   const delBtn=`<button class="btn btn-sm btn-danger" data-odel="${o.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>`;
   const editBtn=`<button class="btn btn-sm btn-blue" data-oedit="${o.id}" style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>Edit</button>`;
   const del=delBtn+editBtn;
   let actions;
-  /* Balance: koi button nahi — order khud hi Under Process me chala jata hai jab saare components poore ho jayein */
-  if(sub==='balance') actions='';
+  /* Balance: sirf delete (galti se bana order hatane ke liye). Order khud hi
+     Under Process me chala jata hai jab saare components poore ho jayein. */
+  if(sub==='balance') actions=delBtn;
   else if(sub==='process') actions=`<button class="btn btn-sm btn-primary" data-ocomplete="${o.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Move to Complete</button>${delBtn}`;
   else if(sub==='complete') actions=`<span class="ord-done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;margin-right:5px"><path d="M20 6 9 17l-5-5"/></svg>Completed — bag ban gaya</span>${del}`;
   else actions=del;
@@ -7617,31 +7677,42 @@ function _muBackup(){
 var KEY_AUTOBKP='comsyn_autobkp_v1';
 function autoBkpGet(){
   try{ var v=JSON.parse(localStorage.getItem(KEY_AUTOBKP)||'null');
-    if(v && typeof v==='object') return v; }catch(e){}
-  return {on:false, time:'19:00', last:''};
+    if(v && typeof v==='object'){ if(v.every==null) v.every=0; return v; } }catch(e){}
+  return {on:false, time:'19:00', every:0, last:'', lastTs:0};
 }
 function autoBkpSet(v){ try{ localStorage.setItem(KEY_AUTOBKP, JSON.stringify(v)); }catch(e){} }
 function autoBkpCheck(){
   try{
     if(typeof isAdmin==='function' && !isAdmin()) return;
     var c=autoBkpGet(); if(!c.on) return;
-    var today=todayISO(); if(c.last===today) return;          /* aaj ka ho chuka */
+    if(!(RECORDS||[]).length) return;                          /* data load hone do */
+    var ev=Number(c.every||0);
+    if(ev>0){
+      /* HAR X GHANTE wala tarika — ginti Save dabane ke waqt se shuru */
+      if(!c.lastTs){ c.lastTs=Date.now(); autoBkpSet(c); return; }
+      if(Date.now()-c.lastTs < ev*3600000) return;
+      var r2=_bkpDownload(true); if(!r2) return;
+      c.lastTs=Date.now(); c.last=todayISO(); autoBkpSet(c);
+      _autoBkpBar(r2, ev);
+      return;
+    }
+    /* ROZ EK BAAR wala tarika */
+    var today=todayISO(); if(c.last===today) return;
     var now=new Date();
     var hm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-    if(hm < String(c.time||'19:00')) return;                   /* time nahi aaya */
-    if(!(RECORDS||[]).length) return;                          /* data load hone do */
+    if(hm < String(c.time||'19:00')) return;
     var r=_bkpDownload(true);
     if(!r) return;
-    c.last=today; autoBkpSet(c);
+    c.last=today; c.lastTs=Date.now(); autoBkpSet(c);
     _autoBkpBar(r);
   }catch(e){}
 }
-function _autoBkpBar(r){
+function _autoBkpBar(r, everyHrs){
   try{
     if(document.getElementById('abBar')) return;
     var d=document.createElement('div'); d.id='abBar';
     d.style.cssText='position:fixed;left:12px;right:12px;bottom:14px;z-index:99997;background:#0C5F3E;color:#fff;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px/1.45 system-ui,sans-serif';
-    d.innerHTML='<span style="flex:1">\u2705 Aaj ka backup download ho gaya \u2014 '+r.n+' records. Downloads folder me dekho.<br><span style="opacity:.85;font-size:12px">Nahi mili? Neeche dabao.</span></span>'+
+    d.innerHTML='<span style="flex:1">\u2705 '+(everyHrs?('Backup download ho gaya (har '+everyHrs+' ghante)'):'Aaj ka backup download ho gaya')+' \u2014 '+r.n+' records. Downloads folder me dekho.<br><span style="opacity:.85;font-size:12px">Nahi mili? Neeche dabao.</span></span>'+
       '<button id="_abAgain" style="background:#fff;color:#0C5F3E;border:none;border-radius:8px;padding:8px 13px;font:800 13px system-ui,sans-serif;cursor:pointer">Dobara</button>'+
       '<button id="_abX" style="background:transparent;color:#bfe6d4;border:none;font-size:19px;line-height:1;cursor:pointer;padding:0 4px">\u00d7</button>';
     document.body.appendChild(d);
@@ -7654,13 +7725,17 @@ function _autoBkpBar(r){
 function showAutoBkp(){
   var c=autoBkpGet();
   var lastTxt = c.last ? c.last : 'abhi tak nahi';
+  if(Number(c.every||0)>0 && c.lastTs){ try{ lastTxt=new Date(c.lastTs).toLocaleString('en-GB'); }catch(e){} }
   openModal({ title:'Auto Backup',
     body:'<div style="font-size:14px;line-height:1.65">'+
       '<label style="display:flex;align-items:center;gap:10px;background:#f7fafd;border:1px solid #e3ebf3;border-radius:10px;padding:12px 13px;margin-bottom:12px;cursor:pointer">'+
         '<input type="checkbox" id="abOn" '+(c.on?'checked':'')+' style="width:20px;height:20px">'+
         '<span style="font-weight:800;color:#0d1726">Roz apne aap backup download karo</span></label>'+
-      '<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:800;color:#5a6b80;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px">Time</div>'+
-        '<input type="time" id="abTime" value="'+esc(c.time||'19:00')+'" style="width:100%;border:1.5px solid #dfe7ef;border-radius:10px;padding:12px;font-size:17px;font-weight:700;color:#0d1726"></div>'+
+      '<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:800;color:#5a6b80;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px">Time (roz ek baar)</div>'+
+        '<input type="time" id="abTime" value="'+esc(c.time||'19:00')+'" style="width:100%;border:1.5px solid #dfe7ef;border-radius:10px;padding:12px;font-size:17px;font-weight:700;color:#0d1726"'+(Number(c.every||0)>0?' disabled':'')+'></div>'+
+      '<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:800;color:#5a6b80;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px">Har kitne ghante</div>'+
+        '<input type="number" id="abEvery" min="1" max="24" value="'+(Number(c.every||0)>0?Number(c.every):'')+'" placeholder="khali chhodo = roz ek baar (upar wale time par)" style="width:100%;border:1.5px solid #dfe7ef;border-radius:10px;padding:12px;font-size:17px;font-weight:700;color:#0d1726">'+
+        '<div style="font-size:11.5px;color:#7a8b9f;margin-top:5px">1 likhoge to Save dabane ke waqt se har 1 ghante me backup. Khali chhodoge to upar wala time chalega.</div></div>'+
       '<div style="background:#f7fafd;border-radius:10px;padding:10px 13px;font-size:12.5px;color:#5a6b80;margin-bottom:12px">Aakhri auto backup: <b style="color:#0d1726">'+esc(lastTxt)+'</b></div>'+
       '<div style="background:#fff1e6;border:1px solid #f3d3ba;border-radius:10px;padding:11px 13px;font-size:12.5px;color:#8a4b13;line-height:1.6">'+
         '<b>Dhyan rahe:</b> ye browser me chalta hai, isliye app <b>poori tarah band</b> ho to kuch nahi ho sakta. '+
@@ -7675,12 +7750,16 @@ function showAutoBkp(){
   if(b) b.onclick=function(){
     var on=document.getElementById('abOn').checked;
     var t=document.getElementById('abTime').value||'19:00';
+    var evRaw=String(document.getElementById('abEvery').value||'').trim();
+    var ev=evRaw===''?0:Math.max(1, Math.min(24, Math.floor(Number(evRaw)||0)));
     var cur=autoBkpGet();
-    /* time badla = nayi setting, to aaj ka counter reset — naya time aaj hi lag jaye */
-    var last=(t!==cur.time)?'':(cur.last||'');
-    autoBkpSet({on:on, time:t, last:last});
+    /* time ya ghanta badla = nayi setting, to counter reset — abhi se lagu */
+    var changed=(t!==cur.time)||(ev!==Number(cur.every||0));
+    var last=changed?'':(cur.last||'');
+    var lastTs=(ev>0)?(changed?Date.now():(cur.lastTs||Date.now())):(changed?0:(cur.lastTs||0));
+    autoBkpSet({on:on, time:t, every:ev, last:last, lastTs:lastTs});
     closeModal();
-    toast(on?('Auto backup ON \u2014 roz '+t+' ke baad'):'Auto backup OFF','ok');
+    toast(on?(ev>0?('Auto backup ON \u2014 har '+ev+' ghante'):('Auto backup ON \u2014 roz '+t+' ke baad')):'Auto backup OFF','ok');
     setTimeout(autoBkpCheck, 800);
   };
 }
@@ -10287,7 +10366,13 @@ function showErrorLog(){
       if(ps!=='granted'){ _locFailSince=null; _locWarnHide(); return; }
       navigator.geolocation.getCurrentPosition(function(pos){
         _locFailSince=null; _locWarnHide();
-      }, fail, {enableHighAccuracy:false, timeout:20000, maximumAge:120000});
+      }, function(err){
+        /* err.code 2 = POSITION_UNAVAILABLE (phone ka GPS device level pe OFF).
+           Ye permission-deny nahi hai — is haal me warning/logout nahi karte.
+           Warning sirf tab jab permission hi denied ho (upar handle hota hai). */
+        if(err && err.code===2){ _locFailSince=null; _locWarnHide(); return; }
+        fail();
+      }, {enableHighAccuracy:false, timeout:20000, maximumAge:120000});
     });
   }
   try{ setTimeout(_locWatch,8000); setInterval(_locWatch,60000); }catch(e){}
@@ -10302,6 +10387,11 @@ function showErrorLog(){
     /* auto backup: app khulte hi ek check, phir har minute */
     setTimeout(function(){ try{ autoBkpCheck(); }catch(e){} }, 6000);
     setInterval(function(){ try{ autoBkpCheck(); }catch(e){} }, 60000);
+    /* App minimise se wapas aate hi turant check — background me browser
+       timers rok deta hai, isliye wapas aate hi pakad lo. */
+    document.addEventListener('visibilitychange', function(){
+      if(!document.hidden) setTimeout(function(){ try{ autoBkpCheck(); }catch(e){} }, 1200);
+    });
     if(sbtn||ebtn){ const _sv=function(){ try{ const a=isAdmin()?'inline-block':'none'; if(sbtn) sbtn.style.display=a; if(ebtn) ebtn.style.display=a; }catch(e){} };
       if(sbtn) sbtn.onclick=showStorageInfo; if(ebtn) ebtn.onclick=showErrorLog; _sv(); setInterval(_sv,1500); }
     var cancelBtn=document.getElementById('loginCancel'); var xBtn=document.getElementById('loginXbtn');
