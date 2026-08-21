@@ -638,6 +638,8 @@ table.dt td input.lockdrop:focus{border-color:var(--amber);box-shadow:0 0 0 3px 
 .loc-gate-hint{display:none;align-items:center;gap:8px;font-size:12.5px;color:var(--amber);background:var(--amber-soft);border:1px solid #f3cda8;border-radius:10px;padding:9px 12px;margin-bottom:12px;font-weight:600;line-height:1.4}
 .loc-gate-hint svg{width:15px;height:15px;flex:none}
 .card.loc-locked .loc-gate-hint{display:flex}
+.card.wst-locked table.dt{opacity:.5;pointer-events:none}
+.card.wst-locked table.dt input,.card.wst-locked table.dt select{background:#f1f4f8}
 .card.loc-locked .tbl-wrap,.card.loc-locked .add-row-btn{opacity:.45;pointer-events:none;filter:grayscale(.35);user-select:none}
 /* Records sub-tabs */
 .rsub-bar{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:5px;margin-bottom:18px}
@@ -2604,7 +2606,7 @@ function renderEntry(){
   // bind headers
   [...CFG.upperHeaders,...CFG.lowerHeaders].forEach(h=>{
     const el=document.getElementById('hf_'+h.id);
-    if(el) el.onchange=e=>{DRAFT.headers[h.id]=e.target.value;refreshSummary();};
+    if(el) el.onchange=e=>{DRAFT.headers[h.id]=e.target.value;refreshSummary();refreshLocationGate();};
   });
   bindSectionEvents();
   bindComboFields();
@@ -2632,7 +2634,7 @@ function comboOptions(el){
 }
 function comboSetDraft(el,val){
   if(el.dataset && el.dataset.of) return; // order form reads inputs directly on save
-  if(el.id && el.id.indexOf('hf_')===0){ DRAFT.headers[el.id.slice(3)]=val; refreshSummary(); return; }
+  if(el.id && el.id.indexOf('hf_')===0){ DRAFT.headers[el.id.slice(3)]=val; refreshSummary(); refreshLocationGate(); return; }
   const tb=el.closest('table.dt'); if(tb){ const sid=tb.dataset.sec; const tr=el.closest('tr'); const ri=+tr.dataset.row; if(DRAFT.sections[sid]&&DRAFT.sections[sid][ri]) DRAFT.sections[sid][ri][el.dataset.col]=val; const _sec=CFG.sections.find(s=>s.id===sid); if(_sec&&/cut\s*item/i.test(_sec.title)){ const _nc=_sec.columns.find(c=>/name/i.test(c.label)); if(_nc&&el.dataset.col===_nc.id){ const _lc=_sec.columns.find(c=>/length/i.test(c.label)); if(_lc){ const _len=entryCutLenFor(val); if(DRAFT.sections[sid]&&DRAFT.sections[sid][ri]) DRAFT.sections[sid][ri][_lc.id]=_len; const _li=tr&&tr.querySelector(`[data-col="${_lc.id}"]`); if(_li) _li.value=_len; } } } if(_sec&&/order/i.test(_sec.title)){ const _oc=_sec.columns.find(c=>c.id===el.dataset.col); if(_oc&&/order\s*no|file\s*no/i.test(_oc.label)){ try{ refreshCutLengths(); }catch(e){} } } CFG.sections.forEach(s=>{ if(s.columns.some(c=>c.type==='formula')) recomputeSection(s.id); }); refreshCutExtra(); }
 }
 function showCombo(inp){
@@ -2681,7 +2683,19 @@ function headerField(h){
 }
 
 /* LOCATION section gate: jab tak Wastage (Loom/Lamination/Process) na bhare, Location locked rahe */
+/* Abhi jo entry ban rahi hai usme Machine = RE-CUTTING hai ya nahi.
+   RE-CUTTING me kapda dobara kaata jata hai — loom/lamination/process
+   wastage nahi hoti, isliye wo fields lock rehti hain aur Location
+   seedha bhara ja sakta hai. */
+function draftIsRecut(){
+  try{
+    const mh=(CFG.upperHeaders||[]).concat(CFG.lowerHeaders||[]).find(x=>/machine/i.test(x.label||''));
+    if(!mh) return false;
+    return /re\s*-?\s*cutting/i.test(String((DRAFT.headers||{})[mh.id]||''));
+  }catch(e){ return false; }
+}
 function wastageReady(){
+  if(draftIsRecut()) return true;            /* RE-CUTTING: wastage ki zarurat nahi */
   const ws=CFG.sections.find(s=>/wast/i.test(s.title));
   if(!ws) return true;
   const cols=ws.columns.filter(c=>/loo+m|lamin|process/i.test(c.label));
@@ -2691,6 +2705,17 @@ function wastageReady(){
 function refreshLocationGate(){
   document.querySelectorAll('#content [data-locgate]').forEach(card=>{
     card.classList.toggle('loc-locked', !wastageReady());
+  });
+  /* Machine = RE-CUTTING par Wastage section lock/unlock */
+  const rc=draftIsRecut();
+  document.querySelectorAll('#content [data-wstsec]').forEach(card=>{
+    card.classList.toggle('wst-locked', rc);
+    let n=card.querySelector('.loc-gate-hint');
+    if(rc && !n){
+      n=document.createElement('div'); n.className='loc-gate-hint'; n.style.display='flex';
+      n.innerHTML='<b>RE-CUTTING</b> me wastage nahi bharni \u2014 seedha Location bharo.';
+      const bd=card.querySelector('.card-body'); if(bd) bd.insertBefore(n, bd.firstChild);
+    } else if(!rc && n){ n.remove(); }
   });
 }
 function sectionEntryCard(sec){
@@ -2704,8 +2729,13 @@ function sectionEntryCard(sec){
   const isLocSec=/location/i.test(sec.title);
   const gateAttr = isLocSec ? ' data-locgate="1"' : '';
   const locLock = isLocSec && !wastageReady();
+  /* RE-CUTTING me Wastage bharni hi nahi — poora section lock + saaf message */
+  const isWstSec=/wast/i.test(sec.title);
+  const wstLock = isWstSec && draftIsRecut();
+  const wstNote = wstLock ? `<div class="loc-gate-hint" style="display:flex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 11H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2Z"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> <b>RE-CUTTING</b> me wastage nahi bharni \u2014 seedha Location bharo.</div>` : '';
   const gateHint = isLocSec ? `<div class="loc-gate-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 11H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2Z"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Pehle <b>Wastage Details</b> bharo — uske baad Location active hoga.</div>` : '';
-  return `<div class="card${locLock?' loc-locked':''}"${gateAttr} style="margin-top:18px"><div class="card-head"><h3><span class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 3v18"/></svg></span>${esc(sec.title)}</h3><span class="tag">${tag}</span></div><div class="card-body">${gateHint}${body}</div></div>`;
+  const wstAttr = isWstSec ? ' data-wstsec="1"' : '';
+  return `<div class="card${locLock?' loc-locked':''}${wstLock?' wst-locked':''}"${gateAttr}${wstAttr} style="margin-top:18px"><div class="card-head"><h3><span class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 3v18"/></svg></span>${esc(sec.title)}</h3><span class="tag">${tag}</span></div><div class="card-body">${gateHint}${wstNote}${body}</div></div>`;
 }
 
 function entryOrderCtx(){
@@ -2962,10 +2992,17 @@ function refreshSummary(){
   vals[3].innerHTML=`${s.pct}<span class="u">%</span>`;
 }
 
-function entryComplete(sections, cfg){
+function entryComplete(sections, cfg, headers){
   const ci=cfg.sections.find(s=>/cut\s*item/i.test(s.title));
   const pcsCol=ci&&ci.columns.find(c=>/pcs|pieces/i.test(c.label));
   const hasPcs= !!(ci&&pcsCol&&(sections[ci.id]||[]).some(r=>num(r[pcsCol.id])>0));
+  /* RE-CUTTING me wastage hoti hi nahi — sirf PCs se entry poori maani jayegi */
+  if(headers){
+    try{
+      const mh=(cfg.upperHeaders||[]).concat(cfg.lowerHeaders||[]).find(x=>/machine/i.test(x.label||''));
+      if(mh && /re\s*-?\s*cutting/i.test(String(headers[mh.id]||''))) return !!hasPcs;
+    }catch(e){}
+  }
   const ws=cfg.sections.find(s=>/wast/i.test(s.title));
   let hasWst=false;
   if(ws){ const cols=ws.columns.filter(c=>/loo+m|lamin|process/i.test(c.label)); hasWst=(sections[ws.id]||[]).some(r=>cols.some(c=>num(r[c.id])>0)); }
@@ -3013,7 +3050,7 @@ function saveEntry(){
   const _ex=extraCutCheck();
   if(_ex){ toast(`Something went wrong — Extra cutting! "${_ex.comp}" max ${_ex.max} tak allowed (required ${_ex.required} + ${XCUTLIMIT} extra). Abhi total ${_ex.projected} ho raha hai.`,'err'); return; }
   const s=computeSummary();
-  const complete=entryComplete(DRAFT.sections, CFG);
+  const complete=entryComplete(DRAFT.sections, CFG, DRAFT.headers);
   const now=new Date().toISOString();
   /* Location zaroori — tabhi jab entry complete ho rahi ho (Wastage bhari hai).
      Adhoori roll-start entry par location nahi maangte. */
