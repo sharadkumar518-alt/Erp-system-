@@ -7581,6 +7581,20 @@ function _muDlg(idx){
     d.querySelectorAll('.muTD').forEach(function(cb){ if(cb.checked){ _tr[cb.dataset.k]=_tr[cb.dataset.k]||{}; _tr[cb.dataset.k].d=true; _any=true; } });
     d.querySelectorAll('.muTED').forEach(function(ip){ var n=parseInt(ip.value,10); if(n>0){ _tr[ip.dataset.k]=_tr[ip.dataset.k]||{}; _tr[ip.dataset.k].ed=n; _any=true; } });
     d.querySelectorAll('.muTDD').forEach(function(ip){ var n=parseInt(ip.value,10); if(n>0){ _tr[ip.dataset.k]=_tr[ip.dataset.k]||{}; _tr[ip.dataset.k].dd=n; _any=true; } });
+    /* SUB-TAB ka UNTICK bhi saaf-saaf save karo (e:false / d:false).
+       Pehle sirf ticked wale save hote the — untick ka koi record hi nahi banta tha,
+       isliye app parent panel ke tick se right de deti thi. Ab sub-tab ka checkbox
+       hi aakhri faisla hai: tick = right, untick = right nahi. */
+    if(_any){
+      d.querySelectorAll('tr.mu-sub').forEach(function(row){
+        var ce=row.querySelector('.muTE'), cd=row.querySelector('.muTD');
+        if(!ce||!cd) return;
+        var k=ce.dataset.k;
+        _tr[k]=_tr[k]||{};
+        _tr[k].e=!!ce.checked;
+        _tr[k].d=!!cd.checked;
+      });
+    }
     var _vis=[]; d.querySelectorAll('.muTV').forEach(function(cb){ if(cb.checked) _vis.push(cb.dataset.k); });
     var _dv=parseInt(d.querySelector('#muDays').value,10);
     _muRpc('comsyn_user_save',{u:cr.u,p:cr.p,t_user:tu,t_pass:tp,t_role:d.querySelector('#muR').value,
