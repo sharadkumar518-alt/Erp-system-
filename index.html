@@ -6019,9 +6019,9 @@ function orderCardHtml(o,sub,nf){
   const editBtn=`<button class="btn btn-sm btn-blue" data-oedit="${o.id}" style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>Edit</button>`;
   const del=delBtn+editBtn;
   let actions;
-  /* Balance: sirf delete (galti se bana order hatane ke liye). Order khud hi
-     Under Process me chala jata hai jab saare components poore ho jayein. */
-  if(sub==='balance') actions=delBtn;
+  /* Balance: Edit + Delete dono. Kaun sa button kis user ko milega ye
+     Manage Users ke panel-wise rights se tay hota hai (orderentry:balance). */
+  if(sub==='balance') actions=del;
   else if(sub==='process') actions=`<button class="btn btn-sm btn-primary" data-ocomplete="${o.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Move to Complete</button>${delBtn}`;
   else if(sub==='complete') actions=`<span class="ord-done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;margin-right:5px"><path d="M20 6 9 17l-5-5"/></svg>Completed — bag ban gaya</span>${del}`;
   else actions=del;
@@ -10486,6 +10486,29 @@ function showErrorLog(){
     });
   }
   try{ _heartbeat(); setInterval(_heartbeat,60000); }catch(e){}
+  /* RIGHTS AUTO-REFRESH — rights login ke waqt phone me save hote hain, isliye
+     admin agar beech me rights badle to user ko dobara login karna padta tha.
+     Ab har 60 second me taaza rights aa jaate hain — dobara login ki zarurat nahi. */
+  function _rightsRefresh(){
+    var u,p; try{ u=sessionStorage.getItem('comsyn_user'); p=sessionStorage.getItem('comsyn_pass'); }catch(e){}
+    if(!u||!p) return;
+    fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_login',{ method:'POST', headers:SB_HEADERS,
+      body:JSON.stringify({u:u,p:p,d:(typeof _deviceId==='function'?_deviceId():null)}) })
+      .then(function(r){ return r.json().catch(function(){return null;}); })
+      .then(function(j){
+        if(Array.isArray(j)) j=j.length?j[0]:null;
+        if(!j || typeof j!=='object' || j.error) return;   /* error/device issue par kuch mat karo */
+        try{
+          sessionStorage.setItem('comsyn_tab_rights', (j.tab_rights && typeof j.tab_rights==='object')?JSON.stringify(j.tab_rights):'');
+          sessionStorage.setItem('comsyn_rights_until', j.rights_until||'');
+          sessionStorage.setItem('comsyn_rights_expired', j.expired?'1':'0');
+          if(j.can_edit===false||j.can_edit==='false') sessionStorage.setItem('comsyn_can_edit','0'); else sessionStorage.setItem('comsyn_can_edit','1');
+          if(j.can_delete===false||j.can_delete==='false') sessionStorage.setItem('comsyn_can_delete','0'); else sessionStorage.setItem('comsyn_can_delete','1');
+        }catch(e){}
+      })
+      .catch(function(){});
+  }
+  try{ setInterval(_rightsRefresh,60000); }catch(e){}
   /* ---- LOCATION WATCHDOG: location off => 5 min warning => auto logout ---- */
   var _locFailSince=null, _locWarnTimer=null;
   function _locWarnShow(){
@@ -10692,8 +10715,28 @@ function showErrorLog(){
       });
     }catch(e){}
   }
-  window._comsynPaint=_paintWindows;
-  setInterval(_paintWindows, 1200);
+  /* Jis panel/sub-tab me EDIT ya DEL untick hai, us button ko poora chhupa do.
+     Sirf rokna kaafi nahi tha — button dikhta rehta tha aur dabane par kuch
+     nahi hota tha, jisse lagta tha app atak gayi. */
+  function _hideNoRight(){
+    try{
+      if(sessionStorage.getItem('comsyn_role')==='admin') return;
+      var okE=_rightFor('edit'), okD=_rightFor('delete');
+      document.querySelectorAll('#content button,#content [role="button"]').forEach(function(b){
+        if(b.closest && b.closest('.mudlg')) return;          /* Manage Users dialog chhodo */
+        var txt=((b.textContent||'')+' '+(b.title||'')+' '+(b.className||'')).toLowerCase();
+        var isDel=/\bdelete\b|\bdel\b|btn-danger|btn-del/.test(txt) || b.dataset.act==='del'
+                  || b.dataset.odel!==undefined || b.dataset.lpdel!==undefined;
+        var isEdit=/\bedit\b/.test(txt) || b.dataset.act==='edit' || b.dataset.edit!==undefined
+                  || b.dataset.oedit!==undefined || b.dataset.lpedit!==undefined;
+        if(isDel && !okD){ b.style.display='none'; b.setAttribute('data-noright','1'); }
+        else if(isEdit && !okE){ b.style.display='none'; b.setAttribute('data-noright','1'); }
+        else if(b.getAttribute('data-noright')==='1'){ b.style.display=''; b.removeAttribute('data-noright'); }
+      });
+    }catch(e){}
+  }
+  window._comsynPaint=function(){ _paintWindows(); _hideNoRight(); };
+  setInterval(function(){ _paintWindows(); _hideNoRight(); }, 1200);
   document.addEventListener('click',function(e){
     var t=(e.target && e.target.closest)?e.target.closest('button,[role="button"]'):null;
     if(!t) return;
