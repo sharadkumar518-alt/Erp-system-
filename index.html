@@ -7372,7 +7372,23 @@ function dshChartSVG(series){
 }
 /* ---- MANAGE USERS PANEL (admin only) ---- */
 var _muRows=[];
-var MU_PANELS=[['entry','Entry'],['records','Records'],['orderentry','Order Entry'],['extracut','Extra Order Cutting'],['batch','Batch'],['linep','Line Prod.'],['cuttingstock','Cutting Stock'],['rollstock','Roll Stock'],['rollreturn','Roll Godown Return'],['droplists','Dropdown Lists'],['cuttingreport','Cutting Report'],['mtrreport','MTR Report'],['dashboard','Dashboard'],['assign','Assignment'],['orderassign','Order Assign'],['linepassign','Line Assign'],['trash','Trash']];
+var MU_PANELS=[
+['entry','Entry'],
+['records','Records'],
+/* Order Entry ke sub-tabs — parent hide nahi hoga, sirf in rows me edit/del alag control hoga */
+['orderentry','Order Entry'],
+['orderentry:new_entry','\u2003\u21b3 New Order Entry'],
+['orderentry:new','\u2003\u21b3 New Order (list)'],
+['orderentry:balance','\u2003\u21b3 Balance Order'],
+['orderentry:process','\u2003\u21b3 Under Process'],
+['orderentry:complete','\u2003\u21b3 Complete'],
+['extracut','Extra Order Cutting'],
+/* Batch ke sub-tabs */
+['batch','Batch'],
+['batch:card','\u2003\u21b3 Batch Order'],
+['batch:process','\u2003\u21b3 Under Process'],
+['batch:complete','\u2003\u21b3 Complete'],
+['linep','Line Prod.'],['cuttingstock','Cutting Stock'],['rollstock','Roll Stock'],['rollreturn','Roll Godown Return'],['droplists','Dropdown Lists'],['cuttingreport','Cutting Report'],['mtrreport','MTR Report'],['dashboard','Dashboard'],['assign','Assignment'],['orderassign','Order Assign'],['linepassign','Line Assign'],['trash','Trash']];
 function _muCreds(){ var u,p; try{ u=sessionStorage.getItem('comsyn_user'); p=sessionStorage.getItem('comsyn_pass'); }catch(e){} return {u:u,p:p}; }
 function _muRpc(fn,body){
   return fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{ method:'POST', headers:SB_HEADERS, body:JSON.stringify(body) })
@@ -7471,18 +7487,49 @@ function _muDlg(idx){
     +'<label style="margin-top:14px">PANEL-WISE RIGHTS</label>'
     +'<div style="font-size:11px;color:#8a99ad;margin:0 0 5px;line-height:1.5">SHOW = panel dikhega \u00b7 EDIT/DEL = right \u00b7 DAYS = entry save hone ki date se kitne din tak button chalega (khali = hamesha)</div>'
     +'<div class="mugrid"><table><thead><tr><th>PANEL</th><th style="text-align:center">SHOW</th><th style="text-align:center">EDIT</th><th style="text-align:center">DAYS</th><th style="text-align:center">DEL</th><th style="text-align:center">DAYS</th></tr></thead><tbody>'
-    + MU_PANELS.map(function(pn){
-        return '<tr><td>'+esc(pn[1])+'</td>'
-          +'<td style="text-align:center"><input type="checkbox" class="muTV" data-k="'+pn[0]+'"></td>'
-          +'<td style="text-align:center"><input type="checkbox" class="muTE" data-k="'+pn[0]+'"></td>'
-          +'<td style="text-align:center"><input type="text" class="muTED dnum" data-k="'+pn[0]+'" inputmode="numeric" placeholder="\u221e"></td>'
-          +'<td style="text-align:center"><input type="checkbox" class="muTD" data-k="'+pn[0]+'"></td>'
-          +'<td style="text-align:center"><input type="text" class="muTDD dnum" data-k="'+pn[0]+'" inputmode="numeric" placeholder="\u221e"></td></tr>';
-      }).join('')
+    + (function(){
+        /* Panel row ke naam pe click -> uske sub-tab rows khulte/band hote hain.
+           List chhoti rahegi, zarurat par hi badi. Har panel ka apna group id. */
+        var out=[]; var pid=0;
+        for(var i=0;i<MU_PANELS.length;i++){
+          var pn=MU_PANELS[i]; var isSub=pn[0].indexOf(':')>=0;
+          if(!isSub) pid++;
+          var gid='mug'+pid;
+          if(!isSub){
+            var hasKids=(i+1<MU_PANELS.length)&&MU_PANELS[i+1][0].indexOf(pn[0]+':')===0;
+            var arrow=hasKids?'<span class="mu-arrow" style="display:inline-block;width:16px;user-select:none;color:#7488a0">\u25B8</span> ':'<span style="display:inline-block;width:16px"></span> ';
+            out.push('<tr data-mugrow="'+gid+'"><td style="font-size:13px;cursor:'+(hasKids?'pointer':'default')+'" '+(hasKids?('data-mugtoggle="'+gid+'"'):'')+'>'+arrow+esc(pn[1])+'</td>'
+              +'<td style="text-align:center"><input type="checkbox" class="muTV" data-k="'+pn[0]+'"></td>'
+              +'<td style="text-align:center"><input type="checkbox" class="muTE" data-k="'+pn[0]+'"></td>'
+              +'<td style="text-align:center"><input type="text" class="muTED dnum" data-k="'+pn[0]+'" inputmode="numeric" placeholder="\u221e"></td>'
+              +'<td style="text-align:center"><input type="checkbox" class="muTD" data-k="'+pn[0]+'"></td>'
+              +'<td style="text-align:center"><input type="text" class="muTDD dnum" data-k="'+pn[0]+'" inputmode="numeric" placeholder="\u221e"></td></tr>');
+          } else {
+            out.push('<tr class="mu-sub" data-mugparent="'+gid+'" style="background:#f7fafd;display:none"><td style="font-size:12px;padding-left:8px">'+esc(pn[1])+'</td>'
+              +'<td></td>'
+              +'<td style="text-align:center"><input type="checkbox" class="muTE" data-k="'+pn[0]+'"></td>'
+              +'<td style="text-align:center"><input type="text" class="muTED dnum" data-k="'+pn[0]+'" inputmode="numeric" placeholder="\u221e"></td>'
+              +'<td style="text-align:center"><input type="checkbox" class="muTD" data-k="'+pn[0]+'"></td>'
+              +'<td style="text-align:center"><input type="text" class="muTDD dnum" data-k="'+pn[0]+'" inputmode="numeric" placeholder="\u221e"></td></tr>');
+          }
+        }
+        return out.join('');
+      })()
     +'</tbody></table></div>'
     +'<div style="font-size:11px;color:#8a99ad;margin-top:6px;line-height:1.5">Misal: Records ke EDIT me 2 daalo \u2014 entry save hone ke 2 din baad Edit button apne aap halka (disabled) ho jayega. DEL me 7 daalo to 7 din baad Delete band.<br>Koi panel SHOW tick nahi karoge to role ke hisaab se default panels dikhenge.</div>'
     +'</div><div class="bf"><button class="btn btn-ghost" id="muX">Cancel</button><button class="btn btn-primary" id="muS">Save</button></div></div>';
   document.body.appendChild(d);
+  /* Panel naam pe click -> uske sub-tab rows khulte/band hote hain (arrow ghoomta hai) */
+  d.querySelectorAll('[data-mugtoggle]').forEach(function(el){
+    el.onclick=function(){
+      var gid=el.dataset.mugtoggle;
+      var kids=d.querySelectorAll('tr[data-mugparent="'+gid+'"]');
+      var opening = kids.length && kids[0].style.display==='none';
+      kids.forEach(function(k){ k.style.display = opening?'':'none'; });
+      var arrows=d.querySelectorAll('tr[data-mugrow="'+gid+'"] .mu-arrow');
+      arrows.forEach(function(a){ a.textContent = opening?'\u25BE':'\u25B8'; });
+    };
+  });
   if(r){
     d.querySelector('#muR').value=r.role||'view'; d.querySelector('#muE').checked=!!r.can_edit;
     d.querySelector('#muD').checked=!!r.can_delete; d.querySelector('#muB').checked=!!r.blocked;
@@ -7491,6 +7538,16 @@ function _muDlg(idx){
     d.querySelectorAll('.muTD').forEach(function(cb){ var o=tr[cb.dataset.k]; cb.checked=!!(o&&o.d); });
     d.querySelectorAll('.muTED').forEach(function(ip){ var o=tr[ip.dataset.k]; ip.value=(o&&o.ed>0)?o.ed:''; });
     d.querySelectorAll('.muTDD').forEach(function(ip){ var o=tr[ip.dataset.k]; ip.value=(o&&o.dd>0)?o.dd:''; });
+    /* Jis panel ke kisi sub-tab me pehle se koi setting hai, wo group khula hi dikhega */
+    d.querySelectorAll('tr.mu-sub').forEach(function(tr2){
+      var k=tr2.querySelector('[data-k]').dataset.k;
+      if(tr[k] && (tr[k].e!==undefined||tr[k].d!==undefined||tr[k].ed||tr[k].dd)){
+        var gid=tr2.dataset.mugparent;
+        d.querySelectorAll('tr[data-mugparent="'+gid+'"]').forEach(function(k2){ k2.style.display=''; });
+        var arrows=d.querySelectorAll('tr[data-mugrow="'+gid+'"] .mu-arrow');
+        arrows.forEach(function(a){ a.textContent='\u25BE'; });
+      }
+    });
     var vis=(typeof r.tabs==='string'&&r.tabs)?r.tabs.split(',').map(function(x){return x.trim();}):[];
     d.querySelectorAll('.muTV').forEach(function(cb){ cb.checked=vis.indexOf(cb.dataset.k)>=0; });
     if(r.rights_until){
@@ -7886,11 +7943,62 @@ function renderUsers(){
       <tbody id="usrRows"><tr><td colspan="8" style="text-align:center;color:#8a99ad;padding:22px">Loading\u2026</td></tr></tbody>
     </table></div>
     <div class="hint2">Green = abhi active (2 min ke andar) \u00b7 Ek hi ID se kai log ho to har device ki alag row \u00b7 Sirf usi device ko block karo jise rokna hai \u2014 baki sab chalte rahenge.</div>
+    <div style="margin-top:14px">
+      <button class="btn btn-ghost" id="usrHistBtn" style="font-weight:800">
+        <span class="mu-arrow" style="display:inline-block;width:14px;color:#7488a0">\u25B8</span> History \u2014 ab tak jitne bhi login hue
+      </button>
+      <div id="usrHistWrap" style="display:none;margin-top:10px">
+        <div class="utblw"><table>
+          <thead><tr><th>USER ID</th><th>DEVICE</th><th>LOCATION</th><th>PEHLA LOGIN</th></tr></thead>
+          <tbody id="usrHistRows"><tr><td colspan="4" style="text-align:center;color:#8a99ad;padding:22px">Loading\u2026</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
   </div></div>`;
   document.getElementById('usrRefresh').onclick=_usersLoad;
+  /* History section — bandh shuru hoti hai, sirf click par khulti aur data laati hai.
+     Page load par khud data nahi mangwati — isse page saaf-suthra rehta hai aur
+     bina zarurat Supabase call bhi nahi jaata. */
+  var _histLoaded=false;
+  document.getElementById('usrHistBtn').onclick=function(){
+    var wrap=document.getElementById('usrHistWrap');
+    var arrow=this.querySelector('.mu-arrow');
+    var opening=wrap.style.display==='none';
+    wrap.style.display=opening?'':'none';
+    if(arrow) arrow.textContent=opening?'\u25BE':'\u25B8';
+    if(opening && !_histLoaded){ _histLoaded=true; _usersHistLoad(); }
+  };
   _usersLoad();
   if(_usersTimer) clearInterval(_usersTimer);
   _usersTimer=setInterval(function(){ if(current!=='users'){ clearInterval(_usersTimer); _usersTimer=null; return; } _usersLoad(); },10000);
+}
+/* History table — ab tak jitne bhi unique login (session) hue, kabhi nahi hatate.
+   Live 'Active Users' wali table alag hai (7 din me purani sessions hat jati hain);
+   ye history hamesha rehti hai — sirf click karne par load hoti hai. */
+function _usersHistLoad(){
+  var u,pw; try{ u=sessionStorage.getItem('comsyn_user'); pw=sessionStorage.getItem('comsyn_pass'); }catch(e){}
+  var tb=document.getElementById('usrHistRows'); if(!tb) return;
+  if(!u||!pw) return;
+  fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_login_hist_list',{ method:'POST', headers:SB_HEADERS, body:JSON.stringify({u:u,p:pw}) })
+    .then(function(r){ return r.json().catch(function(){ return []; }); })
+    .then(function(rows){
+      rows=Array.isArray(rows)?rows:[];
+      if(!rows.length){ tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:#8a99ad;padding:22px">Abhi tak koi history nahi</td></tr>'; return; }
+      tb.innerHTML=rows.map(function(s){
+        var dvbg=s.device==='MOBILE'?'#e8f2fc':'#f3ecfd', dvcl=s.device==='MOBILE'?'#2e86c1':'#7c4dcc';
+        var when=''; try{ when=new Date(s.first_seen).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }catch(e){}
+        return '<tr><td style="font-weight:700">'+esc(s.username||'')+'</td>'
+          +'<td><span class="dvc" style="background:'+dvbg+';color:'+dvcl+'">'+esc(s.device||'\u2014')+'</span></td>'
+          +'<td>'+(function(){
+            if(!s.location) return '<span style="color:#b6c2d1">\u2014</span>';
+            var L=String(s.location); var mm=L.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)\s*$/);
+            if(mm){ var nm=L.replace(/\s*@[^@]*$/,''); return '\ud83d\udccd '+esc(nm); }
+            return '\ud83d\udccd '+esc(L);
+          })()+'</td>'
+          +'<td>'+esc(when)+'</td></tr>';
+      }).join('');
+    })
+    .catch(function(){ tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:#c0392b;padding:22px">Load nahi ho paya</td></tr>'; });
 }
 function _usersLoad(){
   var u,pw; try{ u=sessionStorage.getItem('comsyn_user'); pw=sessionStorage.getItem('comsyn_pass'); }catch(e){}
@@ -7901,6 +8009,14 @@ function _usersLoad(){
       var tb=document.getElementById('usrRows'), ch=document.getElementById('usrChips');
       if(!tb) return;
       rows=Array.isArray(rows)?rows:[];
+      /* Sabse upar ACTIVE, phir OFFLINE, sabse neeche BLOCKED.
+         Same group ke andar jaisa RPC se aaya (last_seen naya-se-purana) waisa hi
+         rehta hai — JS ka sort stable hai, isliye sirf priority se hi kaam ho jata hai. */
+      rows=rows.slice().sort(function(a,b){
+        var pr=function(x){ var f=(Date.now()-new Date(x.last_seen).getTime())<120000;
+          if(x.blocked) return 2; return f?0:1; };
+        return pr(a)-pr(b);
+      });
       var act=0, blk=0, myDid=''; try{ myDid=localStorage.getItem('comsyn_did')||''; }catch(e){}
       var html=rows.map(function(s){
         var fresh=(Date.now()-new Date(s.last_seen).getTime())<120000;
@@ -10506,21 +10622,37 @@ function showErrorLog(){
   window._comsynWinOver=function(kind,savedAt){
     try{
       if(sessionStorage.getItem('comsyn_role')==='admin') return false;
-      var o=_trObj()[current]; if(!o) return false;
+      var tr=_trObj();
+      /* sub-tab specific window first, then panel */
+      var subKey=_curSubKey();
+      var o=(subKey&&tr[subKey]&&(tr[subKey].ed||tr[subKey].dd))?tr[subKey]:tr[current];
+      if(!o) return false;
       var lim=(kind==='delete')?o.dd:o.ed;
       if(!lim||lim<=0) return false;
       var ag=_ageDays(savedAt); if(ag===null) return false;
       return ag >= lim;
     }catch(e){ return false; }
   };
+  /* sub-tab ka naam le aata hai — orderentry me orderSub, batch me batchSub */
+  function _curSubKey(){
+    try{
+      if(current==='orderentry') return 'orderentry:'+(typeof orderSub!=='undefined'?orderSub:'');
+      if(current==='batch')      return 'batch:'+(typeof batchSub!=='undefined'?batchSub:'');
+    }catch(e){} return null;
+  }
   function _rightFor(kind){
     try{
       if(sessionStorage.getItem('comsyn_role')==='admin') return true;
       if(_globExpired()) return false;
-      var tr=_trObj();
+      var tr=_trObj(); var dk=kind==='delete'?'d':'e';
       if(tr && Object.keys(tr).length){
+        /* pehle sub-tab check karo, tab parent */
+        var subKey=_curSubKey();
+        if(subKey && tr[subKey] && (tr[subKey].e!==undefined||tr[subKey].d!==undefined)){
+          return !!tr[subKey][dk];
+        }
         var o=tr[current];
-        if(o && (o.e!==undefined || o.d!==undefined)) return !!o[kind==='delete'?'d':'e'];
+        if(o && (o.e!==undefined || o.d!==undefined)) return !!o[dk];
       }
       return sessionStorage.getItem(kind==='delete'?'comsyn_can_delete':'comsyn_can_edit')!=='0';
     }catch(e){ return true; }
