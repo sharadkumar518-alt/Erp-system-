@@ -2526,7 +2526,9 @@ function mtrExportPDF(){
   const x1=M, x2=x1+w1+gap, x3=x2+w2+gap;
   const cStyles={font:'times',fontStyle:'bold',fontSize:7,cellPadding:1,lineColor:line,lineWidth:.15,textColor:[0,0,0],halign:'center',valign:'middle'};
   const bandAt=(x,w,t,col,yy)=>{ pdf.setFillColor.apply(pdf,C[col]||C.hgrey); pdf.rect(x,yy,w,6.5,'F'); pdf.setDrawColor.apply(pdf,line); pdf.setLineWidth(.2); pdf.rect(x,yy,w,6.5); pdf.setFont('times','bold'); pdf.setFontSize(8); pdf.setTextColor(0,0,0); pdf.text(t,x+w/2,yy+4.6,{align:'center'}); return yy+6.5; };
-  const tableAt=(x,w,head,body,foot,yy)=>{ pdf.autoTable({startY:yy,margin:{left:x,right:pageW-(x+w)},tableWidth:w,theme:'grid',styles:cStyles,headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line},footStyles:{fontStyle:'bold',fontSize:9,textColor:[0,0,0],lineColor:line},didParseCell:rowTint,head,body,foot}); return pdf.lastAutoTable.finalY; };
+  const tableAt=(x,w,head,body,foot,yy)=>{ pdf.autoTable({startY:yy,margin:{left:x,right:pageW-(x+w),top:14},tableWidth:w,theme:'grid',rowPageBreak:'avoid',showHead:'everyPage',showFoot:'lastPage',styles:cStyles,headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line},footStyles:{fontStyle:'bold',fontSize:9,textColor:[0,0,0],lineColor:line},didParseCell:rowTint,head,body,foot}); return pdf.lastAutoTable.finalY; };
+  /* rowPageBreak:'avoid' = koi row beech se nahi kategi; showHead:'everyPage' =
+     agle page par bhi column ke naam aayenge; margin.top = naye page par upar jagah. */
   const c3Head=(label,col)=>[[{content:label,styles:{fillColor:C[col],halign:'left'}},{content:'ACHIVED MTR',styles:{fillColor:C.hg}},{content:'PROD KG',styles:{fillColor:C.hp}}]];
   const c3Data=(rows)=>{ let gM=0,gP=0; const body=rows.map(r=>{gM+=r.mtr;gP+=r.prod;return [{content:r.name,styles:{halign:'left'}},mtrTot(r.mtr),mtrTot(r.prod)];}); return {body:body.length?body:[[{content:'No data',colSpan:3,styles:{halign:'left',textColor:[120,120,120]}}]],foot:[[{content:'Grand Total',styles:{halign:'left',fillColor:C.hgt}},{content:mtrTot(gM),styles:{fillColor:C.hgt}},{content:mtrTot(gP),styles:{fillColor:C.hgt}}]]}; };
   const dRows=D.dates.map(d=>({name:new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}).replace(' ','-'),mtr:D.byDate[d].mtr,prod:D.byDate[d].prod}));
@@ -2534,15 +2536,34 @@ function mtrExportPDF(){
   const oRows=D.operators.map(o=>({name:o,mtr:D.byOp[o].mtr,prod:D.byOp[o].prod}));
   const sRows=D.shifts.map(s=>({name:'SHIFT-'+s,mtr:D.byShift[s].mtr,prod:D.byShift[s].prod}));
   // Column 1: DATE WISE
-  let yy1=bandAt(x1,w1,'DATE WISE MTR & PROD.','hy',topY); const dD=c3Data(dRows); const c1End=tableAt(x1,w1,c3Head('DATE','hy'),dD.body,dD.foot,yy1);
+  let yy1=bandAt(x1,w1,'DATE WISE MTR & PROD.','hy',topY); const dD=c3Data(dRows); let c1End=tableAt(x1,w1,c3Head('DATE','hy'),dD.body,dD.foot,yy1);
   // Column 2: MACHINE then OPR
   let yy2=bandAt(x2,w2,'MACHINE WISE MTR & PROD.','hg',topY); const mD=c3Data(mRows); yy2=tableAt(x2,w2,c3Head('MACHINE NAME','hy'),mD.body,mD.foot,yy2);
-  yy2=bandAt(x2,w2,'OPR. WISE MTR & PROD.','hb',yy2+3); const oD=c3Data(oRows); const c2End=tableAt(x2,w2,c3Head('OPR. NAME','hb'),oD.body,oD.foot,yy2);
+  yy2=bandAt(x2,w2,'OPR. WISE MTR & PROD.','hb',yy2+3); const oD=c3Data(oRows); let c2End=tableAt(x2,w2,c3Head('OPR. NAME','hb'),oD.body,oD.foot,yy2);
   // Column 3: SHIFT WISE
-  let yy3=bandAt(x3,w3,'SHIFT WISE MTR & PROD.','hu',topY); const sD=c3Data(sRows); const c3End=tableAt(x3,w3,c3Head('SHIFT','hu'),sD.body,sD.foot,yy3);
+  let yy3=bandAt(x3,w3,'SHIFT WISE MTR & PROD.','hu',topY); const sD=c3Data(sRows); let c3End=tableAt(x3,w3,c3Head('SHIFT','hu'),sD.body,sD.foot,yy3);
+  /* MAN POWER ab neeche nahi, upar teeno column me se JO SABSE CHHOTA hai usme
+     jata hai. Isse teeno column barabar rehte hain, neeche wali badi table ke
+     liye jagah bachti hai, aur data badhne par bhi report do page me hi rehti
+     hai — kisi ek column ke lambe hone se teesra page nahi banta. */
+  { const mpAgg=mtrManpowerAgg(R.from,R.to);
+    const _cols=[{x:x1,w:w1,end:c1End},{x:x2,w:w2,end:c2End},{x:x3,w:w3,end:c3End}];
+    const _c=_cols.reduce(function(a,b){ return b.end<a.end?b:a; });
+    const mpx=_c.x, mpw=_c.w;                                /* isi column me daalo — naam alag rakha taaki upar wale x3/w3 se na takraye */
+    let my=bandAt(mpx,mpw,'CUTTING MAN POWER SUMMARY','hb',_c.end+3);
+    const mpRows=[['Incharge',mpAgg.inc,'hy'],['Supervisor',mpAgg.sup,'hg'],['Company Operator',mpAgg.opC,'hb'],['Cash Operator',mpAgg.opCash,'hc'],['Company Helper',mpAgg.helC,'hu'],['Cash Helper',mpAgg.helCash,'hpk']];
+    const mpHead=[[{content:'ROLE',styles:{fillColor:C.hb,halign:'left'}},{content:'TOTAL',styles:{fillColor:C.hy}}]];
+    const mpBody=mpRows.map(([n,v,col])=>[{content:n,styles:{halign:'left',fillColor:C[col]}},{content:mtrTot(v),styles:{fontStyle:'bold'}}]);
+    const mpFoot=[[{content:'Grand Total',styles:{halign:'left',fillColor:C.hgt}},{content:mtrTot(mpAgg.total),styles:{fillColor:C.hgt}}]];
+    pdf.autoTable({startY:my,margin:{left:mpx,right:pageW-(mpx+mpw),top:14},tableWidth:mpw,theme:'grid',rowPageBreak:'avoid',showHead:'everyPage',styles:cStyles,headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line},footStyles:{fontStyle:'bold',fontSize:9,textColor:[0,0,0],lineColor:line},didParseCell:rowTint,columnStyles:{0:{cellWidth:mpw*0.62},1:{cellWidth:mpw*0.38}},head:mpHead,body:mpBody,foot:mpFoot});
+    _c.end=pdf.lastAutoTable.finalY;
+    c1End=_cols[0].end; c2End=_cols[1].end; c3End=_cols[2].end;
+  }
   // Bottom full-width: SHIFT & MACHINE WISE
   let by=Math.max(c1End,c2End,c3End)+6;
-  if(by>pageH-46){ pdf.addPage(); by=14; }
+  /* Neeche wali badi table ke liye jagah kam ho to naya page — aur us page par
+     bhi report ka title aayega, taaki wo anaath page na lage. */
+  if(by>pageH-46){ pdf.addPage(); y=14; titleBar(); by=y+2; }
   by=bandAt(M,usable,'SHIFT & MACHINE WISE MTR & PROD.','hy',by);
   const shifts=D.shifts;
   const h1=[{content:'MACHINE NAME',rowSpan:2,styles:{fillColor:C.hg,halign:'left',valign:'middle'}}];
@@ -2554,19 +2575,7 @@ function mtrExportPDF(){
   const smFoot=[{content:'Grand Total',styles:{halign:'left',fillColor:C.hgt}}];
   shifts.forEach(s=>{ const t=shTot[s]||{mtr:0,prod:0}; smFoot.push({content:mtrTot(t.mtr),styles:{fillColor:C.hgt}},{content:mtrTot(t.prod),styles:{fillColor:C.hgt}}); });
   smFoot.push({content:mtrTot(gtm),styles:{fillColor:C.hgt}},{content:mtrTot(gtp),styles:{fillColor:C.hgt}});
-  tableAt(M,usable,[h1,h2],smBody,[smFoot],by);
-  // ---- Man power summary (compact, fit-to-content) ----
-  let mpY=pdf.lastAutoTable.finalY+6;
-  if(mpY>pageH-42){ pdf.addPage(); mpY=14; }
-  const mpW=usable*0.42;
-  pdf.setFillColor.apply(pdf,C.hpi); pdf.rect(M,mpY,mpW,6.5,'F'); pdf.setDrawColor.apply(pdf,line); pdf.setLineWidth(.2); pdf.rect(M,mpY,mpW,6.5);
-  pdf.setFont('times','bold'); pdf.setFontSize(8); pdf.setTextColor(0,0,0); pdf.text('CUTTING MAN POWER SUMMARY',M+mpW/2,mpY+4.6,{align:'center'}); mpY+=6.5;
-  const mpAgg=mtrManpowerAgg(R.from,R.to);
-  const mpRows=[['Incharge',mpAgg.inc,'hy'],['Supervisor',mpAgg.sup,'hg'],['Company Operator',mpAgg.opC,'hb'],['Cash Operator',mpAgg.opCash,'hc'],['Company Helper',mpAgg.helC,'hu'],['Cash Helper',mpAgg.helCash,'hpk']];
-  const mpHead=[[{content:'ROLE',styles:{fillColor:C.hb,halign:'left'}},{content:'TOTAL',styles:{fillColor:C.hy}}]];
-  const mpBody=mpRows.map(([n,v,col])=>[{content:n,styles:{halign:'left',fillColor:C[col]}},{content:mtrTot(v),styles:{fontStyle:'bold'}}]);
-  const mpFoot=[[{content:'Grand Total',styles:{halign:'left',fillColor:C.hgt}},{content:mtrTot(mpAgg.total),styles:{fillColor:C.hgt}}]];
-  pdf.autoTable({startY:mpY,margin:{left:M,right:pageW-(M+mpW)},tableWidth:mpW,theme:'grid',styles:cStyles,headStyles:{fontStyle:'bold',textColor:[0,0,0],lineColor:line},footStyles:{fontStyle:'bold',fontSize:9,textColor:[0,0,0],lineColor:line},didParseCell:rowTint,columnStyles:{0:{cellWidth:mpW*0.62},1:{cellWidth:mpW*0.38}},head:mpHead,body:mpBody,foot:mpFoot});
+  tableAt(M,usable,[h1,h2],smBody,[smFoot],by);   /* isme bhi row nahi kategi, heading har page par */
   pdf.save('Cutting-Production-Report-'+mtrFileTag()+'.pdf');
   toast('PDF downloaded (landscape)','ok');
 }
