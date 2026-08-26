@@ -7320,6 +7320,101 @@ function _dshAgo(ms){
   if(h>=1) return h+'h '+String(m).padStart(2,'0')+'m';
   return m+'m '+String(s%60).padStart(2,'0')+'s';
 }
+/* =====================================================================
+   MACHINE TILE PAR DETAILS — desktop par mouse le jaao, mobile par tap.
+   Us machine ki sabse taaza entry ki poori details, group me baanti hui.
+   ===================================================================== */
+function _dshDetailGroups(rid){
+  var r=(RECORDS||[]).find(function(x){ return x && x.id===rid; });
+  if(!r) return null;
+  var lr=(typeof liveRec==='function')?liveRec(r):r;
+  var V=function(a,b){ try{ return recSecVal(lr,a,b)||''; }catch(e){ return ''; } };
+  var H=function(re){ try{ return recHeaderVal(lr,re)||''; }catch(e){ return ''; } };
+  var G=[], cur=null;
+  var grp=function(t){ cur={t:t, rows:[]}; G.push(cur); };
+  var add=function(l,v){ if(v!==''&&v!=null&&cur) cur.rows.push([l,String(v)]); };
+
+  grp('ORDER');
+  add('Order No.', V(/order/i,/order\s*no/i));
+  add('File No.',  V(/order/i,/file\s*no/i));
+  add('Sf No.',    V(/order/i,/sf\s*no/i));
+
+  grp('ROLL');
+  add('Roll No.',  V(/roll/i,/roll\s*no/i));
+  add('Loom No.',  V(/roll/i,/loom\s*no/i));
+  add('Type',      V(/roll/i,/^type/i));
+  add('Fabric',    V(/roll/i,/fabric/i));
+  add('GSM',       V(/roll/i,/gsm/i));
+  add('Width',     (function(v){ return v?v+' cm':''; })(V(/roll/i,/width/i)));
+  add('Length',    (function(v){ return v?v+' m':''; })(V(/roll/i,/length/i)));
+  add('Weight',    (function(v){ return v?v+' kg':''; })(V(/roll/i,/weight/i)));
+
+  grp('CUTTING');
+  try{
+    var ci=(lr.config.sections||[]).find(function(x){ return /cut\s*item/i.test(x.title); });
+    if(ci){
+      var nc=(ci.columns||[]).find(function(c){ return /name/i.test(c.label); });
+      var lc=(ci.columns||[]).find(function(c){ return /length/i.test(c.label); });
+      var pc=(ci.columns||[]).find(function(c){ return /pcs|pieces/i.test(c.label); });
+      (lr.sections[ci.id]||[]).forEach(function(row){
+        var nm=nc?String(row[nc.id]||'').trim():''; if(!nm) return;
+        var ln=lc?String(row[lc.id]||'').trim():'', ps=pc?String(row[pc.id]||'').trim():'';
+        add(nm, (ps?ps+' pcs':'')+(ln?((ps?'  \u00b7  ':'')+ln+' cm'):''));
+      });
+    }
+  }catch(e){}
+
+  grp('WASTAGE');
+  var wl=V(/wast/i,/loo+m/i), wm=V(/wast/i,/lamin/i), wp=V(/wast/i,/process/i);
+  add('Loom', wl?wl+' kg':''); add('Lamination', wm?wm+' kg':''); add('Process', wp?wp+' kg':'');
+
+  grp('SHIFT & TIMING');
+  add('Date',     lr.date||'');
+  add('Operator', H(/operator/i));
+  add('Shift',    H(/shift/i));
+  add('Unit',     H(/unit/i));
+  add('Contractor', H(/contractor/i));
+  add('Location', V(/location/i,/location/i));
+  var fmt=function(t){ try{ return new Date(t).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } };
+  if(lr.rollCutStart) add('Roll Start', fmt(lr.rollCutStart));
+  if(lr.rollCutEnd)   add('Roll End',   fmt(lr.rollCutEnd));
+
+  return G.filter(function(g){ return g.rows.length; });
+}
+function _dshTipHTML(k, st){
+  var G=st&&st.rid?_dshDetailGroups(st.rid):null;
+  var since='';
+  try{ if(st&&st.since){ var m=Math.floor((Date.now()-st.since)/60000);
+    since=(m>=60?(Math.floor(m/60)+'h '+(m%60)+'m'):(m+'m')); } }catch(e){}
+  var head='<div class="dtip-h"><div class="dtip-mc">'+esc(k)+'</div>'
+    +(st?('<div class="dtip-b '+(st.running?'run':'stop')+'"><i></i>'+(st.running?'RUNNING':'STOPPED')+(since?(' \u00b7 '+since):'')+'</div>'):'')
+    +'</div>';
+  if(!G||!G.length) return '<div class="dtip-in">'+head+'<div class="dtip-e">Is machine ki koi entry nahi mili</div></div>';
+  return '<div class="dtip-in">'+head+G.map(function(g){
+    return '<div class="dtip-s">'+esc(g.t)+'</div><div class="dtip-g">'+g.rows.map(function(x){
+      return '<div class="dtip-k">'+esc(x[0])+'</div><div class="dtip-v">'+esc(x[1])+'</div>';
+    }).join('')+'</div>';
+  }).join('')+'</div>';
+}
+function _dshTipEl(){
+  var el=document.getElementById('dshTip');
+  if(!el){ el=document.createElement('div'); el.id='dshTip'; el.className='dtip'; document.body.appendChild(el); }
+  return el;
+}
+function _dshTipShow(tile,k){
+  var st=(window.__dshMach||{})[k];
+  var el=_dshTipEl();
+  el.innerHTML=_dshTipHTML(k,st);
+  el.style.display='block';
+  var r=tile.getBoundingClientRect();
+  var w=Math.min(330, window.innerWidth-20);
+  el.style.width=w+'px';
+  el.style.left=Math.max(10, Math.min(window.innerWidth-w-10, r.left+r.width/2-w/2))+'px';
+  var h=el.offsetHeight||300, top=r.bottom+10;
+  if(top+h>window.innerHeight-10) top=Math.max(10, r.top-h-10);
+  el.style.top=top+'px';
+}
+function _dshTipHide(){ var el=document.getElementById('dshTip'); if(el){ el.style.display='none'; el.removeAttribute('data-k'); } }
 function dshMachineStatus(){
   var iso=todayISO(); var out={};
   var _y=new Date(); _y.setDate(_y.getDate()-1);
@@ -7334,11 +7429,12 @@ function dshMachineStatus(){
     var st=r.rollCutStart?new Date(r.rollCutStart).getTime():0;
     var en=r.rollCutEnd?new Date(r.rollCutEnd).getTime():0;
     var ref=Math.max(st||0,en||0,num(r.savedAt)&&isFinite(new Date(r.savedAt).getTime())?new Date(r.savedAt).getTime():0);
-    if(!out[k] || ref>out[k].ref) out[k]={ref:ref, running:!!(st&&!en), since:(st&&!en)?st:(en||ref)};
+    if(!out[k] || ref>out[k].ref) out[k]={ref:ref, running:!!(st&&!en), since:(st&&!en)?st:(en||ref), rid:r.id};
   });
   var res={};
   Object.keys(out).forEach(function(k){
-    if(out[k].since>0) res[k]={ running:out[k].running, since:out[k].since };
+    /* rid = us machine ki sabse taaza entry — hover/tap par details ke liye */
+    if(out[k].since>0) res[k]={ running:out[k].running, since:out[k].since, rid:out[k].rid };
   });
   return res;
 }
@@ -8337,7 +8433,7 @@ function renderDashboard(){
       }
     }catch(e){}
     return `<div class="mtile${(window.__dshMach&&window.__dshMach[k]&&window.__dshMach[k].running)?' is-run':''}" data-mkey="${encodeURIComponent(k)}" style="background:${b.bg};animation:mtile360 1.7s cubic-bezier(.22,.7,.3,1) ${(0.28*i).toFixed(2)}s both${(window.__dshMach&&window.__dshMach[k]&&window.__dshMach[k].running)?(",mtileLoop 8s ease-in-out "+(2.2+0.5*i).toFixed(2)+"s infinite,premGlow 2.8s ease-in-out "+(2.0+0.3*i).toFixed(2)+"s infinite"):""};cursor:pointer">
-      <div class="mtile-h" style="background:${b.hd}"><div class="mtile-hrow"><span class="mtile-name">${esc(k)}</span><span class="mtile-tag">${b.label}</span></div>${stSide}</div>
+      <div class="mtile-h" style="background:${b.hd}"><div class="mtile-hrow"><span class="mtile-name${_dshIsLive()?' mtile-name-tap':''}"${_dshIsLive()?` data-minfo="${encodeURIComponent(k)}" title="Poori report kholo"`:''}>${esc(k)}</span><span class="mtile-tag">${b.label}</span></div>${stSide}</div>
       <div class="mtile-body">
         <div class="mtile-pct" data-v="${mp.toFixed(1)}">0.0%</div>
         <div class="mtile-pl">WASTAGE</div>
@@ -8379,7 +8475,7 @@ function renderDashboard(){
     .dsh2 .mpanel-h .mt::before{content:'\\25CF';color:#35d07f;font-size:9px;margin-right:7px;vertical-align:1px;animation:mstblink 1.5s infinite}
     .dsh2 .mtile{animation:dshUp .45s both,dshBreathe 4s ease-in-out infinite 1s}
     @keyframes dshBreathe{0%,100%{box-shadow:0 3px 8px rgba(0,0,0,.16)}50%{box-shadow:0 5px 16px rgba(0,0,0,.3)}}
-    .dsh2 .mtile:active{transform:scale(.985)}
+    @media (hover:hover){.dsh2 .mtile:active{transform:scale(.985)}}
     .dsh2 #dshClock,.dsh2 #dshClock2{transition:opacity .2s}
     /* ===== SILVER CONSOLE THEME \u00b7 TIMES NEW ROMAN BLACK BOLD ===== */
     .dsh2,.dsh2 *{font-family:'Times New Roman',Times,serif !important}
@@ -8477,7 +8573,10 @@ function renderDashboard(){
     .dsh2 .mtile,.dsh2 .chip,.dsh2 .dstat,.dsh2 .dstat-v>span{will-change:transform;transform:translateZ(0)}
     .dsh2 .dsh-headx::after,.dsh2 .dstat-h::after,.dsh2 .mtile::after,.dsh2 .mtile-h::after{will-change:left}
     @media (prefers-reduced-motion:reduce){.dsh2 *{animation:none!important}}
-    .dsh2 .mtile:hover{transform:rotateY(-5deg) rotateX(3deg) translateY(-4px)!important;box-shadow:0 16px 30px rgba(0,0,0,.32)!important}
+    @media (hover:hover){.dsh2 .mtile:hover{box-shadow:0 16px 30px rgba(0,0,0,.32)!important}}
+    /* pehle yahan transform:...!important tha — !important animation ko bhi
+       harata hai, aur touch device par tap ke baad :hover chipka reh jata hai,
+       isliye tile ka 360 ghoomna hamesha ke liye ruk jata tha. */
     .dsh2 .dstat-v>span::after{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 84%,rgba(255,255,255,.85) 92%,transparent 100%);animation:ringSpin 4.5s linear infinite;pointer-events:none}
     @keyframes ringSpin{to{transform:rotate(360deg)}}
     .dsh2 .dsh-headx .clk{transform-style:preserve-3d}
@@ -8602,7 +8701,53 @@ function renderDashboard(){
     .dsh2 .mpanel-h .mt{font-size:16px;font-weight:800;letter-spacing:1.1px}
     .dsh2 .mpanel-h .mc{font-size:11px;font-weight:800;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);padding:3px 11px;border-radius:12px;letter-spacing:.5px}
     .dsh2 .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:11px;padding:14px;perspective:1100px;perspective-origin:50% 50%}
-    .dsh2 .mtile{position:relative;border-radius:14px;overflow:hidden;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.15);animation:dshIn .4s both;transition:transform .18s}
+    /* ===== MACHINE DETAILS POPUP (hover / tap) ===== */
+    .dtip{position:fixed;z-index:99998;display:none;max-height:74vh;overflow:auto;
+      font-family:'Times New Roman',Times,Georgia,serif;font-weight:700;
+      background:linear-gradient(160deg,#0e2038 0%,#16304f 55%,#112742 100%);
+      color:#eef4fb;border:1px solid rgba(126,186,246,.34);border-radius:16px;
+      box-shadow:0 26px 64px rgba(4,12,26,.62),inset 0 1px 0 rgba(255,255,255,.10);
+      -webkit-overflow-scrolling:touch}
+    .dtip::-webkit-scrollbar{width:6px}
+    .dtip::-webkit-scrollbar-thumb{background:rgba(140,190,240,.3);border-radius:6px}
+    .dtip .dtip-in{padding:14px 15px 15px}
+    .dtip .dtip-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+      padding-bottom:11px;margin-bottom:11px;border-bottom:2px solid rgba(126,186,246,.26)}
+    .dtip .dtip-mc{font-size:19px;font-weight:700;letter-spacing:.6px;
+      background:linear-gradient(90deg,#ffffff,#a9d4ff);-webkit-background-clip:text;
+      background-clip:text;color:transparent}
+    .dtip .dtip-b{margin-left:auto;display:inline-flex;align-items:center;gap:6px;
+      font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 11px;border-radius:30px}
+    .dtip .dtip-b i{width:7px;height:7px;border-radius:50%;display:inline-block}
+    .dtip .dtip-b.run{background:rgba(46,204,113,.16);color:#5ee89a;border:1px solid rgba(46,204,113,.4)}
+    .dtip .dtip-b.run i{background:#35d07f;box-shadow:0 0 8px #35d07f}
+    .dtip .dtip-b.stop{background:rgba(231,76,60,.16);color:#ff9a92;border:1px solid rgba(231,76,60,.4)}
+    .dtip .dtip-b.stop i{background:#e05a4d}
+    .dtip .dtip-s{font-size:14px;font-weight:700;letter-spacing:2.2px;
+      color:#ffc46b;text-shadow:0 1px 6px rgba(255,170,60,.35);
+      margin:16px 0 8px;padding:5px 0 5px 13px;position:relative;
+      background:linear-gradient(90deg,rgba(255,176,74,.14),transparent 78%);
+      border-radius:0 8px 8px 0}
+    .dtip .dtip-s::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;
+      border-radius:4px;background:linear-gradient(180deg,#ffc46b,#e8912e);
+      box-shadow:0 0 10px rgba(255,176,74,.55)}
+    .dtip .dtip-s:first-of-type{margin-top:2px}
+    .dtip .dtip-g{display:grid;grid-template-columns:auto 1fr;gap:0 14px}
+    .dtip .dtip-k,.dtip .dtip-v{padding:5px 0;border-bottom:1px dotted rgba(140,180,225,.16)}
+    .dtip .dtip-k{font-size:13px;font-weight:700;color:#9fbcd8;white-space:nowrap}
+    .dtip .dtip-v{font-size:14.5px;font-weight:700;color:#ffffff;text-align:right;word-break:break-word}
+    .dtip .dtip-g>div:nth-last-child(-n+2){border-bottom:none}
+    .dtip .dtip-e{color:#9fbcd8;padding:10px 0;font-size:13.5px}
+    /* Machine ka naam bada — LIVE par uspar click karke poori report khulti hai */
+    .dsh2 .mtile-name{font-size:21px!important;letter-spacing:.7px!important}
+    .dsh2 .mtile-name-tap{cursor:pointer;text-decoration:underline;
+      text-decoration-color:rgba(255,255,255,.45);text-underline-offset:4px;
+      text-decoration-thickness:2px}
+    .dsh2 .mtile-name-tap:hover{text-decoration-color:rgba(255,255,255,.95)}
+    .dsh2 .mtile-tag{font-size:12px!important;padding:4px 11px!important}
+    .dsh2 .mtile{position:relative;border-radius:14px;clip-path:inset(0 round 14px);color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.15);animation:dshIn .4s both;transition:transform .18s}
+    /* overflow:hidden hata kar clip-path lagaya: CSS me overflow:hidden hote hi
+       preserve-3d bekaar ho jata hai, isliye 360 ghoomna chapta dikhta tha. */
     .dsh2 .mtile:hover{transform:translateY(-3px)}
         .dsh2 .mtile-h{display:flex;flex-direction:column;gap:6px;padding:10px 12px;font-weight:800;font-size:12.5px;letter-spacing:.4px}
         .dsh2 .mtile-hrow{display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -8690,7 +8835,41 @@ function renderDashboard(){
   }; })();
   c.querySelectorAll('[data-band]').forEach(ch=>ch.onclick=()=>openDshBand(+ch.dataset.band));
   c.querySelectorAll('[data-fab]').forEach(ch=>ch.onclick=()=>openDshFabPick(ch.dataset.fab));
-  c.querySelectorAll('[data-mkey]').forEach(t=>t.onclick=()=>openDshMachine(decodeURIComponent(t.dataset.mkey)));
+  /* Tile par click = poori report (PDF/Excel wali) — jaisa pehle tha, waisa hi.
+     Details ab header ke chhote "i" button se — sirf LIVE dashboard par. */
+  c.querySelectorAll('[data-mkey]').forEach(t=>{
+    const _k=()=>decodeURIComponent(t.dataset.mkey);
+    const _hoverable=()=> !!(window.matchMedia && window.matchMedia('(hover:hover)').matches);
+    /* Tile par mouse le jaao ya kahin bhi tap karo = details wala card.
+       Sirf LIVE dashboard par. Naam par click alag hai — wo report kholta hai. */
+    t.onmouseenter=()=>{ if(_hoverable() && _dshIsLive()) _dshTipShow(t,_k()); };
+    t.onmouseleave=()=>{ if(_hoverable()) _dshTipHide(); };
+    t.onclick=(ev)=>{
+      if(!_dshIsLive()){ openDshMachine(_k()); return; }   /* purani date: pehle jaisa */
+      if(_hoverable()) return;                              /* mouse wale device: hover se hi dikh raha hai */
+      ev.stopPropagation();
+      const el=document.getElementById('dshTip');
+      if(el && el.style.display==='block' && el.dataset.k===t.dataset.mkey){ _dshTipHide(); return; }
+      _dshTipShow(t,_k());
+      _dshTipEl().dataset.k=t.dataset.mkey;
+    };
+  });
+  /* Machine ke NAAM par click = poori report (Download PDF / Export Excel wali). */
+  c.querySelectorAll('[data-minfo]').forEach(b=>{
+    b.onclick=(ev)=>{
+      ev.stopPropagation(); ev.preventDefault();
+      _dshTipHide();
+      openDshMachine(decodeURIComponent(b.dataset.minfo));
+    };
+  });
+  if(!window.__dshTipDoc){ window.__dshTipDoc=true;
+    document.addEventListener('click',function(ev){
+      const el=document.getElementById('dshTip');
+      if(el && el.style.display==='block' && !el.contains(ev.target)
+         && !(ev.target.closest && ev.target.closest('[data-mkey]'))) _dshTipHide();
+    });
+    window.addEventListener('scroll',_dshTipHide,true);
+  }
   document.getElementById('dshTd').onclick=()=>{ window.__dshPeriod='today'; window.__dshShift=''; renderDashboard(); };
   document.getElementById('dshMo').onclick=()=>{ window.__dshPeriod='month'; window.__dshMonth=todayISO().slice(0,7); window.__dshShift=''; renderDashboard(); };
   document.getElementById('dshPt').onclick=()=>{ window.__dshPeriod='today'; window.__dshShift=''; renderDashboard(); };
