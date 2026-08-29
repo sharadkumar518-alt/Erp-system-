@@ -1152,7 +1152,17 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
   .stk-loc-input{padding:11px 12px}
 }
 /* container rhythm on wide screens (no DOM change) */
-@media(min-width:1180px){.view{max-width:1200px;margin-inline:auto}}
+@media(min-width:1180px){.view{max-width:1200px;margin-inline:auto}
+/* Computer/laptop/LED par app mobile jaisi hi dikhe. Badi screen par card
+   wale page bikhar jate the (order 3-3 me, batch card chhota). Ab wo phone
+   jaisi chaudai me rehte hain.
+   Chaude rehte hain (view-wide): Dashboard (LED ke liye), MTR Report aur
+   Cutting Report (inhe sikodne se text chhota ho jata hai), Entry aur
+   Assignment (inki table chaudi hoti hai). */
+@media (min-width:820px){
+  .view{max-width:600px}
+  .view.view-wide{max-width:1200px}
+}}
 
 /* ===== Cutting Roll Stock ===== */
 .proui .rs-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -2477,7 +2487,7 @@ function renderMtrReport(){
   const R=mtrRange();
   const D=mtrData(R.from,R.to);
   const T=mtrBuildTables(D,R.label,R.from,R.to);
-  c.innerHTML=`<div class="view"><div class="mtr">
+  c.innerHTML=`<div class="view view-wide"><div class="mtr">
     <div class="mtr-toolbar no-print">
       ${mtrFilterHTML()}
       <div style="flex:1"></div>
@@ -4084,7 +4094,7 @@ function renderAssign(){
   document.getElementById('topActions').innerHTML=`
     <button class="btn btn-danger btn-sm" id="resetCfg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.5 2.8L3 8"/><path d="M3 3v5h5"/></svg>Reset to default</button>`;
   const c=document.getElementById('content');
-  c.innerHTML=`<div class="view">
+  c.innerHTML=`<div class="view view-wide">
     <div class="card" style="margin-bottom:20px"><div class="card-body" style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
       <div class="field" style="flex:1;min-width:200px"><label>Report Title</label><input class="ctrl" id="cfgTitle" value="${esc(CFG.reportTitle)}"></div>
       <div class="field" style="width:160px"><label>Unit</label><input class="ctrl" id="cfgUnit" value="${esc(CFG.unit)}"></div>
@@ -6075,7 +6085,7 @@ let crFile='', crSf='';
 function renderCuttingReport(){
   const c=document.getElementById('content');
   document.getElementById('topActions').innerHTML='';
-  c.innerHTML=`<div class="view">
+  c.innerHTML=`<div class="view view-wide">
     <div class="card" style="margin-bottom:16px"><div class="card-body">
       <div class="cr-search">
         <div class="cr-field"><label>File No.</label><input id="crFileNo" value="${esc(crFile)}" placeholder="e.g. E-1329" autocomplete="off" inputmode="numeric"></div>
@@ -7448,9 +7458,17 @@ function _dshTipShow(tile,k){
   var w=Math.min(330, window.innerWidth-20);
   el.style.width=w+'px';
   el.style.left=Math.max(10, Math.min(window.innerWidth-w-10, r.left+r.width/2-w/2))+'px';
-  var h=el.offsetHeight||300, top=r.bottom+10;
-  if(top+h>window.innerHeight-10) top=Math.max(10, r.top-h-10);
-  el.style.top=top+'px';
+  /* Chhoti screen (laptop) par popup neeche kat jata tha. Ab jitni jagah hai
+     usi ke hisaab se upar ya neeche khulta hai, aur poori jagah le leta hai. */
+  el.style.maxHeight='';
+  var h=el.offsetHeight||300;
+  var below=window.innerHeight-r.bottom-20, above=r.top-20;
+  var top;
+  if(h<=below){ top=r.bottom+10; }
+  else if(h<=above){ top=r.top-h-10; }
+  else if(above>below){ el.style.maxHeight=Math.max(160,above)+'px'; top=Math.max(10, r.top-Math.min(h,above)-10); }
+  else { el.style.maxHeight=Math.max(160,below)+'px'; top=r.bottom+10; }
+  el.style.top=Math.max(10, top)+'px';
 }
 function _dshTipHide(){ var el=document.getElementById('dshTip'); if(el){ el.style.display='none'; el.removeAttribute('data-k'); } }
 function dshMachineStatus(){
@@ -8842,7 +8860,7 @@ function renderDashboard(){
     .dsh2 .dsh-emp{padding:26px;text-align:center;color:#8a99ad;font-weight:600}
     @keyframes dshIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   </style>
-  <div class="view"><div class="dsh dsh2${_dshIsLive()?'':' dsh-static'}">
+  <div class="view view-wide"><div class="dsh dsh2${_dshIsLive()?'':' dsh-static'}">
     <div class="dsh-headx">
       <div>
         <div class="t">CUTTING PRODUCTION \u2014 LIVE MONITOR</div>
