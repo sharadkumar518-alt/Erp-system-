@@ -1499,6 +1499,17 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
 .dsh-sel{display:flex;gap:9px;flex-wrap:wrap;margin:4px 0 14px;animation:dshUp .5s .08s ease both}
 .dsh-sel label{display:flex;align-items:center;gap:7px;background:#ffffffc9;border:1px solid #d9e1ec;border-radius:10px;padding:6px 10px;font-size:11.5px;font-weight:800;color:#5b6b80}
 .dsh-sel input{border:1px solid #cfd8e4;border-radius:7px;padding:4px 7px;font:inherit;font-size:12.5px;color:#1c2940;background:#fff;outline:none}
+/* Filter bar ab ek hi line me, ek hi kram me aur barabar doori par:
+   Today/This Month  ·  Date select  ·  Month select  ·  Today/Week/Month.
+   Size bhi thoda bada, taaki door se saaf padha jaye. */
+.dsh-bar{justify-content:flex-start;gap:20px;row-gap:10px;margin:13px 0 14px}
+.dsh-bar .dsh-sel{margin:0;gap:20px}
+.dsh-toggle button{font-size:14.5px;padding:9px 21px}
+.dsh-pills{gap:5px;padding:4px}
+.dsh-pills button{font-size:14px;padding:8px 19px}
+.dsh-sel label{font-size:13px;padding:8px 13px;gap:9px}
+.dsh-sel input{font-size:14px;padding:6px 9px}
+@media(max-width:640px){.dsh-bar{gap:10px}.dsh-bar .dsh-sel{gap:9px}}
 .dsh-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
 .dsh-card{background:#ffffffd9;backdrop-filter:blur(7px);border:1px solid #dde4ee;border-radius:14px;padding:13px 14px;box-shadow:0 6px 18px rgba(20,30,50,.09);animation:dshUp .55s ease both;transition:transform .2s}
 .dsh-card:hover{transform:translateY(-3px)}
@@ -7491,14 +7502,24 @@ function _dshTipShow(tile,k){
   /* Laptop/PC par card lamba ho jata tha aur neeche ki details scroll me chhup
      jaati thi. Badi screen par ab popup chauda hota hai aur details 2 column me
      baant di jaati hain — sab kuch ek saath dikhta hai. */
-  var _wide=window.innerWidth>=900;
-  try{ el.classList.toggle('dtip-wide',_wide); }catch(e){ el.className='dtip'+(_wide?' dtip-wide':''); }
-  var w=_wide? Math.min(700, window.innerWidth-40) : Math.min(330, window.innerWidth-20);
+  var _w3=window.innerWidth>=1150, _w2=(!_w3 && window.innerWidth>=900), _wide=(_w3||_w2);
+  try{ el.classList.toggle('dtip-wide',_wide); el.classList.toggle('dtip-wide3',_w3); }
+  catch(e){ el.className='dtip'+(_wide?' dtip-wide':'')+(_w3?' dtip-wide3':''); }
+  var w=_w3? Math.min(960, window.innerWidth-40)
+        : (_w2? Math.min(720, window.innerWidth-40) : Math.min(330, window.innerWidth-20));
   el.style.width=w+'px';
-  el.style.left=Math.max(10, Math.min(window.innerWidth-w-10, r.left+r.width/2-w/2))+'px';
-  /* Chhoti screen (laptop) par popup neeche kat jata tha. Ab jitni jagah hai
-     usi ke hisaab se upar ya neeche khulta hai, aur poori jagah le leta hai. */
   el.style.maxHeight='';
+  /* PC/laptop par tile ke upar-neeche jagah kam padti thi aur details kat jati thi.
+     Badi screen par popup ab screen ke beech me khulta hai — poori height milti hai. */
+  if(_wide){
+    el.style.left=Math.max(10,(window.innerWidth-w)/2)+'px';
+    var hw=el.offsetHeight||300, avail=window.innerHeight-24;
+    if(hw>avail){ el.style.maxHeight=avail+'px'; hw=avail; }
+    el.style.top=Math.max(12,(window.innerHeight-hw)/2)+'px';
+    return;
+  }
+  el.style.left=Math.max(10, Math.min(window.innerWidth-w-10, r.left+r.width/2-w/2))+'px';
+  /* Chhoti screen par jitni jagah hai usi ke hisaab se upar ya neeche khulta hai. */
   var h=el.offsetHeight||300;
   var below=window.innerHeight-r.bottom-20, above=r.top-20;
   var top;
@@ -8893,9 +8914,15 @@ function renderDashboard(){
     .dtip .dtip-sec{break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid}
     .dtip .dtip-body>.dtip-sec .dtip-s{margin-top:16px}
     .dtip .dtip-body>.dtip-sec:first-child .dtip-s{margin-top:2px}
-    .dtip.dtip-wide{max-height:88vh}
-    .dtip.dtip-wide .dtip-body{column-count:2;column-gap:28px}
-    .dtip.dtip-wide .dtip-body>.dtip-sec{display:inline-block;width:100%}
+    /* CSS column-count fixed-height box ke andar content kaat deta tha (Width /
+       Length / Weight gayab ho jate the). Ab grid hai — har group apne cell me,
+       kuch bhi kate nahi. Badi screen par 3 column, taaki poori list ek saath aa jaye. */
+    .dtip.dtip-wide{max-height:94vh}
+    .dtip.dtip-wide .dtip-body{display:grid;grid-template-columns:1fr 1fr;column-gap:26px;align-items:start}
+    .dtip.dtip-wide3 .dtip-body{grid-template-columns:1fr 1fr 1fr;column-gap:22px}
+    .dtip.dtip-wide .dtip-body>.dtip-sec .dtip-s{margin-top:10px}
+    .dtip.dtip-wide .dtip-s{margin-bottom:5px;padding:3px 0 3px 12px}
+    .dtip.dtip-wide .dtip-k,.dtip.dtip-wide .dtip-v{padding:3.5px 0}
     /* Machine ka naam bada — LIVE par uspar click karke poori report khulti hai */
     .dsh2 .mtile-name{font-size:21px!important;letter-spacing:.7px!important}
     .dsh2 .mtile-name-tap{cursor:pointer;text-decoration:underline;
@@ -8945,15 +8972,15 @@ function renderDashboard(){
         <button id="dshTd" class="${mode==='today'?'on':''}">Today</button>
         <button id="dshMo" class="${(mode==='month'&&selMonVal===iso.slice(0,7))?'on':''}">This Month</button>
       </div>
+      <div class="dsh-sel">
+        <label>Date select <input type="date" id="dshDateIn" value="${mode==='date'?selDateVal:''}"></label>
+        <label>Month select <input type="month" id="dshMonIn" value="${mode==='month'?selMonVal:''}"></label>
+      </div>
       <div class="dsh-pills">
         <button id="dshPt" class="${mode==='today'?'on':''}">Today</button>
         <button id="dshPw" class="${mode==='week'?'on':''}">Week</button>
         <button id="dshPm" class="${mode==='month'?'on':''}">Month</button>
       </div>
-    </div>
-    <div class="dsh-sel">
-      <label>Date select <input type="date" id="dshDateIn" value="${mode==='date'?selDateVal:''}"></label>
-      <label>Month select <input type="month" id="dshMonIn" value="${mode==='month'?selMonVal:''}"></label>
     </div>
     <div class="dstats">
       ${statCell('TOTAL PRODUCTION','<span id="dshTotal">0</span> kg'+_dshTrend(a).p,'KG \u00b7 '+esc(a.label).toUpperCase())}
