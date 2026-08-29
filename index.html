@@ -351,6 +351,19 @@ table.rpt .num{font-family:Georgia,'Times New Roman',Times,serif}
 .rpt-rollcut{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:14px;padding-top:10px;border-top:1px dashed #2e86c1;font-family:Georgia,'Times New Roman',Times,serif;font-size:13.5px;color:#000}
 .rpt-rollcut span{font-weight:600}
 .rpt-sign div{font-weight:700;font-family:Georgia,'Times New Roman',Times,serif;border-top:1.5px solid #2e86c1;padding-top:8px;min-width:140px;text-align:center;flex:1;color:#000}
+/* NUMBER FIX — Georgia ke old-style digits (3,4,5,7,9 neeche latakte hain) PC/laptop par
+   ajeeb dikhte the; mobile me Georgia hota hi nahi isliye wahan sahi tha. Ab report sheet
+   har device par Times New Roman ke seedhe (lining) + barabar chaudai (tabular) digits
+   use karti hai — mobile aur PC dono ek jaise. */
+.report-doc,.rpt-title,.rpt-hdr,.rpt-hdr .hl,.rpt-hdr .hv,
+table.rpt,table.rpt th,table.rpt td,table.rpt .num,table.rpt .grp,table.rpt .tot-lbl,
+.rpt-totals,.rpt-totals>div,.rpt-totals b,
+.rpt-daily,.rpt-daily-head,.rpt-daily-grid .r,.rpt-daily-grid .r b,
+.rpt-rollcut,.rpt-rollcut span,.rpt-sign div,.rpt-gt-head{
+  font-family:'Times New Roman',Times,Georgia,serif !important;
+  font-variant-numeric:lining-nums tabular-nums;
+  font-feature-settings:"lnum" 1,"tnum" 1;
+}
 
 /* ===== Toast ===== */
 .toast-wrap{position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;gap:10px}
@@ -2636,7 +2649,7 @@ function renderEntry(){
     <button class="btn" id="clearBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Clear</button>
     <button class="btn btn-primary" id="saveBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Save Entry</button>`;
 
-  let html=`<div class="view">
+  let html=`<div class="view view-wide">
     <div class="card">
       <div class="card-body">
         <h2 class="report-title">${esc(CFG.reportTitle)} <span class="unit">${esc(CFG.unit)}</span></h2>
@@ -3217,7 +3230,7 @@ function recWorkSumMs(r){ if(r.workSumMs!=null) return r.workSumMs; if(r.rollCut
 function renderRecords(){
   document.getElementById('topActions').innerHTML='';
   const c=document.getElementById('content');
-  c.innerHTML=`<div class="view proui">
+  c.innerHTML=`<div class="view proui view-wide">
     <div class="rsub-bar">
       <button class="rsub-btn${recSub==='rollcut'?' active':''}" data-rsub="rollcut">Roll Cutting</button>
       <button class="rsub-btn${recSub==='cutrec'?' active':''}" data-rsub="cutrec">Cut Records</button>
@@ -4771,7 +4784,7 @@ function renderRollStock(){
     +   '<button class="btn btn-sm rs-refresh" id="rsRefresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>Refresh</button>'
     + '</div></div></div>';
 
-  c.innerHTML='<div class="view proui rs-view">'+head+bar
+  c.innerHTML='<div class="view proui rs-view view-wide">'+head+bar
     + '<div class="card rs-card"><div class="card-body">'
     +   '<div id="rsSelBar"></div><div id="rsTable">'+rollStockTableHtml()+'</div>'
     + '</div></div></div>';
@@ -5019,7 +5032,7 @@ function renderRollReturn(){
         + '</div></div>';
     }).join('');
   }
-  c.innerHTML='<div class="view proui rs-view">'+head+body+'</div>';
+  c.innerHTML='<div class="view proui rs-view view-wide">'+head+body+'</div>';
   c.querySelectorAll('[data-rrpdf]').forEach(function(b){ b.onclick=function(){ rollReturnPDF(b.dataset.rrpdf); }; });
   c.querySelectorAll('[data-rrxls]').forEach(function(b){ b.onclick=function(){ rollReturnExcel(b.dataset.rrxls); }; });
   c.querySelectorAll('[data-rrundo]').forEach(function(b){ b.onclick=function(){
@@ -5582,7 +5595,7 @@ function renderOrderEntry(){
   document.getElementById('topActions').innerHTML='';
   const subbar=`<div class="osub">${ORDER_SUBS.map(([k,l])=>{ let n=''; if(k==='new')n=ORDERS.filter(o=>o.status==='new').length; else if(k==='balance')n=ORDERS.filter(o=>o.status==='balance').length; else if(k==='process')n=ORDERS.filter(o=>o.status==='process').length; else if(k==='complete')n=ORDERS.filter(o=>o.status==='complete').length; return `<button class="osub-btn ${orderSub===k?'active':''}" data-osub="${k}">${l}${n!==''&&n>0?` (${n})`:''}</button>`; }).join('')}</div>`;
   const inner= orderSub==='new_entry'? orderNewEntryHtml() : orderListHtml(orderSub);
-  c.innerHTML=`<div class="view proui">${subbar}<div id="osubContent">${inner}</div></div>`;
+  c.innerHTML=`<div class="view proui${orderSub==='new_entry'?' view-wide':''}">${subbar}<div id="osubContent">${inner}</div></div>`;
   c.querySelectorAll('[data-osub]').forEach(b=>b.onclick=()=>{ orderSub=b.dataset.osub; orderQuery=''; renderOrderEntry(); });
   if(orderSub==='new_entry'){ bindOrderNewEntry(); bindComboFields(); bindEntryFocusFlow(); } else bindOrderList(orderSub);
 }
@@ -6547,7 +6560,7 @@ function renderCuttingStock(){
       <button class="btn btn-amber btn-sm" id="stkPdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>PDF</button>
       <button class="btn btn-green btn-sm" id="stkXls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Excel</button>
     </div></div></div>`;
-  c.innerHTML=`<div class="view proui">${subbar}${exportBar}${searchBar}<div id="stkContent"></div></div>`;
+  c.innerHTML=`<div class="view proui view-wide">${subbar}${exportBar}${searchBar}<div id="stkContent"></div></div>`;
   c.querySelectorAll('[data-stksub]').forEach(b=>b.onclick=()=>{ stockSub=b.dataset.stksub; stockQuery=''; renderCuttingStock(); });
   const sp=document.getElementById('stkPdf'); if(sp) sp.onclick=()=> stockSub==='order'?stockOrderPDF():stockLocationPDF();
   const sx=document.getElementById('stkXls'); if(sx) sx.onclick=()=> stockSub==='order'?stockOrderExcel():stockLocationExcel();
