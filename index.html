@@ -2073,11 +2073,39 @@ function cfgPoolGet(h){
   return _cfgObj[h];
 }
 function hydrateRec(r){
-  if(r && !r.config && r.cfgRef){ const c=cfgPoolGet(r.cfgRef); r.config = c || CFG; }
+  if(r && !r.config && r.cfgRef){
+    const c=cfgPoolGet(r.cfgRef);
+    if(c){ r.config=c; try{ delete r._cfgTmp; }catch(e){} }
+    else {
+      /* Pool abhi aaya nahi (naya device, pehli baar) — pehle yahan default CFG
+         chipka diya jata tha aur record HAMESHA ke liye galat layout par atak
+         jata tha. Ab use "aarzi" (temporary) maankar rakhte hain, taaki pool
+         aate hi asli config lag jaye. */
+      r.config=CFG; r._cfgTmp=true;
+    }
+  }
   return r;
 }
+/* Pool aane ke baad un records ko theek karo jinhe aarzi config mila tha */
+function rehydratePending(){
+  let n=0;
+  try{
+    (RECORDS||[]).forEach(function(r){
+      if(r && r._cfgTmp && r.cfgRef){
+        const c=cfgPoolGet(r.cfgRef);
+        if(c){ r.config=c; try{ delete r._cfgTmp; }catch(e){} n++; }
+      }
+    });
+  }catch(e){}
+  return n;
+}
 function dehydrateRec(r){
-  if(!r || !r.config) return r;
+  if(!r) return r;
+  /* Aarzi config wala record — uska asli cfgRef jaisa ka waisa rakho.
+     Warna default layout pool me chala jata aur galat cfgRef cloud par
+     save ho jata (sab devices par record kharab ho jata). */
+  if(r._cfgTmp){ const t=Object.assign({},r); delete t.config; delete t._cfgTmp; return t; }
+  if(!r.config) return r;
   const h=cfgPoolPut(r.config);
   if(!h) return r;
   const o=Object.assign({},r); o.cfgRef=h; delete o.config; return o;
@@ -2164,6 +2192,7 @@ var RECCACHE_READY=(function(){
     var added=0;
     arr.forEach(function(r){ if(r&&r.id&&!byId[r.id]){ RECORDS.push(hydrateRec(r)); added++; } });
     if(added){
+      try{ rehydratePending(); }catch(e){}
       RECORDS.sort(function(a,b){ return (b&&b.savedAt||0)-(a&&a.savedAt||0); });
       try{ _dgenBump(); }catch(e){}
       try{ if(typeof current!=='undefined' && current!=='entry') render(); }catch(e){}
@@ -10086,7 +10115,9 @@ function showErrorLog(){
     suppress=true;
     try{
       if(k===KEY_CFG) CFG=parsed;
-      else if(k===KEY_CFGP){ CFGPOOL=parsed||{}; _cfgObj={}; RECORDS.forEach(r=>{ if(r&&r.cfgRef&&!r.config) hydrateRec(r); }); }
+      else if(k===KEY_CFGP){ CFGPOOL=parsed||{}; _cfgObj={}; RECORDS.forEach(r=>{ if(r&&r.cfgRef&&!r.config) hydrateRec(r); });
+        /* pool ab aaya — jin records ko aarzi config mila tha unhe asli do */
+        try{ if(rehydratePending()){ _dgenBump(); if(typeof current!=='undefined' && current!=='entry') render(); } }catch(e){} }
       else if(k===KEY_OCFG) ORDERCFG=parsed;
       else if(k===KEY_ORD) ORDERS=parsed;
       else if(k===KEY_LOC) LOC=parsed;
