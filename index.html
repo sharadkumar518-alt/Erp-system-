@@ -8080,8 +8080,10 @@ function renderUsers(){
      jayegi, na baad me logout wali warning aayegi. */
   (function(){
     var b=document.getElementById('usrLocReq'); if(!b) return;
+    /* purani file / function na mile to button chhupa do — poora page na ruke */
+    if(typeof window.locReqOn!=='function'){ b.style.display='none'; return; }
     function paint(){
-      var on=locReqOn();
+      var on=window.locReqOn();
       b.innerHTML=(on?'\uD83D\uDCCD':'\uD83D\uDEAB')+' Location: '+(on?'ON':'OFF');
       b.style.background=on?'#e8f6ee':'#fdecea';
       b.style.color=on?'#1e7d47':'#b3261e';
@@ -8089,9 +8091,9 @@ function renderUsers(){
       b.style.fontWeight='800';
     }
     paint();
-    _locReqFetch(paint);
+    try{ window._locReqFetch(paint); }catch(e){}
     b.onclick=function(){
-      var next=!locReqOn();
+      var next=!window.locReqOn();
       confirmModal(next
         ? 'Location <b>ON</b> karein?<br><br>Ab har user ko login ke waqt location Allow karni padegi, aur band karne par warning aayegi.'
         : 'Location <b>OFF</b> karein?<br><br>Ab kisi bhi user se login par location nahi maangi jayegi \u2014 computer par bhi link seedha khulega.',
@@ -8103,7 +8105,7 @@ function renderUsers(){
             .then(function(r){ return r.json().catch(function(){ return null; }); })
             .then(function(j){
               b.disabled=false;
-              if(j&&j.ok){ LOCREQ=next; try{ localStorage.setItem('comsyn_locreq', next?'1':'0'); }catch(e){}
+              if(j&&j.ok){ window._locReqSet(next);
                 paint(); toast('Location '+(next?'ON':'OFF')+' \u2014 sab devices par lag gaya','ok'); }
               else toast('Nahi ho paya \u2014 dobara koshish karo','err');
             })
@@ -10517,7 +10519,10 @@ function showErrorLog(){
      device par lag jati hai. OFF hone par na login par location maangi jayegi
      aur na hi baad me pehra lagega. Code me kuch badalne ki zarurat nahi. */
   var LOCREQ=true;                       /* default ON — jab tak server na bataye */
+  /* ye dono window par bhi rakhe hain, kyunki Active Users wala toggle is
+     IIFE ke bahar se inhe bulata hai */
   function locReqOn(){ return LOCREQ!==false; }
+  window.locReqOn=locReqOn;
   function _locReqFetch(cb){
     fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_locreq_get',{method:'POST',headers:SB_HEADERS,body:'{}'})
       .then(function(r){ return r.json().catch(function(){ return null; }); })
@@ -10528,6 +10533,8 @@ function showErrorLog(){
         try{ var v=localStorage.getItem('comsyn_locreq'); if(v==='0') LOCREQ=false; }catch(e){}
         if(cb) cb(); });
   }
+  window._locReqFetch=_locReqFetch;
+  window._locReqSet=function(v){ LOCREQ=!!v; try{ localStorage.setItem('comsyn_locreq', v?'1':'0'); }catch(e){} };
   try{ var _lv=localStorage.getItem('comsyn_locreq'); if(_lv==='0') LOCREQ=false; }catch(e){}
   function _gateHide(){ var g=document.getElementById('locGate'); if(g) g.style.display='none'; }
   function _gateShow(){ var g=document.getElementById('locGate'); if(g) g.style.display='flex'; }
