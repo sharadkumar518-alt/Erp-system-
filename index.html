@@ -8054,7 +8054,7 @@ function renderUsers(){
   <div class="view"><div class="usrs">
     <div class="uhead">
       <div><div class="t">ACTIVE USERS \u2014 DEVICE MONITOR</div><div class="s">HAR DEVICE KI ALAG PEHCHAAN \u00b7 2 MIN ME UPDATE \u00b7 BLOCK/UNBLOCK PER DEVICE</div></div>
-      <button class="btn btn-primary" id="usrRefresh">Refresh</button>
+      <button class="btn btn-primary" id="usrRefresh">Refresh</button> <button class="btn btn-ghost" id="usrLocReq" style="margin-left:8px"></button>
     </div>
     <div class="uchips" id="usrChips"></div>
     <div class="utblw"><table>
@@ -8075,6 +8075,42 @@ function renderUsers(){
     </div>
   </div></div>`;
   document.getElementById('usrRefresh').onclick=_usersLoad;
+  /* LOCATION REQUIRED — yahin se ON/OFF. Setting cloud me jati hai, isliye
+     sab devices par lagti hai. OFF karoge to na login par location maangi
+     jayegi, na baad me logout wali warning aayegi. */
+  (function(){
+    var b=document.getElementById('usrLocReq'); if(!b) return;
+    function paint(){
+      var on=locReqOn();
+      b.innerHTML=(on?'\uD83D\uDCCD':'\uD83D\uDEAB')+' Location: '+(on?'ON':'OFF');
+      b.style.background=on?'#e8f6ee':'#fdecea';
+      b.style.color=on?'#1e7d47':'#b3261e';
+      b.style.borderColor=on?'#b8e0c8':'#f3c2c2';
+      b.style.fontWeight='800';
+    }
+    paint();
+    _locReqFetch(paint);
+    b.onclick=function(){
+      var next=!locReqOn();
+      confirmModal(next
+        ? 'Location <b>ON</b> karein?<br><br>Ab har user ko login ke waqt location Allow karni padegi, aur band karne par warning aayegi.'
+        : 'Location <b>OFF</b> karein?<br><br>Ab kisi bhi user se login par location nahi maangi jayegi \u2014 computer par bhi link seedha khulega.',
+        function(){
+          var u,p; try{ u=sessionStorage.getItem('comsyn_user'); p=sessionStorage.getItem('comsyn_pass'); }catch(e){}
+          b.disabled=true;
+          fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_locreq_set',{method:'POST',headers:SB_HEADERS,
+            body:JSON.stringify({u:u,p:p,v:next})})
+            .then(function(r){ return r.json().catch(function(){ return null; }); })
+            .then(function(j){
+              b.disabled=false;
+              if(j&&j.ok){ LOCREQ=next; try{ localStorage.setItem('comsyn_locreq', next?'1':'0'); }catch(e){}
+                paint(); toast('Location '+(next?'ON':'OFF')+' \u2014 sab devices par lag gaya','ok'); }
+              else toast('Nahi ho paya \u2014 dobara koshish karo','err');
+            })
+            .catch(function(){ b.disabled=false; toast('Network error','err'); });
+        }, true);
+    };
+  })();
   /* History section — bandh shuru hoti hai, sirf click par khulti aur data laati hai.
      Page load par khud data nahi mangwati — isse page saaf-suthra rehta hai aur
      bina zarurat Supabase call bhi nahi jaata. */
@@ -10332,7 +10368,7 @@ function showErrorLog(){
     const p=document.getElementById('loginPass').value||'';
     if(!u||!p){ setMsg('Please enter both Username and Password to continue.'); return; }
     if(/\s/.test(u)||/\s/.test(p)){ setMsg('Invalid Username or Password \u2014 spaces are not allowed. Please remove all spaces and try again.'); return; }
-    if(!LOC_OK){ setMsg('Location Required \u2014 pehle location Allow karein, uske bina login possible nahi hai.'); return; }
+    if(locReqOn() && !LOC_OK){ setMsg('Location Required \u2014 pehle location Allow karein, uske bina login possible nahi hai.'); return; }
     var _lk=_getLock(); if(_lk.until && Date.now()<_lk.until){ _startLockWatch(); setMsg('Account temporarily locked due to multiple failed login attempts. Please try again in '+_fmtLeft(_lk.until-Date.now())+'.'); return; }
     try{ var _fyb=document.getElementById('fyBody');
       if(_fyb){ var _sel=_fyb.querySelector('tr[data-fysel]');
@@ -10476,6 +10512,23 @@ function showErrorLog(){
   function _hbSid(){ try{ let s=localStorage.getItem('comsyn_did'); if(!s){ s='d'+Math.random().toString(36).slice(2,10)+Date.now().toString(36); localStorage.setItem('comsyn_did',s); } return s; }catch(e){ return 'anon'; } }
   function _hbDevice(){ return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'')?'MOBILE':'PC'; }
   var LOC_OK=false;
+  /* ===== LOCATION REQUIRED — ON/OFF (Active Users page se) =====
+     Setting cloud me rehti hai (comsyn_state), isliye ek jagah badlo to sab
+     device par lag jati hai. OFF hone par na login par location maangi jayegi
+     aur na hi baad me pehra lagega. Code me kuch badalne ki zarurat nahi. */
+  var LOCREQ=true;                       /* default ON — jab tak server na bataye */
+  function locReqOn(){ return LOCREQ!==false; }
+  function _locReqFetch(cb){
+    fetch(SUPABASE_URL+'/rest/v1/rpc/comsyn_locreq_get',{method:'POST',headers:SB_HEADERS,body:'{}'})
+      .then(function(r){ return r.json().catch(function(){ return null; }); })
+      .then(function(j){ if(j===false||j==='false') LOCREQ=false; else if(j===true||j==='true') LOCREQ=true;
+        try{ localStorage.setItem('comsyn_locreq', LOCREQ?'1':'0'); }catch(e){}
+        if(cb) cb(); })
+      .catch(function(){ /* net na ho to pichhli yaad rakhi setting */
+        try{ var v=localStorage.getItem('comsyn_locreq'); if(v==='0') LOCREQ=false; }catch(e){}
+        if(cb) cb(); });
+  }
+  try{ var _lv=localStorage.getItem('comsyn_locreq'); if(_lv==='0') LOCREQ=false; }catch(e){}
   function _gateHide(){ var g=document.getElementById('locGate'); if(g) g.style.display='none'; }
   function _gateShow(){ var g=document.getElementById('locGate'); if(g) g.style.display='flex'; }
   function _gateMsg(t,col){ var m=document.getElementById('locGateMsg'); if(m){ m.textContent=t; m.style.color=col||'#b33'; } }
@@ -10620,6 +10673,12 @@ function showErrorLog(){
     var _decided=false;
     function _decide(show){ if(_decided) return; _decided=true; if(show) _gateShow(); else _gateHide(); }
     setTimeout(function(){ if(!_decided) _decide(true); },2500);   /* safety: faisla na ho to gate */
+    /* Setting server se laao, phir faisla — OFF hai to location bilkul mat maango */
+    _locReqFetch(function(){
+      if(!locReqOn()){ LOC_OK=true; _decide(false); return; }
+      _startLocFlow();
+    });
+    function _startLocFlow(){
     try{
       /* strict user pehle se logged-in hai -> uska pehra chalu karo */
       if(sessionStorage.getItem('comsyn_user') && gpsStrictOn()){
@@ -10643,6 +10702,7 @@ function showErrorLog(){
         });
       }
     }catch(e){}
+    }
   })();
   function _hbLoc(cb){
     var cg=null; try{ cg=JSON.parse(localStorage.getItem('comsyn_loc')||'null'); }catch(e){}
@@ -10733,6 +10793,8 @@ function showErrorLog(){
   function _locWatch(){
     var u; try{ u=sessionStorage.getItem('comsyn_user'); }catch(e){}
     if(!u){ _locFailSince=null; _locWarnHide(); return; }
+    /* Setting OFF hai to koi pehra nahi — na warning, na logout */
+    if(!locReqOn()){ _locFailSince=null; _locWarnHide(); return; }
     if(!navigator.geolocation) return;
     var fail=function(){
       if(_locFailSince==null){ _locFailSince=Date.now(); _locWarnShow(); }
