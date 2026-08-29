@@ -359,7 +359,9 @@ table.rpt .num{font-family:Georgia,'Times New Roman',Times,serif}
 table.rpt,table.rpt th,table.rpt td,table.rpt .num,table.rpt .grp,table.rpt .tot-lbl,
 .rpt-totals,.rpt-totals>div,.rpt-totals b,
 .rpt-daily,.rpt-daily-head,.rpt-daily-grid .r,.rpt-daily-grid .r b,
-.rpt-rollcut,.rpt-rollcut span,.rpt-sign div,.rpt-gt-head{
+.rpt-rollcut,.rpt-rollcut span,.rpt-sign div,.rpt-gt-head,
+.rpt-summary,.rpt-summary .r,.rpt-summary .r b,
+.fab-doc,.fab-doc *{
   font-family:'Times New Roman',Times,Georgia,serif !important;
   font-variant-numeric:lining-nums tabular-nums;
   font-feature-settings:"lnum" 1,"tnum" 1;
@@ -1121,6 +1123,11 @@ table.dt tbody tr:hover td{background:rgba(232,112,42,.04)}
 .proui .osub-btn:hover,.proui .rsub-btn:hover{background:#fff;color:var(--pInk)}
 .proui .osub-btn.active,.proui .rsub-btn.active{background:#fff;color:var(--pInk);font-weight:800;box-shadow:0 4px 12px -2px rgba(21,49,78,.18),0 0 0 1px #e7eef6}
 .proui .osub-btn.active::after,.proui .rsub-btn.active::after{content:"";position:absolute;left:50%;bottom:4px;transform:translateX(-50%);width:22px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--pA2),#F2A35E)}
+/* Order Entry ke sub-tab (mini tab) aapas me chipke hue lag rahe the —
+   ab beech me theek jagah, har naam alag aur saaf padha jaye. */
+.proui .osub{gap:12px;padding:7px 10px}
+.proui .osub-btn{padding-left:20px;padding-right:20px}
+@media(max-width:640px){.proui .osub{gap:8px;padding:6px}.proui .osub-btn{padding-left:12px;padding-right:12px}}
 .proui .card,.proui .stk-card,.proui .ord-card,.proui .batch-card{border:1px solid var(--pLine);border-radius:15px;box-shadow:0 1px 2px rgba(21,49,78,.04),0 14px 34px -22px rgba(21,49,78,.32)}
 .proui .card-head h3{letter-spacing:.2px;font-weight:700}
 .proui .stk-table thead th{background:linear-gradient(180deg,#f7fafd,#edf2f8);color:#52617a;font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;border-bottom:1px solid #d9e2ec}
@@ -2537,9 +2544,9 @@ function mtrExportExcel(){
     return s;
   }
   const rows=toRows(T.p1)+'<tr><td></td></tr><tr><td></td></tr>'+toRows(T.p2);
-  const body='<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Arial,sans-serif">'+rows+'</table>';
+  const body='<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Times New Roman,Times,serif">'+rows+'</table>';
   const xml=`<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Cutting Production</x:Name><x:WorksheetOptions><x:FitToPage/><x:Print><x:ValidPrinterInfo/><x:Orientation>Landscape</x:Orientation><x:FitWidth>1</x:FitWidth><x:FitHeight>0</x:FitHeight><x:Scale>100</x:Scale></x:Print></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->`;
-  const blob=new Blob(['\ufeff<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">'+xml+'</head><body>'+body+'</body></html>'],{type:'application/vnd.ms-excel'});
+  const blob=new Blob([_xlsTNR('\ufeff<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">'+xml+'</head><body>'+body+'</body></html>')],{type:'application/vnd.ms-excel'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Cutting-Production-Report-'+mtrFileTag()+'.xls'; document.body.appendChild(a); a.click(); a.remove();
   toast('Excel exported (landscape)','ok');
 }
@@ -3569,7 +3576,7 @@ function sumExcelTable(a, title1, title2, showTarget, extra){
   const th='border:1px solid #888;padding:5px 8px;font-weight:bold;text-align:center;background:#1f3a5f;color:#fff';
   const td='border:1px solid #888;padding:5px 8px;text-align:center';
   const tdl='border:1px solid #888;padding:5px 8px;font-weight:bold;background:#f2f5f9';
-  let t=`<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Georgia,serif;font-size:12px">`;
+  let t=`<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Times New Roman,Times,serif;font-size:12px">`;
   if(title1) t+=`<tr><td colspan="${ncol}" style="${th};font-size:15px">${esc(title1)}</td></tr>`;
   if(title2) t+=`<tr><td colspan="${ncol}" style="border:1px solid #888;padding:5px;font-weight:bold;text-align:center;color:#000">${esc(title2)}</td></tr>`;
   t+=`<tr><td style="${td}"></td><td style="${td}"></td><td style="${th}">Actual Wastage</td><td style="${th}">Wastage %</td>${showTarget?`<td style="${th}">Target</td>`:''}</tr>`;
@@ -3595,14 +3602,14 @@ function buildDaySummaryExcel(dateStr){
   let html=sumExcelTable(overall,'Commercial Syn Bags Limited Unit-1','CUTTING PRODUCTION REPORT \u00b7 '+dstr,true,extraFor(dateStr));
   units.forEach(u=>{ html+='<br>'+sumExcelTable(daySumAgg(unitMap[u]),'',u+' FABRIC PRODUCTION REPORT',false); });
   cashGroups.forEach(g=>{
-    html+='<br><table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Georgia,serif;font-size:12px"><tr><td style="'+kk+'">Contractor Name :-</td><td style="'+vv+'">Cash</td><td style="'+kk+'">Machine Name :-</td><td style="'+vv+'">'+esc(g.machine)+'</td><td style="'+kk+'">Operator Name :-</td><td style="'+vv+'">'+esc(g.operator)+'</td></tr></table>';
+    html+='<br><table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Times New Roman,Times,serif;font-size:12px"><tr><td style="'+kk+'">Contractor Name :-</td><td style="'+vv+'">Cash</td><td style="'+kk+'">Machine Name :-</td><td style="'+vv+'">'+esc(g.machine)+'</td><td style="'+kk+'">Operator Name :-</td><td style="'+vv+'">'+esc(g.operator)+'</td></tr></table>';
     html+=sumExcelTable(daySumAgg(g.recs),'','',false);
   });
   const _exmp=extraFor(dateStr).mp;
   if(_exmp){
     const _t=num(_exmp.inc)+num(_exmp.sup)+num(_exmp.opC)+num(_exmp.opCash)+num(_exmp.helC)+num(_exmp.helCash);
     const _mv='border:1px solid #888;padding:5px 14px;text-align:center';
-    html+='<br><table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Georgia,serif;font-size:12px">'
+    html+='<br><table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Times New Roman,Times,serif;font-size:12px">'
       +'<tr><td colspan="2" style="'+kk+';text-align:center;font-size:14px">Cutting Man Power</td></tr>'
       +'<tr><td style="'+vv+'">Incharge :-</td><td style="'+_mv+'">'+num(_exmp.inc)+'</td></tr>'
       +'<tr><td style="'+vv+'">Supervisor :-</td><td style="'+_mv+'">'+num(_exmp.sup)+'</td></tr>'
@@ -3738,7 +3745,7 @@ function buildGroupReportHTML(recs){
   let gp=0,gw=0,gl=0; units.forEach(u=>{ const s=computeReportSummary(u); gp+=s.production; gw+=s.totalWaste; gl+=s.length; });
   gp=+gp.toFixed(2); gw=+gw.toFixed(2); gl=+gl.toFixed(2); const gpct=gp?+((gw/gp)*100).toFixed(2):0;
   const _mH=(cfg.upperHeaders||[]).find(h=>/machine/i.test(h.label)); const _mc=_mH?(units[0].headers[_mH.id]||''):'';
-  const grand=`<div class="rpt-gt-head" style="margin-top:16px;font-family:Georgia,'Times New Roman',Times,serif;font-weight:800;font-size:16px;color:#12243A;border-top:3px double #000;padding-top:10px">GRAND TOTAL \u2014 ${esc(_mc||'ALL UNITS')} \u00b7 ALL UNITS</div>
+  const grand=`<div class="rpt-gt-head" style="margin-top:16px;font-family:Times New Roman,Times,serif;font-weight:800;font-size:16px;color:#12243A;border-top:3px double #000;padding-top:10px">GRAND TOTAL \u2014 ${esc(_mc||'ALL UNITS')} \u00b7 ALL UNITS</div>
     <div class="rpt-totals" style="margin-top:8px">
       <div><span>TOTAL PRODUCTION :-</span><b>${gp}</b></div>
       <div><span>TOTAL WASTAGE :-</span><b>${gw}</b></div>
@@ -4035,6 +4042,19 @@ async function downloadReportPDF(r){
 }
 
 /* Combined PDF for a whole day — Shift A first, then Machine; same machine+shift merged onto one page */
+/* ═══════ EXPORT FONT — har download (Excel) Times New Roman me ═══════
+   Kuch export tables par font inline diya hota hai, kuch par nahi. Ye helper
+   har Excel HTML ke <head> me ek Times New Roman rule daal deta hai, taaki
+   koi bhi cell default (Calibri/Arial) me na jaye. */
+function _xlsTNR(h){
+  try{
+    h=String(h);
+    var css='<style>body,div,p,span,table,td,th{font-family:"Times New Roman",Times,serif}</style>';
+    if(/<\/head>/i.test(h))  return h.replace(/<\/head>/i, css+'</head>');
+    if(/<body[^>]*>/i.test(h)) return h.replace(/<body([^>]*)>/i, '<body$1>'+css);
+    return css+h;
+  }catch(e){ return h; }
+}
 async function _captureDocToCanvas(htmlStr){
   const wrap=document.createElement('div');
   wrap.style.cssText='position:fixed;left:-99999px;top:0;background:#fff;z-index:-1;padding:0';
@@ -4937,7 +4957,7 @@ function rollStockExcel(){
    +'<div class="title">CUTTING ROLL STOCK</div>'
    +'<div class="sub">Balance rolls &nbsp;|&nbsp; Date :- '+_rsTodayStr()+' &nbsp;|&nbsp; Total Roll : '+rows.length+' &nbsp;|&nbsp; Total Wt. : '+_rsFmt(total)+'</div><br>'
    +'<table><tr>'+th+'</tr>'+body+foot+'</table></body></html>';
-  var blob=new Blob([html],{type:'application/vnd.ms-excel'});
+  var blob=new Blob([_xlsTNR(html)],{type:'application/vnd.ms-excel'});
   var url=URL.createObjectURL(blob), a=document.createElement('a');
   a.href=url; a.download='Cutting_Roll_Stock_'+new Date().toISOString().slice(0,10)+'.xls';
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(url); },1500);
@@ -5105,7 +5125,7 @@ function rollReturnExcel(id){
    +'<div class="title">RETURN ROLL TO ROLL GODOWN</div>'
    +'<div class="sub">Return Date :- '+esc(fmtDate(b.date||''))+' &nbsp;|&nbsp; Total Roll : '+cnt+' &nbsp;|&nbsp; Total Wt. : '+_rsFmt(tot)+'</div><br>'
    +'<table><tr>'+th+'</tr>'+rows+foot+'</table></body></html>';
-  var blob=new Blob([html],{type:'application/vnd.ms-excel'});
+  var blob=new Blob([_xlsTNR(html)],{type:'application/vnd.ms-excel'});
   var url=URL.createObjectURL(blob), a=document.createElement('a');
   a.href=url; a.download='Return_Roll_Godown_'+(b.date||'')+'.xls';
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(url); },1500);
@@ -6223,8 +6243,8 @@ function compIssueExcel(fileNo,sfNo){
   raw+=`<tr><td style="${lbl};text-align:center">TOTAL GIVEN</td><td style="${td}"></td>`+comps.map(c=>`<td style="${lbl};text-align:center">${d.tot[c.key]||0}</td>`).join('')+'</tr>';
   raw+='</table>';
   const _rows=raw.replace(/<br\s*\/?>/g,'<tr><td></td></tr>').replace(/<\/?(table|thead|tbody|tfoot)[^>]*>/g,'');
-  const html='<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Georgia,serif;font-size:12px">'+_rows+'</table>';
-  const blob=new Blob(['\ufeff<html><head><meta charset="utf-8"></head><body>'+html+'</body></html>'],{type:'application/vnd.ms-excel'});
+  const html='<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Times New Roman,Times,serif;font-size:12px">'+_rows+'</table>';
+  const blob=new Blob([_xlsTNR('\ufeff<html><head><meta charset="utf-8"></head><body>'+html+'</body></html>')],{type:'application/vnd.ms-excel'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`Component_Report_${(fileNo||'').replace(/[^\w-]/g,'')}${sfNo?'_'+sfNo:''}.xls`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
   toast('Excel downloaded','ok');
 }
@@ -6386,7 +6406,7 @@ function stockLocDataFiltered(){
   return {map,locs};
 }
 function dlXls(tableHtml, name){
-  const blob=new Blob(['\ufeff<html><head><meta charset="utf-8"></head><body>'+tableHtml+'</body></html>'],{type:'application/vnd.ms-excel'});
+  const blob=new Blob([_xlsTNR('\ufeff<html><head><meta charset="utf-8"></head><body>'+tableHtml+'</body></html>')],{type:'application/vnd.ms-excel'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
 function stockOrderPDF(){
@@ -6433,7 +6453,7 @@ function stockOrderExcel(){
   const tdC='style="'+bd+'padding:5px 8px;text-align:center"';
   const tdB='style="'+bd+'padding:5px 8px;text-align:center;background:#fadee4;color:#8c1e32;font-weight:bold"';
   const tdL='style="'+bd+'padding:5px 8px;text-align:center;background:#ffeed6"';
-  let h2=`<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Times New Roman',Georgia,serif;font-size:12px">`;
+  let h2=`<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Times New Roman,Times,serif;font-size:12px">`;
   h2+=`<tr><td colspan="7" style="text-align:center;font-size:16px;font-weight:bold;color:#12243a;background:#fdf1dc;${bd}padding:10px">CUTTING STOCK \u2014 ORDER-WISE</td></tr>`;
   h2+=`<tr><td colspan="7" style="text-align:right;font-size:12px;font-weight:bold;color:#5a461e;background:#fdf6e8;${bd}padding:6px 10px">Date :- ${esc(_stockDateStr())}</td></tr>`;
   list.forEach(o=>{
@@ -6524,7 +6544,7 @@ function stockLocationExcel(){
   const tdC='style="'+bd+'padding:5px 8px;text-align:center"';
   const tdG='style="'+bd+'padding:5px 8px;text-align:center;background:#e2efda"';
   const tdB='style="'+bd+'padding:5px 8px;text-align:center;background:#fadee4;color:#8c1e32;font-weight:bold"';
-  let h2=`<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:'Times New Roman',Georgia,serif;font-size:12px">`;
+  let h2=`<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Times New Roman,Times,serif;font-size:12px">`;
   h2+=`<tr><td colspan="10" style="text-align:center;font-size:16px;font-weight:bold;color:#12243a;background:#fdf1dc;${bd}padding:10px">CUTTING STOCK \u2014 LOCATION-WISE</td></tr>`;
   h2+=`<tr><td colspan="10" style="text-align:right;font-size:12px;font-weight:bold;color:#5a461e;background:#fdf6e8;${bd}padding:6px 10px">Date :- ${esc(_stockDateStr())}</td></tr>`;
   locs.forEach(loc=>{
@@ -6965,7 +6985,7 @@ function batchDayExcel(dateStr){
     h+=`<tr><td colspan="5"></td></tr>`;
   });
   h+='</table>';
-  const blob=new Blob(['\ufeff<html><head><meta charset="utf-8"></head><body>'+h+'</body></html>'],{type:'application/vnd.ms-excel'});
+  const blob=new Blob([_xlsTNR('\ufeff<html><head><meta charset="utf-8"></head><body>'+h+'</body></html>')],{type:'application/vnd.ms-excel'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`Batch_${dateStr}.xls`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
 
@@ -7146,7 +7166,7 @@ function downloadFabricExcel(fileNo,sfNo){
   const s1=Math.floor(ncol/3), s2=Math.floor(ncol/3), s3=ncol-s1-s2, sgS='style="text-align:center;font-weight:bold;color:#1f3a5f;border-top:2px solid #1f3a5f;padding:6px"';
   h+=`<tr><td colspan="${s1}" ${sgS}>Cutt. Operator</td><td colspan="${s2}" ${sgS}>Cutt. Prod. Sup.</td><td colspan="${s3}" ${sgS}>Prod. HOD</td></tr>`;
   h+=`</table>`;
-  const blob=new Blob(['\ufeff<html><head><meta charset="utf-8"></head><body>'+h+'</body></html>'],{type:'application/vnd.ms-excel'});
+  const blob=new Blob([_xlsTNR('\ufeff<html><head><meta charset="utf-8"></head><body>'+h+'</body></html>')],{type:'application/vnd.ms-excel'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`Cutting_Report_${(fileNo||'').replace(/[^\w-]/g,'')}${sfNo?'_'+sfNo:''}.xls`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1500);
   toast('Excel downloaded','ok');
 }
@@ -7276,9 +7296,9 @@ function downloadDayExcel(dateStr){
   const _sumX=buildDaySummaryExcel(dateStr);
   if(_sumX) raw+='<br><br>'+_sumX;
   const _rows=raw.replace(/<br\s*\/?>/g,'<tr><td></td></tr>').replace(/<\/?(table|thead|tbody|tfoot)[^>]*>/g,'');
-  const html='<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Georgia,serif;font-size:12px">'+_rows+'</table>';
+  const html='<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Times New Roman,Times,serif;font-size:12px">'+_rows+'</table>';
   const xml=`<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Cutting Report</x:Name><x:WorksheetOptions><x:FitToPage/><x:Print><x:ValidPrinterInfo/><x:Orientation>Landscape</x:Orientation><x:FitWidth>1</x:FitWidth><x:FitHeight>0</x:FitHeight><x:Scale>100</x:Scale></x:Print></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->`;
-  const blob=new Blob(['\ufeff<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">'+xml+'</head><body>'+html+'</body></html>'],{type:'application/vnd.ms-excel'});
+  const blob=new Blob([_xlsTNR('\ufeff<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">'+xml+'</head><body>'+html+'</body></html>')],{type:'application/vnd.ms-excel'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`Cutting_Day_${dateStr}.xls`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
   toast('Excel exported','ok');
 }
@@ -7451,11 +7471,11 @@ function _dshTipHTML(k, st){
     +(st?('<div class="dtip-b '+(st.running?'run':'stop')+'"><i></i>'+(st.running?'RUNNING':'STOPPED')+(since?(' \u00b7 '+since):'')+'</div>'):'')
     +'</div>';
   if(!G||!G.length) return '<div class="dtip-in">'+head+'<div class="dtip-e">Is machine ki koi entry nahi mili</div></div>';
-  return '<div class="dtip-in">'+head+G.map(function(g){
-    return '<div class="dtip-s">'+esc(g.t)+'</div><div class="dtip-g">'+g.rows.map(function(x){
+  return '<div class="dtip-in">'+head+'<div class="dtip-body">'+G.map(function(g){
+    return '<div class="dtip-sec"><div class="dtip-s">'+esc(g.t)+'</div><div class="dtip-g">'+g.rows.map(function(x){
       return '<div class="dtip-k">'+esc(x[0])+'</div><div class="dtip-v">'+esc(x[1])+'</div>';
-    }).join('')+'</div>';
-  }).join('')+'</div>';
+    }).join('')+'</div></div>';
+  }).join('')+'</div></div>';
 }
 function _dshTipEl(){
   var el=document.getElementById('dshTip');
@@ -7468,7 +7488,12 @@ function _dshTipShow(tile,k){
   el.innerHTML=_dshTipHTML(k,st);
   el.style.display='block';
   var r=tile.getBoundingClientRect();
-  var w=Math.min(330, window.innerWidth-20);
+  /* Laptop/PC par card lamba ho jata tha aur neeche ki details scroll me chhup
+     jaati thi. Badi screen par ab popup chauda hota hai aur details 2 column me
+     baant di jaati hain — sab kuch ek saath dikhta hai. */
+  var _wide=window.innerWidth>=900;
+  try{ el.classList.toggle('dtip-wide',_wide); }catch(e){ el.className='dtip'+(_wide?' dtip-wide':''); }
+  var w=_wide? Math.min(700, window.innerWidth-40) : Math.min(330, window.innerWidth-20);
   el.style.width=w+'px';
   el.style.left=Math.max(10, Math.min(window.innerWidth-w-10, r.left+r.width/2-w/2))+'px';
   /* Chhoti screen (laptop) par popup neeche kat jata tha. Ab jitni jagah hai
@@ -8292,16 +8317,34 @@ function _sessBlock(sid,b){
 }
 /* ---- band drill-down: U/L & L/F rolls alag-alag, full report format ---- */
 function recRollUL(r){
+  /* U/L aur L/F "Fabric Type" column me hote hain, "Type" (FLAT/TUBULOR) me nahi.
+     Pehle sirf label=="Type" wale column ki pehli row dekhi jaati thi, isliye har
+     roll OTHER ban jata tha aur UL/LF chip par gin-ti hamesha 0 aati thi.
+     Ab: pehle wo column jiski dropdown me hi U/L / L/F ho, warna "Fabric Type",
+     aur record ki saari roll rows scan hoti hain. */
   try{
-    const s=(r.config.sections||[]).find(x=>/roll/i.test(x.title||'')); if(!s) return '';
-    const cols=(s.columns||[]).filter(c=>/^\s*type\s*$/i.test(String(c.label||'')));
-    let col=cols.find(c=>(c.options||[]).some(o=>/^(U\/?L|L\/?F)$/i.test(String(o).trim())));
-    if(!col) col=cols[1]||cols[0]; if(!col) return '';
+    const secs=(r.config&&r.config.sections)||[];
+    let s=secs.find(x=>/roll/i.test(x.title||''));
+    if(!s) s=secs.find(x=>(x.columns||[]).some(c=>/fab/i.test(String(c.label||''))));
+    if(!s) return '';
+    const cols=(s.columns||[]);
+    const isUL=v=>/^U\s*\/?\s*L$/i.test(v), isLF=v=>/^L\s*\/?\s*F$/i.test(v);
+    const lbl=c=>String(c.label||'');
+    let col=cols.find(c=>(c.options||[]).some(o=>{const t=String(o).trim(); return isUL(t)||isLF(t);}));
+    if(!col) col=cols.find(c=>/fab/i.test(lbl(c))&&/type/i.test(lbl(c)));
+    if(!col) col=cols.find(c=>/fab/i.test(lbl(c)));
+    if(!col) col=cols.find(c=>/^\s*type\s*$/i.test(lbl(c)));
+    if(!col) return '';
     const rows=(r.sections||{})[s.id]||[];
-    const v=String((rows[0]||{})[col.id]||'').trim().toUpperCase();
-    if(/^U\/?L$/.test(v)) return 'U/L';
-    if(/^L\/?F$/.test(v)) return 'L/F';
-    return v?('OTHER'):'';
+    let other='';
+    for(let i=0;i<rows.length;i++){
+      const v=String((rows[i]||{})[col.id]||'').trim().toUpperCase();
+      if(!v) continue;
+      if(isUL(v)) return 'U/L';
+      if(isLF(v)) return 'L/F';
+      other='OTHER';
+    }
+    return other;
   }catch(e){ return ''; }
 }
 function _bandOf(p){ return p>8?2:(p>3?1:0); }
@@ -8398,9 +8441,9 @@ function downloadMachineExcel(mk){
   let raw='';
   groups.forEach((g,i)=>{ if(i>0) raw+='<br><br>'; raw+='<div style="font-weight:bold;font-size:13px">'+esc(g.label)+' \u00b7 '+g.pct.toFixed(1)+'% wastage</div>'+buildGroupExcelTable(g.recs); });
   const _rows=raw.replace(/<br\s*\/?>/g,'<tr><td></td></tr>').replace(/<\/?(table|thead|tbody|tfoot)[^>]*>/g,'').replace(/<div[^>]*>/g,'<tr><td colspan="8" style="font-weight:bold;font-size:13px;border:none">').replace(/<\/div>/g,'</td></tr>');
-  const html='<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Georgia,serif;font-size:12px">'+_rows+'</table>';
+  const html='<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Times New Roman,Times,serif;font-size:12px">'+_rows+'</table>';
   const xml=`<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Machine Report</x:Name><x:WorksheetOptions><x:FitToPage/><x:Print><x:ValidPrinterInfo/><x:Orientation>Landscape</x:Orientation><x:FitWidth>1</x:FitWidth><x:FitHeight>0</x:FitHeight><x:Scale>100</x:Scale></x:Print></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->`;
-  const blob=new Blob(['\ufeff<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">'+xml+'</head><body>'+html+'</body></html>'],{type:'application/vnd.ms-excel'});
+  const blob=new Blob([_xlsTNR('\ufeff<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">'+xml+'</head><body>'+html+'</body></html>')],{type:'application/vnd.ms-excel'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`Cutting_${_mchSafe(mk)}_Report.xls`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
   toast('Excel exported','ok');
 }
@@ -8478,9 +8521,9 @@ function downloadBandExcel(bi,fab){
   let raw='';
   groups.forEach((g,i)=>{ if(i>0) raw+='<br><br>'; raw+='<div style="font-weight:bold;font-size:13px">'+esc(g.label)+' \u00b7 '+g.pct.toFixed(1)+'% wastage</div>'+buildGroupExcelTable(g.recs); });
   const _rows=raw.replace(/<br\s*\/?>/g,'<tr><td></td></tr>').replace(/<\/?(table|thead|tbody|tfoot)[^>]*>/g,'').replace(/<div[^>]*>/g,'<tr><td colspan="8" style="font-weight:bold;font-size:13px;border:none">').replace(/<\/div>/g,'</td></tr>');
-  const html='<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Georgia,serif;font-size:12px">'+_rows+'</table>';
+  const html='<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Times New Roman,Times,serif;font-size:12px">'+_rows+'</table>';
   const xml=`<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>${bname} Report</x:Name><x:WorksheetOptions><x:FitToPage/><x:Print><x:ValidPrinterInfo/><x:Orientation>Landscape</x:Orientation><x:FitWidth>1</x:FitWidth><x:FitHeight>0</x:FitHeight><x:Scale>100</x:Scale></x:Print></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->`;
-  const blob=new Blob(['\ufeff<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">'+xml+'</head><body>'+html+'</body></html>'],{type:'application/vnd.ms-excel'});
+  const blob=new Blob([_xlsTNR('\ufeff<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">'+xml+'</head><body>'+html+'</body></html>')],{type:'application/vnd.ms-excel'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`Cutting_${bname}_Report.xls`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
   toast('Excel exported','ok');
 }
@@ -8521,6 +8564,8 @@ function renderDashboard(){
   const STOP_COL={bg:'#d21f1f',hd:'#9e1414'};
   let bCnt=[0,0,0];
   a.recs.forEach(r=>{ try{ bCnt[_bandOf(recPct(r))]++; }catch(e){} });
+  let fCnt={UL:0,LF:0};
+  a.recs.forEach(r=>{ try{ const t=recRollUL(r); if(t==='U/L') fCnt.UL++; else if(t==='L/F') fCnt.LF++; }catch(e){} });
   const tiles=sorted.length? sorted.map((k,i)=>{
     const m=a.mach[k]; const mp=m.prod>0?((m.w/m.prod)*100):0; const wb=BANDS[band(mp)];
     const _st=(window.__dshMach||{})[k];
@@ -8845,6 +8890,12 @@ function renderDashboard(){
     .dtip .dtip-v{font-size:14.5px;font-weight:700;color:#ffffff;text-align:right;word-break:break-word}
     .dtip .dtip-g>div:nth-last-child(-n+2){border-bottom:none}
     .dtip .dtip-e{color:#9fbcd8;padding:10px 0;font-size:13.5px}
+    .dtip .dtip-sec{break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid}
+    .dtip .dtip-body>.dtip-sec .dtip-s{margin-top:16px}
+    .dtip .dtip-body>.dtip-sec:first-child .dtip-s{margin-top:2px}
+    .dtip.dtip-wide{max-height:88vh}
+    .dtip.dtip-wide .dtip-body{column-count:2;column-gap:28px}
+    .dtip.dtip-wide .dtip-body>.dtip-sec{display:inline-block;width:100%}
     /* Machine ka naam bada — LIVE par uspar click karke poori report khulti hai */
     .dsh2 .mtile-name{font-size:21px!important;letter-spacing:.7px!important}
     .dsh2 .mtile-name-tap{cursor:pointer;text-decoration:underline;
@@ -8885,8 +8936,8 @@ function renderDashboard(){
       <div class="chip" data-band="0" style="cursor:pointer"><div class="n" style="background:#1e9e50">${bCnt[0]}</div><div class="d"><b>GOOD</b><small>ROLLS \u2264 3%</small></div></div>
       <div class="chip" data-band="1" style="cursor:pointer"><div class="n" style="background:#e8930c">${bCnt[1]}</div><div class="d"><b>WATCH</b><small>ROLLS 3\u20138%</small></div></div>
       <div class="chip" data-band="2" style="cursor:pointer"><div class="n" style="background:#d93636">${bCnt[2]}</div><div class="d"><b>HIGH</b><small>ROLLS &gt; 8%</small></div></div>
-      <div class="chip" data-fab="UL" style="cursor:pointer"><div class="n" style="background:#1f6ca8">UL</div><div class="d"><b>UL ROLLS</b><small>WASTAGE-WISE DEKHO</small></div></div>
-      <div class="chip" data-fab="LF" style="cursor:pointer"><div class="n" style="background:#6b4fa0">LF</div><div class="d"><b>LF ROLLS</b><small>WASTAGE-WISE DEKHO</small></div></div>
+      <div class="chip" data-fab="UL" style="cursor:pointer"><div class="n" style="background:#1f6ca8">${fCnt.UL}</div><div class="d"><b>UL ROLLS</b><small>WASTAGE-WISE DEKHO</small></div></div>
+      <div class="chip" data-fab="LF" style="cursor:pointer"><div class="n" style="background:#6b4fa0">${fCnt.LF}</div><div class="d"><b>LF ROLLS</b><small>WASTAGE-WISE DEKHO</small></div></div>
       <div class="chip"><div class="n" style="background:#2e86c1">${keys.length}</div><div class="d"><b>MACHINES</b><small>${a.recs.length} REPORTS</small></div></div>
     </div>
     <div class="dsh-bar" style="margin-top:12px">
@@ -9577,7 +9628,7 @@ function lpDayExcel(dateStr){
   if(!d.rows.length){ toast('Is date ki koi entry nahi','err'); return; }
   const doc=lpReportDoc(dateStr,'');
   const html=`<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>table{border-collapse:collapse;margin-bottom:14px}td,th{border:1px solid #6e87a5;padding:6px 8px;font-family:'Times New Roman',Times,serif;font-size:13px;text-align:center;color:#111}th{background:#12386b;color:#fff;font-weight:bold}.lp-sum th{background:#0d6e7a}.lp-rco{font-size:15px;font-weight:bold;color:#0d5a4e;text-align:center}.lp-rti{font-size:20px;font-weight:bold;color:#12386b;text-align:center}.lp-rdate{font-weight:bold;color:#8a5a00;text-align:right}.fab-section-title{font-size:15px;font-weight:bold;text-align:center;color:#12386b}.lpc-loc{background:#f3edff;color:#4a2c86;font-weight:bold}.lpc-qty{background:#e2f2dc;color:#1e5a32;font-weight:bold}.lpc-bag{background:#e6f0fb;color:#123a6b}.lpc-tot{background:#fff0d3;color:#8a5a00;font-weight:bold}.grand td{background:#ffe6a8;color:#7a4a0a;font-weight:bold}</style></head><body>${doc}</body></html>`;
-  const blob=new Blob([html],{type:'application/vnd.ms-excel'});
+  const blob=new Blob([_xlsTNR(html)],{type:'application/vnd.ms-excel'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a');
   a.href=url; a.download=`Daily_Line_Production_${dateStr}.xls`;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
@@ -9641,7 +9692,7 @@ function lpRangeExcel(r){
     <div class="fab-section-title">Date-wise Summary</div>
     <table><tr>${th('S No.')}${th('Date')}${th('Entries')}${th('Qty.')}${th('Total Wt.')}</tr>${sumBody}<tr class="grand"><td colspan="2">Grand Total</td><td>${S.gn}</td><td>${lpFmt(S.gq)}</td><td>${lpFmt(S.gw)}</td></tr></table>`;
   const html=`<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>table{border-collapse:collapse;margin-bottom:14px}td,th{border:1px solid #6e87a5;padding:6px 8px;font-family:'Times New Roman',Times,serif;font-size:13px;text-align:center;color:#111}th{background:#12386b;color:#fff;font-weight:bold}.lp-rti{font-size:20px;font-weight:bold;color:#12386b;text-align:center}.lp-rdate{font-weight:bold;color:#8a5a00;text-align:center}.fab-section-title{font-size:15px;font-weight:bold;text-align:center;color:#0d6e7a}.lpc-loc{background:#f3edff;color:#4a2c86;font-weight:bold}.lpc-qty{background:#e2f2dc;color:#1e5a32;font-weight:bold}.lpc-bag{background:#e6f0fb;color:#123a6b}.lpc-tot{background:#fff0d3;color:#8a5a00;font-weight:bold}.grand td{background:#ffe6a8;color:#7a4a0a;font-weight:bold}</style></head><body>${doc}</body></html>`;
-  const blob=new Blob([html],{type:'application/vnd.ms-excel'});
+  const blob=new Blob([_xlsTNR(html)],{type:'application/vnd.ms-excel'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=lpRangeFileName(r)+'.xls';
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
