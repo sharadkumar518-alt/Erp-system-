@@ -1242,6 +1242,10 @@ table.dt tbody tr:hover td{background:rgba(232,112,42,.04)}
 .sec-col .loc-gate-hint{background:var(--sT)!important;color:var(--sX)!important;
   border-color:transparent!important}
 .sec-col .loc-gate-hint svg{color:var(--sB)!important}
+/* Reference me data row par section ka halka rang tha — ab yahan bhi. */
+.sec-col table.dt tbody td{background:color-mix(in srgb,var(--sT) 66%,#fff)}
+.sec-col table.dt tbody td.formula-cell{background:#f4f9fd}
+.sec-col table.dt thead th{background:#FBFCFD}
 .proui .card,.proui .stk-card,.proui .ord-card,.proui .batch-card{border:1px solid var(--pLine);border-radius:15px;box-shadow:0 1px 2px rgba(21,49,78,.04),0 14px 34px -22px rgba(21,49,78,.32)}
 .proui .card-head h3{letter-spacing:.2px;font-weight:700}
 .proui .stk-table thead th{background:linear-gradient(180deg,#f7fafd,#edf2f8);color:#52617a;font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;border-bottom:1px solid #d9e2ec}
@@ -2911,6 +2915,18 @@ function refreshLocationGate(){
     } else if(!rc && n){ n.remove(); }
   });
 }
+/* Har section ka apna icon — pehle paanchon me ek hi grid icon tha. */
+function _secIcon(k){
+  const P={
+    ord :'<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>',
+    roll:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    cut :'<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/>',
+    wst :'<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/>',
+    loc :'<path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/>',
+    gen :'<path d="M3 3h18v18H3z"/><path d="M3 9h18M9 3v18"/>'
+  };
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(P[k]||P.gen)+'</svg>';
+}
 function sectionEntryCard(sec){
   const rows=DRAFT.sections[sec.id]||[];
   const multi=!!sec.multiRow;
@@ -2936,7 +2952,7 @@ function sectionEntryCard(sec){
              : /cut/i.test(_t)   ? 'cut'
              : /wast/i.test(_t)  ? 'wst'
              : /locat/i.test(_t) ? 'loc' : 'gen';
-  return `<div class="card sec-col${locLock?' loc-locked':''}${wstLock?' wst-locked':''}" data-sk="${skey}"${gateAttr}${wstAttr} style="margin-top:18px"><div class="card-head"><h3><span class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 3v18"/></svg></span>${esc(sec.title)}</h3><span class="tag">${tag}</span></div><div class="card-body">${gateHint}${wstNote}${body}</div></div>`;
+  return `<div class="card sec-col${locLock?' loc-locked':''}${wstLock?' wst-locked':''}" data-sk="${skey}"${gateAttr}${wstAttr} style="margin-top:18px"><div class="card-head"><h3><span class="section-icon">${_secIcon(skey)}</span>${esc(sec.title)}</h3><span class="tag">${tag}</span></div><div class="card-body">${gateHint}${wstNote}${body}</div></div>`;
 }
 
 function entryOrderCtx(){
