@@ -1128,6 +1128,62 @@ table.dt tbody tr:hover td{background:rgba(232,112,42,.04)}
 .proui .osub{gap:12px;padding:7px 10px}
 .proui .osub-btn{padding-left:20px;padding-right:20px}
 @media(max-width:640px){.proui .osub{gap:8px;padding:6px}.proui .osub-btn{padding-left:12px;padding-right:12px}}
+
+/* ═══════════════════════════════════════════════════════════════
+   SIDEBAR + MINI TAB — Times New Roman black bold, amber active
+   Active ki pehchan teen tarah se: text+icon amber, left bar, aur
+   ruk-ruk kar chalti shine. Sirf transform/opacity animate hote
+   hain, isliye purane PC par bhi jhatka nahi aata.
+   ═══════════════════════════════════════════════════════════════ */
+.brand b,.brand span,.nav-label,.nav button{
+  font-family:'Times New Roman',Times,serif!important;font-weight:700!important}
+.nav-label{color:#9A8B76;letter-spacing:1.4px;font-size:11px}
+
+/* SK — 360 degree vertical (rotateX) ghumav, chip card jaisa */
+.brand{perspective:600px}
+.brand b{font-size:23px;color:#000;letter-spacing:1.6px;display:inline-block;
+  transform-style:preserve-3d;animation:skSpin 8s ease-in-out infinite}
+@keyframes skSpin{0%,80%{transform:rotateX(0deg)}100%{transform:rotateX(360deg)}}
+.brand b:hover{animation:skSpin 1.1s ease-in-out}
+
+.nav button{font-size:16px;color:#000;letter-spacing:.2px;overflow:hidden;line-height:1.25}
+.nav button svg{color:#8C7F6D;opacity:1}
+.nav button:hover{background:#FBF6EE;color:#000}
+.nav button:hover svg{color:#8C7F6D;opacity:1}
+.nav button.active{background:#FAEEDA;color:#854F0B;
+  text-shadow:0 0 9px rgba(186,117,23,.30);box-shadow:none}
+.nav button.active svg{color:#BA7517;opacity:1;animation:navPop .45s ease-out}
+.nav button.active::before{left:0;width:4px;height:26px;border-radius:0 4px 4px 0;
+  background:#BA7517;box-shadow:none;animation:navBar .38s cubic-bezier(.34,1.4,.5,1) both}
+.nav button.active::after{content:"";position:absolute;top:0;bottom:0;left:0;width:38%;
+  pointer-events:none;will-change:transform;
+  background:linear-gradient(100deg,transparent,rgba(186,117,23,.18),transparent);
+  animation:navShine 3.6s ease-in-out infinite}
+@keyframes navBar{from{transform:translateY(-50%) scaleY(0)}to{transform:translateY(-50%) scaleY(1)}}
+@keyframes navPop{45%{transform:scale(1.28) rotate(-8deg)}to{transform:scale(1)}}
+@keyframes navShine{0%{transform:translateX(-140%)}38%{transform:translateX(320%)}100%{transform:translateX(320%)}}
+
+/* Mini tab — wahi amber + Times look */
+.proui .osub,.proui .rsub-bar{background:#fff;border-color:#EFE3D2}
+.proui .osub-btn,.proui .rsub-btn{font-family:'Times New Roman',Times,serif!important;
+  font-weight:700!important;font-size:15px;color:#000;overflow:hidden}
+.proui .osub-btn:hover,.proui .rsub-btn:hover{background:#FBF6EE;color:#000}
+.proui .osub-btn.active,.proui .rsub-btn.active{background:#FAEEDA;color:#854F0B;
+  text-shadow:0 0 9px rgba(186,117,23,.30);box-shadow:none}
+.proui .osub-btn.active::after,.proui .rsub-btn.active::after{
+  background:#BA7517;width:22px;height:3px;
+  animation:navUn .38s cubic-bezier(.34,1.4,.5,1) both}
+.proui .osub-btn.active::before,.proui .rsub-btn.active::before{content:"";position:absolute;
+  top:0;bottom:0;left:0;width:38%;pointer-events:none;will-change:transform;
+  background:linear-gradient(100deg,transparent,rgba(186,117,23,.18),transparent);
+  animation:navShine 3.6s ease-in-out infinite}
+@keyframes navUn{from{transform:translateX(-50%) scaleX(0)}to{transform:translateX(-50%) scaleX(1)}}
+
+@media (prefers-reduced-motion:reduce){
+  .brand b,.nav button.active::after,.nav button.active::before,
+  .nav button.active svg,.proui .osub-btn.active::before,
+  .proui .rsub-btn.active::before{animation:none!important}
+}
 .proui .card,.proui .stk-card,.proui .ord-card,.proui .batch-card{border:1px solid var(--pLine);border-radius:15px;box-shadow:0 1px 2px rgba(21,49,78,.04),0 14px 34px -22px rgba(21,49,78,.32)}
 .proui .card-head h3{letter-spacing:.2px;font-weight:700}
 .proui .stk-table thead th{background:linear-gradient(180deg,#f7fafd,#edf2f8);color:#52617a;font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;border-bottom:1px solid #d9e2ec}
@@ -1870,7 +1926,7 @@ body.tvmode .tv-bar{display:flex}
         <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
       </div>
       <div>
-        <b>COMSYN</b>
+        <b id="brandSK">SK</b>
         <span>Cutting ERP</span>
       </div>
     </div>
@@ -7502,24 +7558,35 @@ function _dshTipShow(tile,k){
   /* Laptop/PC par card lamba ho jata tha aur neeche ki details scroll me chhup
      jaati thi. Badi screen par ab popup chauda hota hai aur details 2 column me
      baant di jaati hain — sab kuch ek saath dikhta hai. */
-  var _w3=window.innerWidth>=1150, _w2=(!_w3 && window.innerWidth>=900), _wide=(_w3||_w2);
-  try{ el.classList.toggle('dtip-wide',_wide); el.classList.toggle('dtip-wide3',_w3); }
-  catch(e){ el.className='dtip'+(_wide?' dtip-wide':'')+(_w3?' dtip-wide3':''); }
-  var w=_w3? Math.min(960, window.innerWidth-40)
-        : (_w2? Math.min(720, window.innerWidth-40) : Math.min(330, window.innerWidth-20));
+  /* Card ka format har device par ek jaisa — ek hi column, jaisa mobile me hai.
+     Farak sirf jagah ka: PC/laptop par card tile ke BAGAL me khulta hai —
+     tile left me ho aur right me jagah zyada ho to right me, tile right me ho
+     to left me. Upar-neeche kuch nahi katta, tile ke saamne seedha aata hai. */
+  var _wide=window.innerWidth>=900;
+  try{ el.classList.remove('dtip-wide'); el.classList.remove('dtip-wide3'); }catch(e){}
+  var w=Math.min(_wide?340:330, window.innerWidth-20);
   el.style.width=w+'px';
   el.style.maxHeight='';
-  /* PC/laptop par tile ke upar-neeche jagah kam padti thi aur details kat jati thi.
-     Badi screen par popup ab screen ke beech me khulta hai — poori height milti hai. */
   if(_wide){
-    el.style.left=Math.max(10,(window.innerWidth-w)/2)+'px';
-    var hw=el.offsetHeight||300, avail=window.innerHeight-24;
-    if(hw>avail){ el.style.maxHeight=avail+'px'; hw=avail; }
-    el.style.top=Math.max(12,(window.innerHeight-hw)/2)+'px';
+    var GAP=16;
+    var sR=window.innerWidth-r.right-GAP, sL=r.left-GAP, lft;
+    if(sR>=w)      lft=r.right+GAP;                                   // right me poori jagah
+    else if(sL>=w) lft=r.left-GAP-w;                                  // warna left me
+    else if(sR>=sL)lft=Math.min(window.innerWidth-w-10, r.right+GAP); // jis taraf zyada jagah
+    else           lft=Math.max(10, r.left-GAP-w);
+    el.style.left=Math.max(10, lft)+'px';
+    /* CSS ka 74vh cap PC par bhi lag jata tha, isliye card chhota hokar scroll
+       me chala jata tha. Badi screen par poori height do — Width / Length /
+       Weight tak sab kuch bina scroll ke dikhe. */
+    var avail=window.innerHeight-24;
+    el.style.maxHeight=avail+'px';
+    var hw=Math.min(el.offsetHeight||300, avail);
+    var tp=r.top+r.height/2-hw/2;                                     // tile ke saamne
+    el.style.top=Math.max(12, Math.min(window.innerHeight-hw-12, tp))+'px';
     return;
   }
   el.style.left=Math.max(10, Math.min(window.innerWidth-w-10, r.left+r.width/2-w/2))+'px';
-  /* Chhoti screen par jitni jagah hai usi ke hisaab se upar ya neeche khulta hai. */
+  /* Mobile par jitni jagah hai usi hisaab se upar ya neeche khulta hai. */
   var h=el.offsetHeight||300;
   var below=window.innerHeight-r.bottom-20, above=r.top-20;
   var top;
@@ -8914,15 +8981,6 @@ function renderDashboard(){
     .dtip .dtip-sec{break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid}
     .dtip .dtip-body>.dtip-sec .dtip-s{margin-top:16px}
     .dtip .dtip-body>.dtip-sec:first-child .dtip-s{margin-top:2px}
-    /* CSS column-count fixed-height box ke andar content kaat deta tha (Width /
-       Length / Weight gayab ho jate the). Ab grid hai — har group apne cell me,
-       kuch bhi kate nahi. Badi screen par 3 column, taaki poori list ek saath aa jaye. */
-    .dtip.dtip-wide{max-height:94vh}
-    .dtip.dtip-wide .dtip-body{display:grid;grid-template-columns:1fr 1fr;column-gap:26px;align-items:start}
-    .dtip.dtip-wide3 .dtip-body{grid-template-columns:1fr 1fr 1fr;column-gap:22px}
-    .dtip.dtip-wide .dtip-body>.dtip-sec .dtip-s{margin-top:10px}
-    .dtip.dtip-wide .dtip-s{margin-bottom:5px;padding:3px 0 3px 12px}
-    .dtip.dtip-wide .dtip-k,.dtip.dtip-wide .dtip-v{padding:3.5px 0}
     /* Machine ka naam bada — LIVE par uspar click karke poori report khulti hai */
     .dsh2 .mtile-name{font-size:21px!important;letter-spacing:.7px!important}
     .dsh2 .mtile-name-tap{cursor:pointer;text-decoration:underline;
