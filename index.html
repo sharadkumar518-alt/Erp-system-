@@ -1239,6 +1239,9 @@ table.dt tbody tr:hover td{background:rgba(232,112,42,.04)}
 .sec-col[data-sk="loc"] {animation-delay:.24s}
 @keyframes secUp{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.sec-col{animation:none!important}}
+.sec-col .loc-gate-hint{background:var(--sT)!important;color:var(--sX)!important;
+  border-color:transparent!important}
+.sec-col .loc-gate-hint svg{color:var(--sB)!important}
 .proui .card,.proui .stk-card,.proui .ord-card,.proui .batch-card{border:1px solid var(--pLine);border-radius:15px;box-shadow:0 1px 2px rgba(21,49,78,.04),0 14px 34px -22px rgba(21,49,78,.32)}
 .proui .card-head h3{letter-spacing:.2px;font-weight:700}
 .proui .stk-table thead th{background:linear-gradient(180deg,#f7fafd,#edf2f8);color:#52617a;font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;border-bottom:1px solid #d9e2ec}
@@ -3239,12 +3242,65 @@ function extraCutCheck(){
   }
   return null;
 }
+/* ══════════════════════════════════════════════════════════════════
+   ENTRY VALIDATION — jaldbazi me kuch chhut na jaye
+   Do padav hain, isliye jaanch bhi do padav me:
+   PADAV 1 (hamesha): saare header (Machine / Operator / Shift / Unit /
+     Date / Contractor), Order Details, Roll Details aur Cut Item ka Name.
+   PADAV 2 (jab Cut PCs bhar diya, yaani entry poori ho rahi hai):
+     Wastage me Loom / Lamination / Process me se KAM SE KAM EK, aur Location.
+   RE-CUTTING me wastage nahi maangi jaati — wahi purana niyam.
+   Kuch bhi khali mile to save rukega aur popup me poori list dikhegi.
+   ══════════════════════════════════════════════════════════════════ */
+function _vEmpty(v){ return String(v==null?'':v).trim()===''; }
+function _vSec(re){ return CFG.sections.find(x=>re.test(x.title||'')); }
+function _vCol(sec,re){ return sec && (sec.columns||[]).find(c=>re.test(String(c.label||''))); }
+function _vColFilled(sec,col){
+  if(!sec||!col) return true;
+  return (DRAFT.sections[sec.id]||[]).some(r=>!_vEmpty(r[col.id]));
+}
+function entryMissing(){
+  const miss=[];
+  /* --- Padav 1: header --- */
+  [...(CFG.upperHeaders||[]),...(CFG.lowerHeaders||[])].forEach(h=>{
+    if(_vEmpty(DRAFT.headers[h.id])) miss.push(String(h.label||'Header').replace(/\s*:-\s*$/,''));
+  });
+  /* --- Padav 1: Order / Roll / Cut Item ka naam --- */
+  const od=_vSec(/order/i), rd=_vSec(/roll/i), ci=_vSec(/cut\s*item/i);
+  [[od,/order\s*(no|ref)/i,'Order No.'],[od,/file\s*no/i,'File No.'],
+   [rd,/roll\s*no/i,'Roll No.'],[ci,/name/i,'Cut Item ka Name']].forEach(([sec,re,lbl])=>{
+    const col=_vCol(sec,re);
+    if(sec&&col&&!_vColFilled(sec,col)) miss.push(lbl);
+  });
+  /* --- Padav 2: PCs bhar diye to Wastage + Location bhi chahiye --- */
+  const pcsCol=_vCol(ci,/pcs|pieces/i);
+  const hasPcs = !!(ci&&pcsCol&&(DRAFT.sections[ci.id]||[]).some(r=>num(r[pcsCol.id])>0));
+  if(hasPcs){
+    if(!wastageReady()) miss.push('Wastage \u2014 Loom / Lamination / Process me se kam se kam ek');
+    const ls=_vSec(/locat/i), lc=_vCol(ls,/locat/i)||(ls&&(ls.columns||[])[0]);
+    if(ls&&lc&&!_vColFilled(ls,lc)) miss.push('Location');
+  }
+  return miss;
+}
+function entryMissingPopup(miss){
+  openModal({
+    title:'\u26D4 Entry adhoori hai',
+    body:`<p style="margin:0 0 10px;font-size:14.5px;line-height:1.55;color:var(--ink)">
+        Ye cheezein bharna baaki hai \u2014 bharne ke baad hi entry save hogi:</p>
+      <ul style="margin:0;padding-left:20px;font-size:14.5px;line-height:1.9;color:var(--ink);font-weight:600">
+        ${miss.map(m=>`<li>${esc(m)}</li>`).join('')}</ul>`,
+    footer:`<button class="btn btn-primary" data-close>Theek hai</button>`
+  });
+}
+
 function saveEntry(){
   const dateHdr=CFG.upperHeaders.find(h=>h.type==='date')||CFG.lowerHeaders.find(h=>h.type==='date');
   const date= dateHdr? DRAFT.headers[dateHdr.id] : new Date().toISOString().slice(0,10);
   if(!date){ toast('Please set a date','err'); return; }
   const any=Object.values(DRAFT.sections).some(rows=>rows.some(r=>Object.values(r).some(v=>String(v).trim()!=='')));
   if(!any){ toast('Add at least one row of data','err'); return; }
+  const _miss=entryMissing();
+  if(_miss.length){ entryMissingPopup(_miss); return; }
   const _ex=extraCutCheck();
   if(_ex){ toast(`Something went wrong — Extra cutting! "${_ex.comp}" max ${_ex.max} tak allowed (required ${_ex.required} + ${XCUTLIMIT} extra). Abhi total ${_ex.projected} ho raha hai.`,'err'); return; }
   const s=computeSummary();
