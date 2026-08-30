@@ -1144,9 +1144,15 @@ table.dt tbody tr:hover td{background:rgba(232,112,42,.04)}
    ho, aur rukte waqt ek amber chamak de kar shaant ho jata hai. */
 .brand{perspective:700px}
 .brand span{display:none}
-.brand b{font-size:27px;color:#000;letter-spacing:2px;display:inline-block;
+.brand{padding:16px 18px 14px}
+.brand>div{flex:1;min-width:0;display:flex;align-items:center;justify-content:center}
+.brand b{font-size:40px;line-height:1;color:#000;letter-spacing:5px;padding-left:5px;
+  display:inline-block;white-space:nowrap;
   transform-style:preserve-3d;backface-visibility:visible;will-change:transform;
   animation:skSpin 8s ease-in-out infinite}
+/* "WORKSPACE" label hata diya — pehla nav-label; "SETUP" waise hi hai */
+.nav>.nav-label:first-of-type{display:none}
+.nav>button:first-of-type{margin-top:4px}
 @keyframes skSpin{
   0%,76%{transform:rotateY(0deg) scale(1);text-shadow:none}
   86%{transform:rotateY(-180deg) scale(1.08);text-shadow:none}
@@ -1197,6 +1203,42 @@ table.dt tbody tr:hover td{background:rgba(232,112,42,.04)}
   .nav button.active svg,.proui .osub-btn.active::before,
   .proui .rsub-btn.active::before{animation:none!important}
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ENTRY FORM — har section ka apna rang (layout jaisa ka waisa)
+   Order neela · Roll teal · Cut Item amber · Wastage coral · Location purple.
+   Sirf left bar, icon tile aur "1 row" pill ka rang badalta hai — na koi
+   field hilti hai, na koi naya element aata hai.
+   ═══════════════════════════════════════════════════════════════ */
+.sec-col{position:relative;overflow:hidden;
+  --sB:#BA7517;--sT:#FAEEDA;--sX:#854F0B}
+.sec-col[data-sk="ord"] {--sB:#185FA5;--sT:#E6F1FB;--sX:#0C447C}
+.sec-col[data-sk="roll"]{--sB:#0F6E56;--sT:#E1F5EE;--sX:#0F6E56}
+.sec-col[data-sk="cut"] {--sB:#BA7517;--sT:#FAEEDA;--sX:#854F0B}
+.sec-col[data-sk="wst"] {--sB:#993C1D;--sT:#FAECE7;--sX:#993C1D}
+.sec-col[data-sk="loc"] {--sB:#534AB7;--sT:#EEEDFE;--sX:#3C3489}
+.sec-col::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+  background:var(--sB);z-index:1}
+.sec-col>.card-head{padding-left:22px}
+.sec-col>.card-body{padding-left:22px}
+.sec-col>.card-head .section-icon{background:var(--sT)!important;box-shadow:none!important}
+.sec-col>.card-head .section-icon svg{color:var(--sB)!important}
+.sec-col:hover>.card-head .section-icon{box-shadow:0 4px 12px color-mix(in srgb,var(--sB) 32%,transparent)!important}
+.sec-col>.card-head h3{font-family:'Times New Roman',Times,serif;font-weight:700;font-size:16.5px;color:#000}
+.sec-col>.card-head .tag{font-family:'Times New Roman',Times,serif;font-weight:700;
+  background:var(--sT);color:var(--sX);border-color:transparent;font-size:11.5px}
+.sec-col table.dt th{color:var(--sX)}
+.sec-col table.dt td input:focus,.sec-col table.dt td select:focus{
+  border-color:var(--sB)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--sB) 20%,transparent)!important}
+.sec-col .add-row-btn:hover{border-color:var(--sB);color:var(--sX)}
+/* section card halka sa stagger hokar aate hain — sirf tab khulte waqt */
+.sec-col{animation:secUp .42s ease-out both}
+.sec-col[data-sk="roll"]{animation-delay:.06s}
+.sec-col[data-sk="cut"] {animation-delay:.12s}
+.sec-col[data-sk="wst"] {animation-delay:.18s}
+.sec-col[data-sk="loc"] {animation-delay:.24s}
+@keyframes secUp{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.sec-col{animation:none!important}}
 .proui .card,.proui .stk-card,.proui .ord-card,.proui .batch-card{border:1px solid var(--pLine);border-radius:15px;box-shadow:0 1px 2px rgba(21,49,78,.04),0 14px 34px -22px rgba(21,49,78,.32)}
 .proui .card-head h3{letter-spacing:.2px;font-weight:700}
 .proui .stk-table thead th{background:linear-gradient(180deg,#f7fafd,#edf2f8);color:#52617a;font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;border-bottom:1px solid #d9e2ec}
@@ -2883,7 +2925,15 @@ function sectionEntryCard(sec){
   const wstNote = wstLock ? `<div class="loc-gate-hint" style="display:flex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 11H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2Z"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> <b>RE-CUTTING</b> me wastage nahi bharni \u2014 seedha Location bharo.</div>` : '';
   const gateHint = isLocSec ? `<div class="loc-gate-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 11H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2Z"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Pehle <b>Wastage Details</b> bharo — uske baad Location active hoga.</div>` : '';
   const wstAttr = isWstSec ? ' data-wstsec="1"' : '';
-  return `<div class="card${locLock?' loc-locked':''}${wstLock?' wst-locked':''}"${gateAttr}${wstAttr} style="margin-top:18px"><div class="card-head"><h3><span class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 3v18"/></svg></span>${esc(sec.title)}</h3><span class="tag">${tag}</span></div><div class="card-body">${gateHint}${wstNote}${body}</div></div>`;
+  /* Har section ko apna rang-key — colour aur icon poori tarah CSS se aate hain,
+     layout/logic bilkul nahi badalta. */
+  const _t=String(sec.title||'');
+  const skey = /order/i.test(_t) ? 'ord'
+             : /roll/i.test(_t)  ? 'roll'
+             : /cut/i.test(_t)   ? 'cut'
+             : /wast/i.test(_t)  ? 'wst'
+             : /locat/i.test(_t) ? 'loc' : 'gen';
+  return `<div class="card sec-col${locLock?' loc-locked':''}${wstLock?' wst-locked':''}" data-sk="${skey}"${gateAttr}${wstAttr} style="margin-top:18px"><div class="card-head"><h3><span class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 3v18"/></svg></span>${esc(sec.title)}</h3><span class="tag">${tag}</span></div><div class="card-body">${gateHint}${wstNote}${body}</div></div>`;
 }
 
 function entryOrderCtx(){
