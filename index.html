@@ -455,6 +455,9 @@ table.dt td .combo{background-position:right 6px center;padding-right:20px!impor
 .combo-pop{position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 40px rgba(18,36,58,.22);padding:5px;max-height:48vh;overflow:auto;display:flex;flex-direction:column;gap:3px}
 .combo-opt{text-align:left;padding:10px 14px;border-radius:8px;font-size:14px;color:var(--ink);background:transparent;white-space:nowrap}
 .combo-opt:hover{background:#fff8f3;color:var(--amber)}
+/* keyboard ke arrow se chuna hua option — mouse hover se alag aur gehra,
+   taaki bina mouse ke bhi saaf pata chale kahan khade ho */
+.combo-opt.hl{background:#FAEEDA;color:#854F0B;font-weight:700;box-shadow:inset 3px 0 0 #BA7517}
 .combo-empty{padding:10px 14px;color:var(--muted-2);font-size:12.5px;font-style:italic}
 .olk-pop{position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 40px rgba(18,36,58,.22);padding:6px;max-height:52vh;overflow:auto;display:flex;flex-direction:column;gap:5px}
 .olk-head,.olk-row{display:grid;grid-template-columns:1.4fr 1.2fr .8fr .9fr;gap:8px;align-items:center}
@@ -2949,6 +2952,22 @@ function comboSetDraft(el,val){
   if(el.id && el.id.indexOf('hf_')===0){ DRAFT.headers[el.id.slice(3)]=val; refreshSummary(); refreshLocationGate(); return; }
   const tb=el.closest('table.dt'); if(tb){ const sid=tb.dataset.sec; const tr=el.closest('tr'); const ri=+tr.dataset.row; if(DRAFT.sections[sid]&&DRAFT.sections[sid][ri]) DRAFT.sections[sid][ri][el.dataset.col]=val; const _sec=CFG.sections.find(s=>s.id===sid); if(_sec&&/cut\s*item/i.test(_sec.title)){ const _nc=_sec.columns.find(c=>/name/i.test(c.label)); if(_nc&&el.dataset.col===_nc.id){ const _lc=_sec.columns.find(c=>/length/i.test(c.label)); if(_lc){ const _len=entryCutLenFor(val); if(DRAFT.sections[sid]&&DRAFT.sections[sid][ri]) DRAFT.sections[sid][ri][_lc.id]=_len; const _li=tr&&tr.querySelector(`[data-col="${_lc.id}"]`); if(_li) _li.value=_len; } } } if(_sec&&/order/i.test(_sec.title)){ const _oc=_sec.columns.find(c=>c.id===el.dataset.col); if(_oc&&/order\s*no|file\s*no/i.test(_oc.label)){ try{ refreshCutLengths(); }catch(e){} } } CFG.sections.forEach(s=>{ if(s.columns.some(c=>c.type==='formula')) recomputeSection(s.id); }); refreshCutExtra(); }
 }
+/* Arrow key se list me upar-neeche. dir=0 matlab pehle option par ja kar
+   khade ho jao. List ke aakhir par pahunchne par wapas shuru se. */
+function comboMove(dir){
+  if(!_comboEl) return null;
+  const opts=[..._comboEl.querySelectorAll('.combo-opt')];
+  if(!opts.length) return null;
+  let cur=-1; opts.forEach((o,i)=>{ if(o.classList.contains('hl')) cur=i; });
+  let nx = (cur<0) ? (dir<0 ? opts.length-1 : 0) : cur+dir;
+  if(nx<0) nx=opts.length-1;
+  if(nx>=opts.length) nx=0;
+  opts.forEach(o=>o.classList.remove('hl'));
+  opts[nx].classList.add('hl');
+  try{ opts[nx].scrollIntoView({block:'nearest'}); }catch(e){}
+  return opts[nx];
+}
+function comboHl(){ return _comboEl ? _comboEl.querySelector('.combo-opt.hl') : null; }
 function showCombo(inp){
   const opts=comboOptions(inp); if(!opts.length){ hideCombo(); return; }
   const typed=String(inp.value||'').trim().toLowerCase();
@@ -2966,7 +2985,32 @@ function bindComboFields(){
   document.querySelectorAll('#content .combo').forEach(inp=>{
     inp.addEventListener('input',()=>{ comboSetDraft(inp,inp.value); showCombo(inp); });
     inp.addEventListener('click',()=>showCombo(inp));   // tap karte hi poori list khulegi
+    /* Tab se is field par aate hi list apne aap khul jaye */
+    inp.addEventListener('focus',()=>showCombo(inp));
     inp.addEventListener('blur',()=>setTimeout(hideCombo,200));
+    /* Keyboard: \u2193\u2191 se chuno, Enter se bharo aur agle field par,
+       Esc se list band, Tab se list band karke normal aage. */
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+        e.preventDefault();
+        if(!_comboEl){ showCombo(inp); comboMove(e.key==='ArrowUp'?-1:0); }
+        else comboMove(e.key==='ArrowDown'?1:-1);
+        return;
+      }
+      if(e.key==='Enter'){
+        const b=comboHl();
+        if(b){
+          e.preventDefault(); e.stopPropagation();
+          inp.value=b.dataset.val;
+          comboSetDraft(inp,b.dataset.val);
+          hideCombo();
+          focusNext(inp);
+        }
+        return;   /* koi option chuna hi nahi to Enter pehle jaisa hi kaam kare */
+      }
+      if(e.key==='Escape'){ if(_comboEl){ e.preventDefault(); hideCombo(); } return; }
+      if(e.key==='Tab'){ hideCombo(); }
+    });
   });
 }
 function entryFocusables(){ return [...document.querySelectorAll('#content .hdr-grid .ctrl, #content table.dt tbody [data-col]:not(.locked-cell), #content .ofields .ctrl')]; }
@@ -2975,7 +3019,13 @@ function focusNext(el){ const list=entryFocusables(); const i=list.indexOf(el); 
 function focusNextSection(tbl){ const tables=[...document.querySelectorAll('#content table.dt')]; const i=tables.indexOf(tbl); if(i>=0 && i+1<tables.length){ focusField(tables[i+1].querySelector('tbody [data-col]:not(.locked-cell)')); } }
 function bindEntryFocusFlow(){
   entryFocusables().forEach(el=>{
-    el.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); focusNext(el); } });
+    el.addEventListener('keydown',e=>{
+      if(e.key!=='Enter') return;
+      /* Dropdown me koi option chuna hua hai to Enter usi ka hai — combo
+         khud bhar kar agle field par le jayega, warna do field kood jate. */
+      if(comboHl()) return;
+      e.preventDefault(); focusNext(el);
+    });
   });
 }
 
