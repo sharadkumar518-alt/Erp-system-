@@ -1940,6 +1940,10 @@ body.tvmode .tv-bar{display:flex}
 @keyframes lgWin{from{opacity:0;transform:scale(.95) translateY(11px)}to{opacity:1;transform:none}}
 #loginOverlay .lgf{animation:lgUp .42s ease-out both}
 #loginOverlay .lgd1{animation-delay:.09s}#loginOverlay .lgd2{animation-delay:.15s}
+/* Har row ki entrance animation apna stacking context banati hai, isliye baad
+   wali Password row, User ke saved-id dropdown ke UPAR chhap jati thi. User row
+   ko upar utha diya — ab list poori dikhti hai. */
+#loginOverlay .lgd1{position:relative;z-index:60}
 #loginOverlay .lgd3{animation-delay:.21s}#loginOverlay .lgd4{animation-delay:.27s}
 #loginOverlay .lgd5{animation-delay:.33s}
 @keyframes lgUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -2020,7 +2024,7 @@ body.tvmode .tv-bar{display:flex}
         <label style="width:96px;font-size:13.5px;font-weight:600;color:#3E6367"><u>U</u>ser</label>
         <div style="flex:1;position:relative">
           <input id="loginUser" autocomplete="off" maxlength="15" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid #D9E7E8;border-radius:9px;font-size:14.5px;font-family:inherit;background:#FAFCFC;color:#0C3A40;outline:none">
-          <div id="loginAccts" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1.5px solid #0F6E72;border-radius:9px;max-height:170px;overflow:auto;z-index:40;box-shadow:0 12px 26px rgba(12,58,64,.24)"></div>
+          <div id="loginAccts" style="display:none;position:absolute;left:0;right:0;top:calc(100% - 1px);background:#fff;border:1.5px solid #0F6E72;border-top:none;border-radius:0 0 9px 9px;max-height:170px;overflow:auto;z-index:60;box-shadow:0 12px 26px rgba(12,58,64,.24)"></div>
         </div>
       </div>
       <div class="lgf lgd2" style="display:flex;align-items:center;margin-bottom:16px">
