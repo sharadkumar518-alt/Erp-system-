@@ -319,7 +319,7 @@ table.dt tfoot td.lbl{font-family:'Space Grotesk';letter-spacing:.5px;text-trans
 .rpt-hdr .hh{flex:1;display:flex;min-width:0;border-right:1px solid #2c3e50}
 .rpt-hdr .hh:last-child{border-right:none}
 .rpt-hdr .hl{background:#2c3e50;color:#fff;font-weight:700;padding:7px 9px;white-space:nowrap;font-size:13px}
-.rpt-hdr .hv{flex:1;padding:7px 9px;font-weight:700;color:#000;text-decoration:underline;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rpt-hdr .hv{flex:1;padding:7px 9px;font-weight:700;color:#000;text-decoration:none;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 table.rpt .tot-lbl{font-weight:700;font-family:Georgia,'Times New Roman',Times,serif;color:#000;background:#eff6fc;text-align:center;font-size:14px}
 table.rpt{border-collapse:collapse;width:100%;font-size:12.5px;font-family:Georgia,'Times New Roman',Times,serif}
 table.rpt th,table.rpt td{border:1px solid #8b94a2;padding:6px 8px;text-align:center;color:#1c2733}
@@ -1659,7 +1659,8 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
    Today/This Month  ·  Date select  ·  Month select  ·  Today/Week/Month.
    Size bhi thoda bada, taaki door se saaf padha jaye. */
 .dsh-bar{justify-content:flex-start;gap:20px;row-gap:10px;margin:13px 0 14px}
-.dsh-bar .dsh-sel{margin:0;gap:20px}
+.dsh-bar .dsh-sel{margin:0;gap:20px;flex-wrap:wrap}
+.dsh-sel input[type=number]{width:82px}
 .dsh-toggle button{font-size:14.5px;padding:9px 21px}
 .dsh-pills{gap:5px;padding:4px}
 .dsh-pills button{font-size:14px;padding:8px 19px}
@@ -7670,6 +7671,30 @@ function dshAgg(mode){
     recs.forEach(r=>{ let lr; try{ lr=liveRec(r);}catch(e){ lr=r; } let p=0; try{ p=num(computeReportSummary(lr).production);}catch(e){} const dd=parseInt(String(r.date||'').slice(8,10),10); if(dd>=1&&dd<=31) series[dd-1]+=p; });
     xlabs=['1','5','10','15','20','25','31'];
     const parts=selMon.split('-'); label=new Date(+parts[0],+parts[1]-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  } else if(mode==='year'){
+    /* Poora saal — mahine-war */
+    const yr=window.__dshYear||iso.slice(0,4);
+    recs=all.filter(r=>_dshShiftOK(r) && String(_dshProdDate(r)||'').slice(0,4)===yr);
+    series=new Array(12).fill(0);
+    recs.forEach(r=>{ let lr; try{ lr=liveRec(r);}catch(e){ lr=r; } let pr=0; try{ pr=num(computeReportSummary(lr).production);}catch(e){}
+      const mm=parseInt(String(r.date||'').slice(5,7),10); if(mm>=1&&mm<=12) series[mm-1]+=pr; });
+    xlabs=['Jan','Mar','May','Jul','Sep','Nov'];
+    label='Year '+yr;
+  } else if(mode==='range'){
+    /* From date se To date tak — din-war */
+    const f=window.__dshFrom||iso, t=window.__dshTo||iso;
+    const lo=(f<=t)?f:t, hi=(f<=t)?t:f;
+    recs=all.filter(r=>{ const d=String(_dshProdDate(r)||''); return _dshShiftOK(r) && d>=lo && d<=hi; });
+    const days=[]; { const s1=new Date(lo+'T00:00:00'), e1=new Date(hi+'T00:00:00');
+      for(let d=new Date(s1); d<=e1 && days.length<400; d.setDate(d.getDate()+1)) days.push(_ymd(d)); }
+    series=days.map(()=>0);
+    recs.forEach(r=>{ let lr; try{ lr=liveRec(r);}catch(e){ lr=r; } let pr=0; try{ pr=num(computeReportSummary(lr).production);}catch(e){}
+      const ix=days.indexOf(String(r.date||'')); if(ix>=0) series[ix]+=pr; });
+    xlabs=days.length<=10 ? days.map(d=>d.slice(8,10)+'/'+d.slice(5,7))
+          : [0,Math.floor(days.length/4),Math.floor(days.length/2),Math.floor(days.length*3/4),days.length-1]
+            .map(i=>days[i].slice(8,10)+'/'+days[i].slice(5,7));
+    label=dshISOtoNice(lo)+' \u2013 '+dshISOtoNice(hi);
+    window.__dshRangeDays=days.length;
   } else { /* today or specific date */
     const d=(mode==='date')?selDate:iso;
     recs=all.filter(r=>_dshShiftOK(r) && _dshProdDate(r)===d);
@@ -8877,6 +8902,15 @@ function renderDashboard(){
     let den; if(selMon===iso.slice(0,7)) den=new Date().getDate(); else { const p=selMon.split('-'); den=new Date(+p[0],+p[1],0).getDate(); }
     uptime=den?Math.min(100,(Object.keys(days).length/den)*100):0;
   } else if(mode==='week'){ const days={}; a.recs.forEach(r=>{ days[r.date]=1; }); uptime=Math.min(100,(Object.keys(days).length/7)*100);
+  } else if(mode==='year'){ const days={}; a.recs.forEach(r=>{ days[r.date]=1; });
+    const yr=window.__dshYear||todayISO().slice(0,4);
+    const den=(yr===todayISO().slice(0,4))
+      ? Math.round((Date.now()-new Date(yr+'-01-01T00:00:00').getTime())/86400000)+1
+      : ((+yr%4===0&&+yr%100!==0)||+yr%400===0?366:365);
+    uptime=den?Math.min(100,(Object.keys(days).length/den)*100):0;
+  } else if(mode==='range'){ const days={}; a.recs.forEach(r=>{ days[r.date]=1; });
+    const den=window.__dshRangeDays||1;
+    uptime=den?Math.min(100,(Object.keys(days).length/den)*100):0;
   } else { const hrs={}; a.recs.forEach(r=>{ const d=new Date(r.savedAt||0); if(!isNaN(d.getTime())) hrs[d.getHours()]=1; });
     const den=(mode==='date'&&window.__dshDate&&window.__dshDate!==todayISO())?24:(new Date().getHours()+1);
     uptime=den?Math.min(100,(Object.keys(hrs).length/den)*100):0; }
@@ -9278,15 +9312,13 @@ function renderDashboard(){
       <div class="dsh-toggle">
         <button id="dshTd" class="${mode==='today'?'on':''}">Today</button>
         <button id="dshMo" class="${(mode==='month'&&selMonVal===iso.slice(0,7))?'on':''}">This Month</button>
+        <button id="dshYr" class="${(mode==='year'&&(window.__dshYear||iso.slice(0,4))===iso.slice(0,4))?'on':''}">This Year</button>
       </div>
       <div class="dsh-sel">
-        <label>Date select <input type="date" id="dshDateIn" value="${mode==='date'?selDateVal:''}"></label>
+        <label>From date <input type="date" id="dshFromIn" value="${mode==='range'?(window.__dshFrom||''):''}"></label>
+        <label>To date <input type="date" id="dshToIn" value="${mode==='range'?(window.__dshTo||''):''}"></label>
         <label>Month select <input type="month" id="dshMonIn" value="${mode==='month'?selMonVal:''}"></label>
-      </div>
-      <div class="dsh-pills">
-        <button id="dshPt" class="${mode==='today'?'on':''}">Today</button>
-        <button id="dshPw" class="${mode==='week'?'on':''}">Week</button>
-        <button id="dshPm" class="${mode==='month'?'on':''}">Month</button>
+        <label>Year select <input type="number" id="dshYearIn" min="2000" max="2099" step="1" placeholder="2026" value="${mode==='year'?(window.__dshYear||''):''}"></label>
       </div>
     </div>
     <div class="dstats">
@@ -9364,11 +9396,21 @@ function renderDashboard(){
   }
   document.getElementById('dshTd').onclick=()=>{ window.__dshPeriod='today'; window.__dshShift=''; renderDashboard(); };
   document.getElementById('dshMo').onclick=()=>{ window.__dshPeriod='month'; window.__dshMonth=todayISO().slice(0,7); window.__dshShift=''; renderDashboard(); };
-  document.getElementById('dshPt').onclick=()=>{ window.__dshPeriod='today'; window.__dshShift=''; renderDashboard(); };
-  document.getElementById('dshPw').onclick=()=>{ window.__dshPeriod='week'; window.__dshShift=''; renderDashboard(); };
-  document.getElementById('dshPm').onclick=()=>{ window.__dshPeriod='month'; window.__dshMonth=window.__dshMonth||todayISO().slice(0,7); window.__dshShift=''; renderDashboard(); };
-  document.getElementById('dshDateIn').onchange=function(){ if(this.value){ window.__dshDate=this.value; window.__dshPeriod='date'; window.__dshShift=''; renderDashboard(); } };
+  document.getElementById('dshYr').onclick=()=>{ window.__dshPeriod='year'; window.__dshYear=todayISO().slice(0,4); window.__dshShift=''; renderDashboard(); };
+  /* From / To — dono bharne par hi range chalti hai. Ek hi bhara ho to us din
+     ka data dikha dete hain, taaki adhoora chunav khali screen na de. */
+  function _dshRange(){
+    var f=(document.getElementById('dshFromIn')||{}).value||'';
+    var t=(document.getElementById('dshToIn')||{}).value||'';
+    if(!f && !t) return;
+    window.__dshFrom = f||t; window.__dshTo = t||f;
+    window.__dshPeriod='range'; window.__dshShift=''; renderDashboard();
+  }
+  document.getElementById('dshFromIn').onchange=_dshRange;
+  document.getElementById('dshToIn').onchange=_dshRange;
   document.getElementById('dshMonIn').onchange=function(){ if(this.value){ window.__dshMonth=this.value; window.__dshPeriod='month'; window.__dshShift=''; renderDashboard(); } };
+  document.getElementById('dshYearIn').onchange=function(){ var v=String(this.value||'').trim();
+    if(/^\d{4}$/.test(v)){ window.__dshYear=v; window.__dshPeriod='year'; window.__dshShift=''; renderDashboard(); } };
   const tickEl=()=>{ const t=new Date().toLocaleTimeString('en-GB'); const e1=document.getElementById('dshClock'); if(e1) e1.textContent=t; const e2=document.getElementById('dshClock2'); if(e2) e2.textContent=t;
     try{ document.querySelectorAll('.mst-t[data-since]').forEach(function(el){ var s=num(el.getAttribute('data-since')); if(s>0) el.textContent=_dshAgo(Date.now()-s); }); }catch(e){}
   };
