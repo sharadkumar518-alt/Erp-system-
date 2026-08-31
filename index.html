@@ -1661,15 +1661,21 @@ table.dt td input,table.dt td.formula-cell,.stk-table td b,.stk-table td{font-va
 /* Filter bar ab ek hi line me, ek hi kram me aur barabar doori par:
    Today/This Month  ·  Date select  ·  Month select  ·  Today/Week/Month.
    Size bhi thoda bada, taaki door se saaf padha jaye. */
-.dsh-bar{justify-content:flex-start;gap:20px;row-gap:10px;margin:13px 0 14px}
-.dsh-bar .dsh-sel{margin:0;gap:20px;flex-wrap:wrap}
-.dsh-sel input[type=number]{width:82px}
-.dsh-toggle button{font-size:14.5px;padding:9px 21px}
-.dsh-pills{gap:5px;padding:4px}
-.dsh-pills button{font-size:14px;padding:8px 19px}
-.dsh-sel label{font-size:13px;padding:8px 13px;gap:9px}
-.dsh-sel input{font-size:14px;padding:6px 9px}
-@media(max-width:640px){.dsh-bar{gap:10px}.dsh-bar .dsh-sel{gap:9px}}
+/* Sab kuch ek hi line me: Today / This Month / This Year, phir turant
+   From date · To date · Month select · Year select. Peeche khali jagah
+   chhodne ki jagah controls thode compact rakhe hain. Screen chhoti ho to
+   apne aap agli line me chale jate hain. */
+.dsh-bar{justify-content:flex-start;gap:14px;row-gap:10px;margin:13px 0 14px}
+.dsh-bar .dsh-sel{margin:0;gap:10px;flex-wrap:wrap;flex:1 1 auto}
+.dsh-toggle button{font-size:14px;padding:9px 17px}
+.dsh-sel label{font-size:12.5px;padding:7px 10px;gap:7px;white-space:nowrap}
+.dsh-sel input{font-size:13.5px;padding:5px 7px}
+.dsh-sel input[type=date]{width:132px}
+.dsh-sel input[type=month]{width:126px}
+.dsh-sel input[type=number]{width:64px}
+@media(max-width:1100px){.dsh-sel label{font-size:12px;padding:6px 9px}}
+@media(max-width:640px){.dsh-bar{gap:10px}.dsh-bar .dsh-sel{gap:9px}
+  .dsh-sel input[type=date],.dsh-sel input[type=month]{width:auto}}
 .dsh-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
 .dsh-card{background:#ffffffd9;backdrop-filter:blur(7px);border:1px solid #dde4ee;border-radius:14px;padding:13px 14px;box-shadow:0 6px 18px rgba(20,30,50,.09);animation:dshUp .55s ease both;transition:transform .2s}
 .dsh-card:hover{transform:translateY(-3px)}
