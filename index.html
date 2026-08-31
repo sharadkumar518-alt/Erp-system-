@@ -1274,6 +1274,16 @@ table.dt tbody tr:hover td{background:rgba(232,112,42,.04)}
 .entry-view .add-row-btn{font-family:'Times New Roman',Times,serif;font-weight:700;
   font-size:14px;color:#8A8378}
 .entry-view .loc-gate-hint{font-family:'Times New Roman',Times,serif;font-weight:700;font-size:13.5px}
+/* Rows par rang aane ke baad input box ghul gaye the — kahan type karna hai
+   ye dikhta hi nahi tha. Ab har cell safed box hai, halke border ke saath. */
+.entry-view table.dt tbody input,.entry-view table.dt tbody select{
+  background:#fff;border-color:rgba(20,30,45,.14)}
+.entry-view table.dt tbody input::placeholder{color:#A9A499}
+.entry-view table.dt tbody input:focus,.entry-view table.dt tbody select:focus{background:#fff}
+
+/* Order Entry ke card PC par 2-3 ki line me bikhar jate the — ab ek line me
+   ek hi card, jaise Extra Order Cutting me hota hai. */
+#osubContent .ord-list{grid-template-columns:1fr}
 .proui .card,.proui .stk-card,.proui .ord-card,.proui .batch-card{border:1px solid var(--pLine);border-radius:15px;box-shadow:0 1px 2px rgba(21,49,78,.04),0 14px 34px -22px rgba(21,49,78,.32)}
 .proui .card-head h3{letter-spacing:.2px;font-weight:700}
 .proui .stk-table thead th{background:linear-gradient(180deg,#f7fafd,#edf2f8);color:#52617a;font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;border-bottom:1px solid #d9e2ec}
@@ -2010,7 +2020,7 @@ body.tvmode .tv-bar{display:flex}
         <label style="width:96px;font-size:13.5px;font-weight:600;color:#3E6367"><u>U</u>ser</label>
         <div style="flex:1;position:relative">
           <input id="loginUser" autocomplete="off" maxlength="15" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid #D9E7E8;border-radius:9px;font-size:14.5px;font-family:inherit;background:#FAFCFC;color:#0C3A40;outline:none">
-          <div id="loginAccts" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1.5px solid #D9E7E8;border-radius:9px;max-height:150px;overflow:auto;z-index:5;box-shadow:0 10px 22px rgba(12,58,64,.18)"></div>
+          <div id="loginAccts" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1.5px solid #0F6E72;border-radius:9px;max-height:170px;overflow:auto;z-index:40;box-shadow:0 12px 26px rgba(12,58,64,.24)"></div>
         </div>
       </div>
       <div class="lgf lgd2" style="display:flex;align-items:center;margin-bottom:16px">
@@ -11280,10 +11290,11 @@ function showErrorLog(){
     function renderAccts(){
       if(!accBox) return; var accs=loadAccts();
       if(!accs.length){ accBox.style.display='none'; accBox.innerHTML=''; return; }
-      accBox.innerHTML=accs.map(function(a,i){ return '<div data-acc="'+i+'" style="padding:7px 11px;font-size:13.5px;cursor:pointer;border-bottom:1px solid #eee;color:#1a1a1a">'+esc(a.u)+'</div>'; }).join('');
+      accBox.innerHTML=accs.map(function(a,i){ return '<div data-acc="'+i+'" style="padding:10px 12px;font-size:14px;font-weight:600;cursor:pointer;border-bottom:1px solid #EAF2F2;color:#0C3A40;display:flex;align-items:center;gap:8px"><span style="width:7px;height:7px;border-radius:50%;background:#0F6E72;flex:none"></span>'+esc(a.u)+'</div>'; }).join('');
       accBox.querySelectorAll('[data-acc]').forEach(function(el){
-        el.onmouseenter=function(){ el.style.background='#e7f0fb'; };
+        el.onmouseenter=function(){ el.style.background='#EAF3F3'; };
         el.onmouseleave=function(){ el.style.background='#fff'; };
+        el.ontouchstart=function(ev){ if(el.onmousedown) el.onmousedown(ev); };
         el.onmousedown=function(ev){ ev.preventDefault(); var a=loadAccts()[+el.dataset.acc]; if(a){ if(userInput) userInput.value=a.u; var pp=document.getElementById('loginPass'); if(pp) pp.value=a.p||''; var cb=document.getElementById('loginRemember'); if(cb) cb.checked=true; setMsg(''); } accBox.style.display='none'; };
       });
       accBox.style.display='block';
