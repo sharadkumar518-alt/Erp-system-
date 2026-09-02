@@ -1990,6 +1990,13 @@ body.tvmode .tv-bar{display:flex}
    wali Password row, User ke saved-id dropdown ke UPAR chhap jati thi. User row
    ko upar utha diya — ab list poori dikhti hai. */
 #loginOverlay .lgd1{position:relative;z-index:60}
+/* Storage Info par laal point — sync me farak hone par */
+#storageBtn{position:relative}
+#storageBtn.has-alert::after{content:"";position:absolute;top:-4px;right:-4px;width:11px;height:11px;
+  border-radius:50%;background:#E5484D;border:2px solid #16304F;box-shadow:0 0 0 2px rgba(229,72,77,.35);
+  animation:sdPulse 2.2s ease-in-out infinite}
+@keyframes sdPulse{0%,100%{box-shadow:0 0 0 2px rgba(229,72,77,.35)}50%{box-shadow:0 0 0 6px rgba(229,72,77,.10)}}
+@media (prefers-reduced-motion:reduce){#storageBtn.has-alert::after{animation:none}}
 #loginOverlay .lgd3{animation-delay:.21s}#loginOverlay .lgd4{animation-delay:.27s}
 #loginOverlay .lgd5{animation-delay:.33s}
 @keyframes lgUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -4890,9 +4897,17 @@ function showStorageInfo(){
         '<div style="font-size:17px;font-weight:800;color:#0d1726;margin-top:2px">'+st.nRec+' records &middot; localStorage me</div>'+
         '<div style="font-size:11.5px;color:#8a6b4b;margin-top:3px">IndexedDB abhi chalu nahi hui \u2014 ek entry save karke dobara kholo.</div>'+
       '</div>';
+  /* Sync me farak ho to sabse upar saaf-saaf farak dikhao */
+  var _gap=null; try{ _gap=window.__syncGap; }catch(e){}
+  var gapBox = _gap ? ('<div style="background:#FDECEC;border:1.5px solid #E5A3A3;border-radius:12px;padding:13px 14px;margin-bottom:14px">'+
+      '<div style="font-size:10.5px;font-weight:800;color:#9B2C2C;text-transform:uppercase;letter-spacing:.4px">Sync me farak hai</div>'+
+      '<div style="font-size:17px;font-weight:800;color:#0d1726;margin-top:4px">Is device par '+_gap.local+' &middot; Cloud me '+_gap.server+'</div>'+
+      '<div style="font-size:12.5px;color:#8a4b4b;margin-top:4px">'+(_gap.server-_gap.local)+' record is device par nahi aaye. Neeche <b>Full re-sync</b> dabao \u2014 kuch delete nahi hoga, sirf wapas aayenge.</div>'+
+    '</div>') : '';
   openModal({
     title:'Storage Info',
     body:'<div style="font-size:14px;line-height:1.6">'+
+      gapBox+
       syncBox+
       '<div id="dbBox" style="background:#f7fafd;border:1px solid #e3ebf3;border-radius:12px;padding:13px 14px;margin-bottom:14px;font-size:12.5px;color:#7a8b9f">Supabase database size load ho raha hai\u2026</div>'+
       recBox+
@@ -4931,6 +4946,7 @@ function _bindResync(){
             ${r.server!=null?`<br><span style="font-size:13px;color:var(--muted)">Cloud table me kul ${r.server} records</span>`:''}
           </div>`,
         footer:'<button class="btn btn-primary" data-close>Theek hai</button>' });
+      try{ setSyncDot(false); }catch(e){}
       try{ render(); }catch(e){}
     }).catch(function(e){
       b.disabled=false; b.textContent=old;
@@ -10505,6 +10521,22 @@ function renderTrash(){
 }
 
 function recDel(ids){ try{ RECSYNC.del(Array.isArray(ids)?ids:[ids]); }catch(e){} }
+
+/* ── SYNC ALERT DOT ──
+   Naranji patti ki jagah ab Storage Info button par ek chhota laal point aata
+   hai — waise hi jaise phone ki settings me update aane par dikhta hai.
+   Kaam rokta nahi; jab fursat ho tab Storage Info khol kar dekh lo. */
+function setSyncDot(on, local, server){
+  const b=document.getElementById('storageBtn'); if(!b) return;
+  b.classList.toggle('has-alert', !!on);
+  if(on){
+    window.__syncGap={local:local,server:server};
+    b.title='Cloud me '+server+' records, is device par '+local+' \u2014 kholkar theek karo';
+  } else {
+    window.__syncGap=null;
+    b.title='';
+  }
+}
 /* =====================================================================
    RECSYNC — cutting records ka apna sync (STEP 3)
    Pehle: ek entry save = PURA records array upload (mahine bhar me MB me).
@@ -10622,13 +10654,32 @@ var RECSYNC=(function(){
     rpc('comsyn_rec_ver',{u:c.u,p:c.p})
       .then(function(j){
         if(!j || j.error) return;
+        var nSrv=(j.n!=null)?Number(j.n):null;
         var v=String(j.mx||'')+'|'+String(j.n||0);
-        if(v===lastVer) return;
+        if(v===lastVer){ try{ syncGuard(nSrv); }catch(e){} return; }
         lastVer=v;
-        return pullAll(c, since);
+        return pullAll(c, since).then(function(){ try{ syncGuard(nSrv); }catch(e){} });
       })
       .catch(function(){})
       .then(function(){ busy=false; });
+  }
+
+  /* ---- PEHREDAAR ----
+     Har baar cloud batata hai ki uske paas kitne records hain. Agar is device
+     par usse kam hain aur lagataar kam bane rahen, to chup nahi rehna —
+     ek patti dikha do jisme ek tap me Full re-sync ho jaye.
+     Ek-do baar ka farak normal hai (sync abhi chal rahi hoti hai), isliye
+     lagataar 4 baar (~12 sec) farak hone par hi batate hain. */
+  var gMiss=0;
+  function syncGuard(nSrv){
+    if(nSrv==null || !on || off) return;
+    var local=(RECORDS||[]).length;
+    try{ window.__syncSrvN=nSrv; }catch(e){}
+    if(local >= nSrv){ gMiss=0; setSyncDot(false); return; }
+    gMiss++;
+    /* Ek-do second ka farak normal hai (sync abhi chal rahi hoti hai),
+       isliye lagataar 4 baar (~12 sec) kam hone par hi point lagta hai. */
+    if(gMiss>=4) setSyncDot(true, local, nSrv);
   }
 
   /* ---- save: sirf badle hue records bhejo ---- */
