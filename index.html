@@ -3745,7 +3745,7 @@ function renderCutSearch(body){
     document.getElementById('csResult').innerHTML=cutRecTable(list, !(roll||ord||file));
     (function(){ var mb=document.getElementById('csMore'); if(mb) mb.onclick=function(){ _cutShowN+=500; showRes(); }; })();
     document.getElementById('csResult').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>loadRecordIntoEntry(b.dataset.edit));
-    document.getElementById('csResult').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ const id=b.dataset.del; confirmModal('Delete this record?',()=>{ const _it=RECORDS.find(r=>r.id===id); if(_it) trashAdd('record',_it); RECORDS=RECORDS.filter(r=>r.id!==id); recDel(id); saveRec(); showRes(); toast('Record deleted','info'); },true); });
+    document.getElementById('csResult').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ const id=b.dataset.del; const _it0=RECORDS.find(r=>r.id===id); confirmModalHtml(`Ye record delete karein?<br><br>${_it0?recLabel(_it0):''}<br><br><span style="font-size:13px;color:var(--muted)">Trash me chala jayega \u2014 wahan se wapas laaya ja sakta hai.</span>`,()=>{ if(_it0) trashAdd('record',_it0); RECORDS=RECORDS.filter(r=>r.id!==id); recDel(id); saveRec(); showRes(); toast('Record Trash me chala gaya','info'); },true); });
   };
   document.getElementById('csShow').onclick=showRes;
   document.getElementById('csClear').onclick=()=>{ document.getElementById('csRoll').value=''; document.getElementById('csOrder').value=''; document.getElementById('csFile').value=''; document.getElementById('csResult').innerHTML=''; };
@@ -3827,7 +3827,22 @@ function renderReports(body){
   body.innerHTML=html;
   body.querySelectorAll('[data-daypdf]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();downloadDayPDF(b.dataset.daypdf);});
   body.querySelectorAll('[data-dayview]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();openDayReport(b.dataset.dayview);});
-  body.querySelectorAll('[data-delday]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();const d=b.dataset.delday;confirmModal(`Delete all reports of ${fmtDate(d)}?`,()=>{const _dids=RECORDS.filter(r=>r.date===d).map(r=>r.id);RECORDS.filter(r=>r.date===d).forEach(r=>trashAdd('record',r));RECORDS=RECORDS.filter(r=>r.date!==d);recDel(_dids);saveRec();renderRecords();toast('Day deleted','info');},true);});
+  body.querySelectorAll('[data-delday]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();const d=b.dataset.delday;
+    const _rs=RECORDS.filter(r=>r.date===d);
+    let _kg=0; _rs.forEach(r=>{ try{ _kg+=num(computeReportSummary(liveRec(r)).production); }catch(e){} });
+    const _mcs=[...new Set(_rs.map(r=>{ try{ return recLabel(r).replace(/<[^>]*>/g,'').split(' \u00B7 ')[0]; }catch(e){ return ''; } }).filter(Boolean))];
+    /* Poora din ek tap me delete ho jata tha. Ab do baar puchhte hain aur
+       saaf batate hain kitni report aur kitna production ja raha hai. */
+    confirmModalHtml(`<b>${fmtDate(d)}</b> ki <b>saari ${_rs.length} report</b> delete karein?<br><br>
+      Machine: ${esc(_mcs.join(', ')||'\u2014')}<br>Total production: <b>${Math.round(_kg)} Kg</b>`,()=>{
+      confirmModalHtml(`Pakka? <b>${_rs.length} report</b> hat jayengi.<br><br>
+        <span style="font-size:13px;color:var(--muted)">Trash me jayengi \u2014 wahan se wapas laayi ja sakti hain.</span>`,()=>{
+        const _dids=_rs.map(r=>r.id);
+        _rs.forEach(r=>trashAdd('record',r));
+        RECORDS=RECORDS.filter(r=>r.date!==d);recDel(_dids);saveRec();renderRecords();
+        toast(_rs.length+' report Trash me chali gayi','info');
+      },true);
+    },true);});
 }
 
 function recCard(r){
@@ -3844,10 +3859,25 @@ function recCard(r){
   </div>`;
 }
 
+/* Delete se pehle saaf batao KYA delete ho raha hai — machine, shift, date
+   aur kitna production. Ek ginti-bhar ka dabav bhi bhaari padta hai jab
+   mahino ka data ho. */
+function recLabel(r){
+  try{
+    const hs=(r.config&&r.config.upperHeaders||[]).concat(r.config&&r.config.lowerHeaders||[]);
+    const g=re=>{ const h=hs.find(x=>re.test(x.label||'')); return h?String((r.headers||{})[h.id]||'').trim():''; };
+    const mc=g(/machine/i)||'—', sh=g(/shift/i);
+    let kg=0; try{ kg=Math.round(num(computeReportSummary(liveRec(r)).production)); }catch(e){}
+    return `<b>${esc(mc)}</b>${sh?' \u00B7 Shift '+esc(sh):''} \u00B7 ${esc(fmtDate(r.date))}${kg?' \u00B7 '+kg+' Kg':''}`;
+  }catch(e){ return 'Report'; }
+}
 function delRecord(id){
-  confirmModal('Delete this report?',()=>{
-    const _it=RECORDS.find(r=>r.id===id); if(_it) trashAdd('record',_it);
-    RECORDS=RECORDS.filter(r=>r.id!==id); recDel(id); saveRec(); renderRecords(); toast('Report deleted','info');
+  const _it=RECORDS.find(r=>r.id===id);
+  confirmModalHtml(`Ye report delete karein?<br><br>${_it?recLabel(_it):''}<br><br>
+    <span style="font-size:13px;color:var(--muted)">Trash me chali jayegi \u2014 wahan se wapas laayi ja sakti hai.</span>`,()=>{
+    if(_it) trashAdd('record',_it);
+    RECORDS=RECORDS.filter(r=>r.id!==id); recDel(id); saveRec(); renderRecords();
+    toast('Report Trash me chali gayi \u2014 Trash se wapas laa sakte ho','info');
   },true);
 }
 
@@ -4874,9 +4904,39 @@ function showStorageInfo(){
       '<table style="width:100%;border-collapse:collapse;font-size:13px">'+rows+'</table>'+
       '<p style="margin:14px 0 0;font-size:12px;color:#7a8b9f;line-height:1.6">Records ab IndexedDB me cache hote hain aur asli copy Supabase table me hai, isliye ye bar sirf config/orders/batch jaisi chhoti cheezon ka hai \u2014 ye dheere badhta hai.</p>'+
     '</div>',
-    footer:'<button class="btn" data-close>Close</button>'
+    footer:'<button class="btn" id="reSyncBtn" style="background:var(--blue);color:#fff;border-color:transparent">\u21bb Full re-sync</button><button class="btn" data-close>Close</button>'
   });
   _loadDbSize(_c);
+  _bindResync();
+}
+/* ── FULL RE-SYNC ──
+   Do device (mobile + PC) par record ki ginti alag ho jaye to yahan se cloud
+   se poora data dobara utha lo. Ye sirf JODTA hai — kuch delete nahi karta,
+   isliye chalane me koi khatra nahi. */
+function _bindResync(){
+  const b=document.getElementById('reSyncBtn'); if(!b) return;
+  b.onclick=function(){
+    b.disabled=true; const old=b.textContent; b.textContent='Cloud se laa rahe hain\u2026';
+    let R=null; try{ R=RECSYNC; }catch(e){}
+    if(!R || !R.resync){ b.disabled=false; b.textContent=old; toast('Sync is copy me uplabdh nahi','err'); return; }
+    R.resync().then(function(r){
+      b.disabled=false; b.textContent=old;
+      const added=(r.after||0)-(r.before||0);
+      openModal({ title:'\u2713 Re-sync poora hua',
+        body:`<div style="font-size:14.5px;line-height:1.9;color:var(--ink)">
+            Is device par pehle: <b>${r.before}</b> records<br>
+            Ab: <b>${r.after}</b> records<br>
+            ${added>0?`<span style="color:#1E9E6A;font-weight:700">${added} record wapas aa gaye</span>`
+                     :'<span style="color:#5a6b80">Sab pehle se poore the \u2014 kuch naya nahi mila</span>'}
+            ${r.server!=null?`<br><span style="font-size:13px;color:var(--muted)">Cloud table me kul ${r.server} records</span>`:''}
+          </div>`,
+        footer:'<button class="btn btn-primary" data-close>Theek hai</button>' });
+      try{ render(); }catch(e){}
+    }).catch(function(e){
+      b.disabled=false; b.textContent=old;
+      toast('Re-sync nahi ho paya: '+((e&&e.message)||'error'),'err');
+    });
+  };
 }
 /* Supabase database ka asli size — free plan me 500 MB milta hai.
    Isse har baar Supabase dashboard kholne ki zarurat nahi padegi. */
@@ -4909,6 +4969,19 @@ function _loadDbSize(c){
 
 
 /* custom confirm — native confirm() is blocked in many mobile webviews */
+/* confirmModal apne msg ko esc kar deta hai (sahi hai). Jahan hume bold/line
+   break wala saaf message dikhana hai wahan ye use karte hain — andar ke saare
+   user values pehle hi esc() se guzre hote hain. */
+function confirmModalHtml(html,onYes,danger){
+  const ov=openModal({
+    title:'Please confirm',
+    body:`<div style="margin:0;font-size:14.5px;line-height:1.6;color:var(--ink)">${html}</div>`,
+    footer:`<button class="btn" data-close>Cancel</button><button class="btn" id="cfmYes2" style="background:${danger?'var(--danger)':'var(--amber)'};color:#fff;border-color:transparent">${danger?'Delete':'OK'}</button>`
+  });
+  const y=document.getElementById('cfmYes2');
+  if(y) y.onclick=()=>{ closeModal(); try{ onYes&&onYes(); }catch(e){} };
+  return ov;
+}
 function confirmModal(msg,onYes,danger){
   const ov=openModal({
     title:'Please confirm',
@@ -10600,8 +10673,33 @@ var RECSYNC=(function(){
   }
   function markDirty(){ if(off) return; clearTimeout(dirtyTimer); dirtyTimer=setTimeout(flush,500); }
   function markDel(ids){ if(off) return; (ids||[]).forEach(function(id){ if(id) pendingDel[id]=1; }); markDirty(); }
+  /* ---- FULL RE-SYNC ----
+     Delta sync ek "since" nishan par chalti hai. Kisi device par wo nishan
+     aage khisak jaye (app band, cache saaf, do device) to us device par kuch
+     record aane se reh jate hain. Ye poora nishan mita kar cloud se sab kuch
+     dobara utha leta hai. Kuch delete nahi karta — sirf jodta/updates karta hai. */
+  function resync(){
+    var c=creds();
+    if(off) return Promise.reject(new Error('Sync band hai'));
+    if(!c.u||!c.p) return Promise.reject(new Error('Login nahi hai'));
+    busy=true;
+    try{ localStorage.removeItem(KEY_SINCE); }catch(e){}
+    since=null; lastVer='';
+    rebuildSig();
+    var before=(RECORDS||[]).length;
+    return pullAll(c,null)
+      .then(function(got){
+        return rpc('comsyn_rec_ver',{u:c.u,p:c.p}).then(function(j){
+          if(j&&j.mx) setSince(j.mx);
+          return { pulled:got||0, before:before, after:(RECORDS||[]).length, server:(j&&j.n)?Number(j.n):null };
+        });
+      })
+      .then(function(r){ busy=false; on=true; return r; })
+      .catch(function(e){ busy=false; throw e; });
+  }
   return { start:function(){ try{ RECCACHE_READY.then(boot); }catch(e){ boot(); } },
-           tick:tick, dirty:markDirty, del:markDel, isOn:function(){ return on&&!off; } };
+           tick:tick, dirty:markDirty, del:markDel, resync:resync,
+           isOn:function(){ return on&&!off; } };
 })();
 
 /* =====================================================================
