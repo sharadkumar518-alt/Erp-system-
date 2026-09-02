@@ -470,6 +470,19 @@ table.dt td .combo{background-position:right 6px center;padding-right:20px!impor
 .olk-row:hover{border-color:var(--amber);background:#fff8f3}
 .olk-row .olk-on{font-weight:700;color:var(--blue)}
 .olk-row .olk-oq{text-align:right;font-family:'JetBrains Mono';font-weight:700}
+/* Picker me har order ki halat saaf dikhe — BALANCE wale halke laal me,
+   taaki ek jaise dikhne wale do order me galti se galat na chun liya jaye. */
+.olk-head,.olk-row{grid-template-columns:1.3fr 1.1fr .6fr .8fr .9fr}
+.olk-st{font-family:'Times New Roman',Times,serif;font-weight:700;font-size:10.5px;letter-spacing:.5px;
+  text-align:center;padding:3px 6px;border-radius:999px;white-space:nowrap}
+.olk-row.ost-balance{background:#FDECEC;border-color:#F0BFBF}
+.olk-row.ost-balance:hover{background:#FBE0E0;border-color:#D96B6B}
+.olk-row.ost-balance .olk-st{background:#F6D3D3;color:#9B2C2C}
+.olk-row.ost-process .olk-st{background:#FBE6D2;color:#8A4B12}
+.olk-row.ost-new .olk-st{background:#E7EBF0;color:#4A5568}
+.olk-rpt{display:inline-block;margin-left:6px;font-family:'Times New Roman',Times,serif;font-weight:700;
+  font-size:10px;letter-spacing:.4px;padding:2px 7px;border-radius:999px;
+  background:#E6F1FB;color:#0C447C;border:1px solid #C7DDF2;vertical-align:1px}
 /* ===== Order module — premium UI pass ===== */
 .osub{background:linear-gradient(180deg,#FFFFFF,#F2F6FB);border:1px solid var(--line);border-radius:16px;padding:6px;gap:6px;box-shadow:var(--shadow-md)}
 .osub-btn{flex:1;min-width:110px;padding:11px 12px;border-radius:11px;font-weight:600;font-size:12.5px;color:var(--muted);letter-spacing:.2px;transition:all .18s ease;position:relative}
@@ -3321,9 +3334,10 @@ function showOrderSuggest(inp,sid,ri,cols){
   const r=inp.getBoundingClientRect();
   const el=document.createElement('div'); el.className='olk-pop'; _olkEl=el;
   el.style.left=Math.max(8,r.left)+'px'; el.style.top=(r.bottom+4)+'px'; el.style.minWidth=Math.max(r.width,270)+'px';
-  el.innerHTML=`<div class="olk-head"><span>Order No</span><span>File No</span><span>Sf No</span><span>Ord Qty</span></div>`+matches.map(o=>{
+  el.innerHTML=`<div class="olk-head"><span>Order No</span><span>File No</span><span>Sf No</span><span>Ord Qty</span><span>Status</span></div>`+matches.map(o=>{
     const on=ordVal(o,/order\s*no/i),fn=ordVal(o,/file\s*no/i),sf=ordVal(o,/sf\s*no/i),oq=ordVal(o,/qty|quantit/i);
-    return `<button class="olk-row" data-pick="${o.id}"><span class="olk-on">${esc(on||'—')}</span><span>${esc(fn||'—')}</span><span>${esc(sf||'—')}</span><span class="olk-oq">${esc(oq||'')}</span></button>`;
+    const rp = num(o.rpt)>1 ? `<span class="olk-rpt">BAL-${num(o.rpt)}</span>` : '';
+    return `<button class="olk-row ost-${o.status}" data-pick="${o.id}"><span class="olk-on">${esc(on||'—')}${rp}</span><span>${esc(fn||'—')}</span><span>${esc(sf||'—')}</span><span class="olk-oq">${esc(oq||'')}</span><span class="olk-st">${o.status==='process'?'Under Process':(o.status==='balance'?'Balance':'New')}</span></button>`;
   }).join('');
   document.body.appendChild(el);
   el.querySelectorAll('[data-pick]').forEach(b=>b.addEventListener('pointerdown',e=>{ e.preventDefault(); swallowNextClick(); pickOrderInto(b.dataset.pick,sid,ri,cols); }));
