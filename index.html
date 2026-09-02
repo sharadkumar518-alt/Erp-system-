@@ -415,6 +415,10 @@ table.rpt,table.rpt th,table.rpt td,table.rpt .num,table.rpt .grp,table.rpt .tot
 .ord-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
 .ord-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line-2);background:var(--surface-2)}
 .ord-card-head b{font-family:'Space Grotesk';font-size:15px;color:var(--ink)}
+/* Dobara aaye hue order ka nishan — card par turant pata chale */
+.ord-rpt{margin-right:auto;font-family:'Times New Roman',Times,serif;font-weight:700;font-size:11.5px;
+  letter-spacing:.6px;padding:3px 10px;border-radius:999px;background:#E6F1FB;color:#0C447C;
+  border:1px solid #C7DDF2;white-space:nowrap}
 .ord-status{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:3px 9px;border-radius:20px}
 .ord-status.balance{background:#e8f1f9;color:var(--blue)}
 .ord-status.process{background:#fdeee2;color:var(--amber)}
@@ -3133,10 +3137,38 @@ function entryOrderCtx(){
   const row=(DRAFT.sections[sec.id]||[])[0]; if(!row) return null;
   const ordNoCol=sec.columns.find(c=>/order\s*(no|ref)/i.test(c.label));
   const fileCol=sec.columns.find(c=>/file\s*no/i.test(c.label));
+  const sfCol=sec.columns.find(c=>/sf\s*no/i.test(c.label));
   const oNo=ordNoCol?String(row[ordNoCol.id]??'').trim():'';
   const fNo=fileCol?String(row[fileCol.id]??'').trim():'';
+  const sNo=sfCol?String(row[sfCol.id]??'').trim():'';
   if(!oNo&&!fNo) return null;
-  return ORDERS.find(o=>{ const on=ordVal(o,/order\s*no/i), fn=ordVal(o,/file\s*no/i); if(oNo&&fNo) return _eq(on,oNo)&&_eq(fn,fNo); if(oNo) return _eq(on,oNo); return _eq(fn,fNo); })||null;
+  /* Ek hi Order No + File No par kai orders ho sakte hain, sirf Sf No alag
+     (jaise PH-852 / E-2371 ka Sf 21 aur Sf 23). Pehle sirf Order+File se
+     dhoondte the, isliye hamesha PEHLA wala mil jata tha aur galat order ki
+     cut length aa jati thi. Ab Sf No se bhi milaate hain. */
+  const cands=ORDERS.filter(o=>{ const on=ordVal(o,/order\s*no/i), fn=ordVal(o,/file\s*no/i);
+    if(oNo&&fNo) return _eq(on,oNo)&&_eq(fn,fNo);
+    if(oNo) return _eq(on,oNo);
+    return _eq(fn,fNo); });
+  if(!cands.length) return null;
+  if(sNo){
+    /* Sf No bhara hai to teenon ka milna zaroori — Order No + File No + Sf No.
+       Sf match na ho to koi order nahi lete (galat order ki cut length aane se
+       achha hai ki kuch na aaye). */
+    const exact=cands.filter(o=>_eq(ordVal(o,/sf\s*no/i), sNo));
+    return exact.length ? _pickLiveOrder(exact) : null;
+  }
+  return _pickLiveOrder(cands);
+}
+/* Bilkul ek jaise (Order+File+Sf) do order ho sakte hain jab wahi order
+   mahino baad dobara aaye. Aise me wo lo jo abhi chal raha hai — complete
+   ho chuka order chhod do; barabari me sabse naya. */
+function _pickLiveOrder(list){
+  if(!list||!list.length) return null;
+  if(list.length===1) return list[0];
+  const open=list.filter(o=>o.status!=='complete');
+  const pool=open.length?open:list;
+  return pool.slice().sort((a,b)=>(b.savedAt||0)-(a.savedAt||0))[0];
 }
 function entryCutLenFor(name){
   const nm=String(name||'').trim(); if(!nm) return '';
@@ -3276,7 +3308,14 @@ function hideOrderSuggest(){ if(_olkEl){ _olkEl.remove(); _olkEl=null; } }
 function showOrderSuggest(inp,sid,ri,cols){
   const typed=String(inp.value||'').trim().toLowerCase();
   if(!typed || typeof ORDERS==='undefined' || !ORDERS.length){ hideOrderSuggest(); return; }
-  const matches=ORDERS.filter(o=>{ const fn=ordVal(o,/file\s*no/i).toLowerCase(); return fn && (fn===typed||fn.includes(typed)||typed.includes(fn)); });
+  /* Complete ho chuke order picker me nahi aate — unki entry karni hi nahi hai,
+     aur wahi order dobara aaya ho (Balance copy) to sirf chalu wala dikhega,
+     purana complete wala nahi. Isse galat order chunne ka sawal hi khatam. */
+  const matches=ORDERS.filter(o=>{
+    if(o.status==='complete') return false;
+    const fn=ordVal(o,/file\s*no/i).toLowerCase();
+    return fn && (fn===typed||fn.includes(typed)||typed.includes(fn));
+  });
   if(!matches.length){ hideOrderSuggest(); return; }
   hideOrderSuggest();
   const r=inp.getBoundingClientRect();
@@ -6090,9 +6129,69 @@ function bindOrderNewEntry(){
       if(name && num(qty)>0) components.push({id:uid(), name, qty:num(qty), cutLen:(String(cut).trim()!==''?num(cut):'')});
     });
     if(!any && !components.length){ toast('Fill the order first','err'); return; }
-    const _oid=uid();
-    ORDERS.push({id:_oid, vals, components, compCut:{}, status:'new', savedAt:Date.now()});
-    saveOrders();
+
+    /* ── 1. Saare field bharna zaroori ── */
+    const missing=[];
+    (ORDERCFG.fields||[]).forEach(f=>{
+      if(f.type==='component') return;               /* component ki qty neeche alag se */
+      if(String(vals[f.id]??'').trim()==='') missing.push(String(f.label||'Field'));
+    });
+    if(!components.length) missing.push('Kam se kam ek component (naam + qty)');
+    if(missing.length){
+      openModal({ title:'\u26D4 Order adhoora hai',
+        body:`<p style="margin:0 0 10px;font-size:14.5px;line-height:1.55;color:var(--ink)">
+            Ye cheezein bharna baaki hai \u2014 bharne ke baad hi order save hoga:</p>
+          <ul style="margin:0;padding-left:20px;font-size:14.5px;line-height:1.9;color:var(--ink);font-weight:600">
+            ${missing.map(m=>`<li>${esc(m)}</li>`).join('')}</ul>`,
+        footer:`<button class="btn btn-primary" data-close>Theek hai</button>` });
+      return;
+    }
+
+    /* ── 2. Duplicate: Order No + File No + Sf No teenon same ── */
+    const _f=re=>(ORDERCFG.fields||[]).find(x=>re.test(x.label));
+    const fNo=_f(/order\s*no/i), fFile=_f(/file\s*no/i), fSf=_f(/sf\s*no/i);
+    const vNo=fNo?String(vals[fNo.id]||'').trim():'';
+    const vFile=fFile?String(vals[fFile.id]||'').trim():'';
+    const vSf=fSf?String(vals[fSf.id]||'').trim():'';
+    const dupes=(vNo&&vFile&&vSf) ? ORDERS.filter(o=>
+        _eq(ordVal(o,/order\s*no/i),vNo) && _eq(ordVal(o,/file\s*no/i),vFile) && _eq(ordVal(o,/sf\s*no/i),vSf)) : [];
+
+    const _doSave=(asRepeat)=>{
+      const _oid=uid();
+      const ord={id:_oid, vals, components, compCut:{}, status:'new', savedAt:Date.now()};
+      if(asRepeat){
+        ord.rpt = dupes.reduce((m,o)=>Math.max(m,num(o.rpt)||1),1) + 1;  /* 2, 3, 4 ... */
+        ord.rptFrom = todayISO();   /* isse pehle ka cut is order me nahi ginega */
+      }
+      ORDERS.push(ord);
+      saveOrders();
+      _afterOrderSave(_oid, asRepeat);
+    };
+
+    if(dupes.length){
+      const anyOpen=dupes.some(o=>o.status!=='complete');
+      openModal({ title:'\u26A0\uFE0F Ye order pehle se hai',
+        body:`<p style="margin:0 0 10px;font-size:14.5px;line-height:1.6;color:var(--ink)">
+            <b>${esc(vNo)}</b> \u00B7 <b>${esc(vFile)}</b> \u00B7 Sf <b>${esc(vSf)}</b> is naam se
+            ${dupes.length} order pehle se saved ${dupes.length>1?'hain':'hai'}
+            (${dupes.map(o=>statusLabel(o.status)).join(', ')}).</p>
+          ${anyOpen?`<p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#B45309;font-weight:600">
+            Inme se ek abhi chal raha hai \u2014 pehle use poora kar lijiye, warna dono ka hisaab mil jayega.</p>`:''}
+          <p style="margin:0;font-size:14px;line-height:1.6;color:var(--ink)">
+            Agar yahi order dobara aaya hai to ise <b>Balance copy</b> ke roop me save kar sakte hain.
+            Order No / File No / Sf No wahi rahenge, bas card par
+            <b>BALANCE-${dupes.reduce((m,o)=>Math.max(m,num(o.rpt)||1),1)+1}</b> ka nishan lag jayega,
+            aur uska cut aaj se ginna shuru hoga.</p>`,
+        footer:`<button class="btn btn-ghost" data-close>Nahi, rehne do</button>
+                <button class="btn btn-primary" id="oDupSave">Balance copy save karo</button>` });
+      const b=document.getElementById('oDupSave');
+      if(b) b.onclick=()=>{ closeModal(); _doSave(true); };
+      return;
+    }
+    _doSave(false);
+  };
+  /* save ke baad ka kaam (batch card + toast + form clear) */
+  function _afterOrderSave(_oid, asRepeat){
     /* order save hote hi batch card bhi apne aap ban jata hai */
     try{
       if(!BATCHES.some(b=>b.orderId===_oid)){
@@ -6101,10 +6200,12 @@ function bindOrderNewEntry(){
         recomputeBatch(nb); BATCHES.push(nb); saveBatches();
       }
     }catch(e){}
-    toast('Order saved \u2192 New Order + Batch Order me bhi add ho gaya','ok');
+    toast(asRepeat? 'Balance copy save ho gayi \u2192 New Order + Batch Order me bhi'
+                  : 'Order saved \u2192 New Order + Batch Order me bhi add ho gaya','ok');
     document.querySelectorAll('[data-of]').forEach(el=>el.value='');
     resetComps();
-  };
+    try{ renderOrderEntry(); }catch(e){}
+  }
   document.getElementById('oClear').onclick=()=>{ document.querySelectorAll('[data-of]').forEach(el=>el.value=''); resetComps(); };
 }
 function orderFilter(sub){ return ORDERS.filter(o=>o.status===sub); }
@@ -6162,7 +6263,7 @@ function recSummary(r){
       });
     }
   }
-  return { id:r.id, p:pairs, hasFile:!!fileCol, g:gv, z:zv, c:comps };
+  return { id:r.id, d:String(r.date||''), p:pairs, hasFile:!!fileCol, g:gv, z:zv, c:comps };
 }
 var _cutIdx=null, _cutIdxGen=-1, _cutMemo=null;
 function _k(v){ return String(v??'').trim().toLowerCase(); }
@@ -6205,7 +6306,10 @@ function autoCutDone(order, compName, excludeId){
   if(!oNo) return 0;
   const cn=_k(compName);
   const idx=cutIndex();
-  const memoKey=_k(oNo)+'|'+_k(oFile)+'|'+_k(oGsm)+'|'+_k(oSize)+'|'+cn+'|'+(excludeId||'');
+  /* Wahi order dobara aaya ho (Balance copy) to purani baar ka cut usme na
+     gine — sirf us copy ke banne ki tarikh se aage ka cut ginte hain. */
+  const since = (order && order.rptFrom) ? String(order.rptFrom) : '';
+  const memoKey=_k(oNo)+'|'+_k(oFile)+'|'+_k(oGsm)+'|'+_k(oSize)+'|'+cn+'|'+(excludeId||'')+'|'+since;
   if(_cutMemo && memoKey in _cutMemo) return _cutMemo[memoKey];
   const on=_k(oNo);
   let list;
@@ -6215,6 +6319,7 @@ function autoCutDone(order, compName, excludeId){
   for(let i=0;i<list.length;i++){
     const s=list[i];
     if(excludeId && s.id===excludeId) continue;
+    if(since && s.d && s.d < since) continue;
     if(oGsm && s.g && !s.g.some(v=>_eq(v,oGsm))) continue;
     if(oSize && s.z && !s.z.some(v=>_eq(v,oSize))) continue;
     for(const nm in s.c){
@@ -6481,7 +6586,9 @@ function orderCardHtml(o,sub,nf){
   else actions=del;
   const title=o.vals[nf.id]||'Order';
   const chip= sub==='process' ? '' : `<span class="ord-status ${o.status}">${statusLabel(o.status)}</span>`;
-  return `<div class="ord-card st-${o.status}"><div class="ord-card-head"><b>${esc(title)}</b>${chip}</div>
+  /* Wahi order dobara aaya ho to card par saaf nishan */
+  const rptTag = num(o.rpt)>1 ? `<span class="ord-rpt">BALANCE-${num(o.rpt)}</span>` : '';
+  return `<div class="ord-card st-${o.status}"><div class="ord-card-head"><b>${esc(title)}</b>${rptTag}${chip}</div>
     <div class="ord-kvs">${rows}</div>${extra}${actions?`<div class="ord-actions">${actions}</div>`:''}</div>`;
 }
 /* ============================================================
