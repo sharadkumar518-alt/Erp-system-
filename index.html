@@ -3094,11 +3094,11 @@ function refreshLocationGate(){
   /* Machine = RE-CUTTING par Wastage section lock/unlock */
   const rc=draftIsRecut();
   document.querySelectorAll('#content [data-wstsec]').forEach(card=>{
-    card.classList.toggle('wst-locked', rc);
+    card.classList.remove('wst-locked');          /* ab kabhi lock nahi */
     let n=card.querySelector('.loc-gate-hint');
     if(rc && !n){
       n=document.createElement('div'); n.className='loc-gate-hint'; n.style.display='flex';
-      n.innerHTML='<b>RE-CUTTING</b> me wastage nahi bharni \u2014 seedha Location bharo.';
+      n.innerHTML='<b>RE-CUTTING</b> \u2014 wastage bharna zaroori nahi, chaaho to bhar sakte ho. Fabric Type (U/L ya L/F) bharna zaroori hai.';
       const bd=card.querySelector('.card-body'); if(bd) bd.insertBefore(n, bd.firstChild);
     } else if(!rc && n){ n.remove(); }
   });
@@ -3128,8 +3128,11 @@ function sectionEntryCard(sec){
   const locLock = isLocSec && !wastageReady();
   /* RE-CUTTING me Wastage bharni hi nahi — poora section lock + saaf message */
   const isWstSec=/wast/i.test(sec.title);
-  const wstLock = isWstSec && draftIsRecut();
-  const wstNote = wstLock ? `<div class="loc-gate-hint" style="display:flex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 11H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2Z"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> <b>RE-CUTTING</b> me wastage nahi bharni \u2014 seedha Location bharo.</div>` : '';
+  /* RE-CUTTING me ab wastage bhar bhi sakte hain (zaroori nahi) — isliye
+     section lock nahi hota, bas ek soochna dikhti hai. */
+  const wstLock = false;
+  const wstInfo = isWstSec && draftIsRecut();
+  const wstNote = wstInfo ? `<div class="loc-gate-hint" style="display:flex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 20h20L12 2Z"/><path d="M12 9v5M12 17h.01"/></svg> <b>RE-CUTTING</b> \u2014 wastage bharna zaroori nahi, chaaho to bhar sakte ho. Fabric Type (U/L ya L/F) bharna zaroori hai.</div>` : '';
   const gateHint = isLocSec ? `<div class="loc-gate-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 11H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2Z"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Pehle <b>Wastage Details</b> bharo — uske baad Location active hoga.</div>` : '';
   const wstAttr = isWstSec ? ' data-wstsec="1"' : '';
   /* Har section ko apna rang-key — colour aur icon poori tarah CSS se aate hain,
@@ -3515,6 +3518,12 @@ function entryMissing(){
   /* --- Padav 2: PCs bhar diye to Wastage + Location bhi chahiye --- */
   const pcsCol=_vCol(ci,/pcs|pieces/i);
   const hasPcs = !!(ci&&pcsCol&&(DRAFT.sections[ci.id]||[]).some(r=>num(r[pcsCol.id])>0));
+  /* RE-CUTTING ka poora hisaab Fabric Type par tika hai — U/L ka weight Loom se
+     minus hota hai aur L/F ka Lamination se. Isliye ye bharna zaroori hai. */
+  if(draftIsRecut()){
+    const fc=_vCol(rd,/fab/i);
+    if(rd&&fc&&!_vColFilled(rd,fc)) miss.push('Fabric Type (U/L ya L/F) \u2014 RE-CUTTING me zaroori');
+  }
   if(hasPcs){
     if(!wastageReady()) miss.push('Wastage \u2014 Loom / Lamination / Process me se kam se kam ek');
     const ls=_vSec(/locat/i), lc=_vCol(ls,/locat/i)||(ls&&(ls.columns||[])[0]);
@@ -3977,11 +3986,24 @@ function entryWasteBuckets(r){
 }
 function entryIsRecut(r){ try{ const hs=(r.config&&r.config.upperHeaders)||[]; const mh=hs.find(x=>/machine/i.test(x.label||'')); if(!mh) return false; return /re\s*-?\s*cutting/i.test(String((r.headers||{})[mh.id]||'')); }catch(e){ return false; } }
 function daySumAgg(recs){
-  let totProd=0,loomProd=0,lamProd=0,loomW=0,lamW=0,procW=0,recutW=0;
-  recs.forEach(r=>{ const lr=liveRec(r); const prod=num(computeReportSummary(lr).production); totProd+=prod; const ft=entryFabType(lr); if(ft==='lam') lamProd+=prod; else loomProd+=prod; if(entryIsRecut(lr)) recutW+=prod; const w=entryWasteBuckets(lr); loomW+=w.loom; lamW+=w.lam; procW+=w.proc; });
-  return {totProd,loomProd,lamProd,loomW,lamW,procW,recutW,totW:loomW+lamW+procW};
+  let totProd=0,loomProd=0,lamProd=0,loomW=0,lamW=0,procW=0,recutW=0,recutLoom=0,recutLam=0;
+  recs.forEach(r=>{ const lr=liveRec(r); const prod=num(computeReportSummary(lr).production); totProd+=prod;
+    const ft=entryFabType(lr);
+    if(ft==='lam') lamProd+=prod; else loomProd+=prod;
+    /* RE-CUTTING ka weight ab do hisson me: U/L wala Loom se ghatega,
+       L/F wala Lamination se. Pehle poora weight Loom se ghat jata tha,
+       isliye Loom % minus me chala jata tha. */
+    if(entryIsRecut(lr)){ recutW+=prod; if(ft==='lam') recutLam+=prod; else recutLoom+=prod; }
+    const w=entryWasteBuckets(lr); loomW+=w.loom; lamW+=w.lam; procW+=w.proc; });
+  return {totProd,loomProd,lamProd,loomW,lamW,procW,recutW,recutLoom,recutLam,
+          loomWNet:loomW-recutLoom, lamWNet:lamW-recutLam,
+          totW:loomW+lamW+procW};
 }
 function _dsumPct(w,p){ return p>0?((w/p)*100).toFixed(2):'0.00'; }
+/* Loom aur Lamination ka NET wastage — RE-CUTTING ka apna-apna hissa ghata kar.
+   (a.loomWNet purane saved objects me na ho to yahin nikal lete hain.) */
+function _dsLoomW(a){ return (a.loomWNet!=null)?a.loomWNet:(num(a.loomW)-num(a.recutLoom)); }
+function _dsLamW(a){ return (a.lamWNet!=null)?a.lamWNet:(num(a.lamW)-num(a.recutLam)); }
 function _dsumNum(v){ return v?Math.round(v):''; }
 function sumTableHTML(a, showTarget, extra){
   const KG=v=>{ const n=_dsumNum(v); return n===''?'':n+' Kg'; };
@@ -3989,8 +4011,8 @@ function sumTableHTML(a, showTarget, extra){
   return `<table class="dsum-tbl">
     <tr><th></th><th></th><th>Actual Wastage</th><th>Wastage %</th>${showTarget?'<th>Target</th>':''}</tr>
     <tr><td class="lbl">Total Production :-</td><td class="num">${KG(a.totProd)}</td><td class="num">${KG(a.totW)}</td><td class="num">${PC(a.totW,a.totProd)}</td>${showTarget?'<td class="num"></td>':''}</tr>
-    <tr><td class="lbl">Loom Production :-</td><td class="num">${KG(a.loomProd)}</td><td class="num">${KG(a.loomW)}</td><td class="num">${PC(a.loomW-(a.recutW||0),a.totProd)}</td>${showTarget?'<td class="num"></td>':''}</tr>
-    <tr><td class="lbl">Lamination Production :-</td><td class="num">${KG(a.lamProd)}</td><td class="num">${KG(a.lamW)}</td><td class="num">${PC(a.lamW,a.lamProd)}</td>${showTarget?'<td class="num"></td>':''}</tr>
+    <tr><td class="lbl">Loom Production :-</td><td class="num">${KG(a.loomProd)}</td><td class="num">${KG(_dsLoomW(a))}</td><td class="num">${PC(_dsLoomW(a),a.loomProd)}</td>${showTarget?'<td class="num"></td>':''}</tr>
+    <tr><td class="lbl">Lamination Production :-</td><td class="num">${KG(a.lamProd)}</td><td class="num">${KG(_dsLamW(a))}</td><td class="num">${PC(_dsLamW(a),a.lamProd)}</td>${showTarget?'<td class="num"></td>':''}</tr>
     <tr><td class="lbl">Process wastage :-</td><td class="num"></td><td class="num">${KG(a.procW)}</td><td class="num">${PC(a.procW,a.totProd)}</td>${showTarget?'<td class="num"></td>':''}</tr>
     ${(extra&&extra.proc&&extra.proc.length)?extra.proc.map(it=>`<tr><td class="lbl">${esc(it.name)} :-</td><td class="num"></td><td class="num">${KG(num(it.qty))}</td><td class="num"></td>${showTarget?'<td class="num"></td>':''}</tr>`).join(''):''}
   </table>`;
@@ -4007,8 +4029,8 @@ function sumExcelTable(a, title1, title2, showTarget, extra){
   if(title2) t+=`<tr><td colspan="${ncol}" style="border:1px solid #888;padding:5px;font-weight:bold;text-align:center;color:#000">${esc(title2)}</td></tr>`;
   t+=`<tr><td style="${td}"></td><td style="${td}"></td><td style="${th}">Actual Wastage</td><td style="${th}">Wastage %</td>${showTarget?`<td style="${th}">Target</td>`:''}</tr>`;
   t+=`<tr><td style="${tdl}">Total Production :-</td><td style="${td}">${KG(a.totProd)}</td><td style="${td}">${KG(a.totW)}</td><td style="${td}">${PC(a.totW,a.totProd)}</td>${showTarget?`<td style="${td}"></td>`:''}</tr>`;
-  t+=`<tr><td style="${tdl}">Loom Production :-</td><td style="${td}">${KG(a.loomProd)}</td><td style="${td}">${KG(a.loomW)}</td><td style="${td}">${PC(a.loomW-(a.recutW||0),a.totProd)}</td>${showTarget?`<td style="${td}"></td>`:''}</tr>`;
-  t+=`<tr><td style="${tdl}">Lamination Production :-</td><td style="${td}">${KG(a.lamProd)}</td><td style="${td}">${KG(a.lamW)}</td><td style="${td}">${PC(a.lamW,a.lamProd)}</td>${showTarget?`<td style="${td}"></td>`:''}</tr>`;
+  t+=`<tr><td style="${tdl}">Loom Production :-</td><td style="${td}">${KG(a.loomProd)}</td><td style="${td}">${KG(_dsLoomW(a))}</td><td style="${td}">${PC(_dsLoomW(a),a.loomProd)}</td>${showTarget?`<td style="${td}"></td>`:''}</tr>`;
+  t+=`<tr><td style="${tdl}">Lamination Production :-</td><td style="${td}">${KG(a.lamProd)}</td><td style="${td}">${KG(_dsLamW(a))}</td><td style="${td}">${PC(_dsLamW(a),a.lamProd)}</td>${showTarget?`<td style="${td}"></td>`:''}</tr>`;
   t+=`<tr><td style="${tdl}">Process wastage :-</td><td style="${td}"></td><td style="${td}">${KG(a.procW)}</td><td style="${td}">${PC(a.procW,a.totProd)}</td>${showTarget?`<td style="${td}"></td>`:''}</tr>`;
   if(extra&&extra.proc&&extra.proc.length){ extra.proc.forEach(it=>{ t+=`<tr><td style="${tdl}">${esc(it.name)} :-</td><td style="${td}"></td><td style="${td}">${KG(num(it.qty))}</td><td style="${td}"></td>${showTarget?`<td style="${td}"></td>`:''}</tr>`; }); }
   t+=`</table>`;
