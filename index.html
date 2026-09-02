@@ -4001,7 +4001,11 @@ function daySumAgg(recs){
 }
 function _dsumPct(w,p){ return p>0?((w/p)*100).toFixed(2):'0.00'; }
 /* Loom aur Lamination ka NET wastage — RE-CUTTING ka apna-apna hissa ghata kar.
-   (a.loomWNet purane saved objects me na ho to yahin nikal lete hain.) */
+   Ye SIRF Wastage % nikalne ke liye hai. "Actual Wastage" column me asli
+   (raw) number hi dikhta hai, taaki Loom + Lamination + Process ka jod
+   hamesha Total Wastage ke barabar rahe (36 + 90 = 126).
+   Loom % ka bhaajak TOTAL Production hai (541), Loom Production nahi.
+   Lamination % ka bhaajak Lamination Production hi rehta hai. */
 function _dsLoomW(a){ return (a.loomWNet!=null)?a.loomWNet:(num(a.loomW)-num(a.recutLoom)); }
 function _dsLamW(a){ return (a.lamWNet!=null)?a.lamWNet:(num(a.lamW)-num(a.recutLam)); }
 function _dsumNum(v){ return v?Math.round(v):''; }
@@ -4011,8 +4015,8 @@ function sumTableHTML(a, showTarget, extra){
   return `<table class="dsum-tbl">
     <tr><th></th><th></th><th>Actual Wastage</th><th>Wastage %</th>${showTarget?'<th>Target</th>':''}</tr>
     <tr><td class="lbl">Total Production :-</td><td class="num">${KG(a.totProd)}</td><td class="num">${KG(a.totW)}</td><td class="num">${PC(a.totW,a.totProd)}</td>${showTarget?'<td class="num"></td>':''}</tr>
-    <tr><td class="lbl">Loom Production :-</td><td class="num">${KG(a.loomProd)}</td><td class="num">${KG(_dsLoomW(a))}</td><td class="num">${PC(_dsLoomW(a),a.loomProd)}</td>${showTarget?'<td class="num"></td>':''}</tr>
-    <tr><td class="lbl">Lamination Production :-</td><td class="num">${KG(a.lamProd)}</td><td class="num">${KG(_dsLamW(a))}</td><td class="num">${PC(_dsLamW(a),a.lamProd)}</td>${showTarget?'<td class="num"></td>':''}</tr>
+    <tr><td class="lbl">Loom Production :-</td><td class="num">${KG(a.loomProd)}</td><td class="num">${KG(a.loomW)}</td><td class="num">${PC(_dsLoomW(a),a.totProd)}</td>${showTarget?'<td class="num"></td>':''}</tr>
+    <tr><td class="lbl">Lamination Production :-</td><td class="num">${KG(a.lamProd)}</td><td class="num">${KG(a.lamW)}</td><td class="num">${PC(_dsLamW(a),a.lamProd)}</td>${showTarget?'<td class="num"></td>':''}</tr>
     <tr><td class="lbl">Process wastage :-</td><td class="num"></td><td class="num">${KG(a.procW)}</td><td class="num">${PC(a.procW,a.totProd)}</td>${showTarget?'<td class="num"></td>':''}</tr>
     ${(extra&&extra.proc&&extra.proc.length)?extra.proc.map(it=>`<tr><td class="lbl">${esc(it.name)} :-</td><td class="num"></td><td class="num">${KG(num(it.qty))}</td><td class="num"></td>${showTarget?'<td class="num"></td>':''}</tr>`).join(''):''}
   </table>`;
@@ -4029,8 +4033,8 @@ function sumExcelTable(a, title1, title2, showTarget, extra){
   if(title2) t+=`<tr><td colspan="${ncol}" style="border:1px solid #888;padding:5px;font-weight:bold;text-align:center;color:#000">${esc(title2)}</td></tr>`;
   t+=`<tr><td style="${td}"></td><td style="${td}"></td><td style="${th}">Actual Wastage</td><td style="${th}">Wastage %</td>${showTarget?`<td style="${th}">Target</td>`:''}</tr>`;
   t+=`<tr><td style="${tdl}">Total Production :-</td><td style="${td}">${KG(a.totProd)}</td><td style="${td}">${KG(a.totW)}</td><td style="${td}">${PC(a.totW,a.totProd)}</td>${showTarget?`<td style="${td}"></td>`:''}</tr>`;
-  t+=`<tr><td style="${tdl}">Loom Production :-</td><td style="${td}">${KG(a.loomProd)}</td><td style="${td}">${KG(_dsLoomW(a))}</td><td style="${td}">${PC(_dsLoomW(a),a.loomProd)}</td>${showTarget?`<td style="${td}"></td>`:''}</tr>`;
-  t+=`<tr><td style="${tdl}">Lamination Production :-</td><td style="${td}">${KG(a.lamProd)}</td><td style="${td}">${KG(_dsLamW(a))}</td><td style="${td}">${PC(_dsLamW(a),a.lamProd)}</td>${showTarget?`<td style="${td}"></td>`:''}</tr>`;
+  t+=`<tr><td style="${tdl}">Loom Production :-</td><td style="${td}">${KG(a.loomProd)}</td><td style="${td}">${KG(a.loomW)}</td><td style="${td}">${PC(_dsLoomW(a),a.totProd)}</td>${showTarget?`<td style="${td}"></td>`:''}</tr>`;
+  t+=`<tr><td style="${tdl}">Lamination Production :-</td><td style="${td}">${KG(a.lamProd)}</td><td style="${td}">${KG(a.lamW)}</td><td style="${td}">${PC(_dsLamW(a),a.lamProd)}</td>${showTarget?`<td style="${td}"></td>`:''}</tr>`;
   t+=`<tr><td style="${tdl}">Process wastage :-</td><td style="${td}"></td><td style="${td}">${KG(a.procW)}</td><td style="${td}">${PC(a.procW,a.totProd)}</td>${showTarget?`<td style="${td}"></td>`:''}</tr>`;
   if(extra&&extra.proc&&extra.proc.length){ extra.proc.forEach(it=>{ t+=`<tr><td style="${tdl}">${esc(it.name)} :-</td><td style="${td}"></td><td style="${td}">${KG(num(it.qty))}</td><td style="${td}"></td>${showTarget?`<td style="${td}"></td>`:''}</tr>`; }); }
   t+=`</table>`;
