@@ -5682,12 +5682,19 @@ function rollReturnExcel(id){
    turant update ho jayega (dono ek hi config par kaam karte hain).
    ══════════════════════════════════════════════════════════════════ */
 /* ---- per-user access: kaun sa user kaun si dropdown manage kar sake ---- */
-/* ---- GPS Strict: kis user par sakht location zaroori hai ---- */
-const KEY_GPSSTRICT='comsyn_gpss_v1';
+/* ---- GPS Strict: kis DEVICE par sakht location zaroori hai ----
+   Pehle ye USER ke naam se rakha jata tha. Ek hi user 4 device par login ho
+   to ek row ka toggle dabate hi chaaron ON dikhne lagte the — aur us user ka
+   har login (PC bhi) location maangne lagta tha, chahe upar wala
+   "Location Required" OFF ho. Ab ye device id se chalta hai, isliye jis
+   device par ON karo bas wahi ON hota hai.
+   Naya key (v2) isliye taaki purani user-wali setting apne aap saaf ho jaye. */
+const KEY_GPSSTRICT='comsyn_gpss_v2';
 let GPSSTRICT=(function(){ var r=Store.get(KEY_GPSSTRICT); if(r){ try{ var p=JSON.parse(r); if(p&&typeof p==='object') return p; }catch(e){} } return {}; })();
 function saveGpsStrict(){ Store.set(KEY_GPSSTRICT,JSON.stringify(GPSSTRICT)); }
-function gpsStrictFor(u){ return !!GPSSTRICT[String(u||'').trim()]; }
-function gpsStrictOn(){ try{ return gpsStrictFor(sessionStorage.getItem('comsyn_user')||''); }catch(e){ return false; } }
+function myDeviceId(){ try{ return String(localStorage.getItem('comsyn_device_id')||''); }catch(e){ return ''; } }
+function gpsStrictFor(dev){ var d=String(dev||'').trim(); return !!(d && GPSSTRICT[d]); }
+function gpsStrictOn(){ return gpsStrictFor(myDeviceId()); }
 const KEY_DLRIGHTS='comsyn_dlr_v1';
 let DLRIGHTS=(function(){ var r=Store.get(KEY_DLRIGHTS); if(r){ try{ var p=JSON.parse(r); if(p&&typeof p==='object') return p; }catch(e){} } return {}; })();
 function saveDlRights(){ Store.set(KEY_DLRIGHTS,JSON.stringify(DLRIGHTS)); }
@@ -8937,8 +8944,9 @@ function _usersLoad(){
             return '\ud83d\udccd '+esc(L);
           })()+'</td>'
           +'<td>'+(function(){
-              var on=gpsStrictFor(s.username);
-              return '<button class="gpsw'+(on?' on':'')+'" data-gps="'+esc(s.username||'')+'" title="'+(on?'Sakht mode ON \u2014 GPS zaroori':'Normal \u2014 abhi jaisa')+'"><i></i><span>'+(on?'ON':'OFF')+'</span></button>';
+              var dv=String(s.sid||'');
+              var on=gpsStrictFor(dv);
+              return '<button class="gpsw'+(on?' on':'')+'" data-gps="'+esc(dv)+'" title="'+(on?'Is device par GPS zaroori':'Is device par normal')+'"><i></i><span>'+(on?'ON':'OFF')+'</span></button>';
             })()+'</td>'
           +'<td>'+_agoTxt(s.last_seen)+'</td>'
           +'<td style="color:#8a99ad;font-size:11px">'+esc(String(s.sid||'').slice(0,12))+'\u2026</td>'
@@ -8949,11 +8957,11 @@ function _usersLoad(){
         +'<div class="uchip"><b style="color:#1e9e50">'+act+'</b><small>ACTIVE NOW</small></div>'
         +'<div class="uchip"><b style="color:#d93636">'+blk+'</b><small>BLOCKED</small></div>';
       tb.querySelectorAll('[data-gps]').forEach(function(b){ b.onclick=function(){
-        var un=b.dataset.gps; if(!un) return;
-        var now=gpsStrictFor(un);
-        if(now){ delete GPSSTRICT[un]; } else { GPSSTRICT[un]=1; }
+        var dv=b.dataset.gps; if(!dv) return;
+        var now=gpsStrictFor(dv);
+        if(now){ delete GPSSTRICT[dv]; } else { GPSSTRICT[dv]=1; }
         saveGpsStrict(); _usersLoad();
-        try{ toast(un+' \u2014 GPS sakht mode '+(now?'OFF':'ON'),'ok'); }catch(e){}
+        try{ toast('Device '+dv.slice(0,8)+'\u2026 \u2014 GPS '+(now?'OFF':'ON'),'ok'); }catch(e){}
       }; });
       tb.querySelectorAll('[data-bl]').forEach(function(b){ b.onclick=function(){ _sessBlock(b.dataset.bl,true); }; });
       tb.querySelectorAll('[data-ub]').forEach(function(b){ b.onclick=function(){ _sessBlock(b.dataset.ub,false); }; });
@@ -11273,7 +11281,7 @@ function showErrorLog(){
         if(role){
           var _finish=function(){
             /* GPS sakht mode: bina asli location ke login nahi */
-            if(!gpsStrictFor(u)){ _doFinish(); return; }
+            if(!gpsStrictFor(myDeviceId())){ _doFinish(); return; }
             var _msgEl=document.getElementById('loginMsg');
             var _say=function(t){ try{ if(_msgEl){ _msgEl.textContent=t; _msgEl.style.color='#1f6da3'; _msgEl.style.display='block'; } }catch(e){} };
             _say('Location check ho rahi hai\u2026');
@@ -11302,7 +11310,7 @@ function showErrorLog(){
               if(rem && rem.checked) accs.unshift({u:u,p:p});
               localStorage.setItem('comsyn_accounts', JSON.stringify(accs)); }catch(e){}
             applyRole(role); hideLogin(); try{toast('Welcome '+u+' ('+role+')','ok');}catch(e){} try{ _heartbeat(); }catch(e){}
-            try{ if(gpsStrictFor(u) && window._gpsWatchStart) window._gpsWatchStart(); }catch(e){}
+            try{ if(gpsStrictFor(myDeviceId()) && window._gpsWatchStart) window._gpsWatchStart(); }catch(e){}
           };
           _finish();
         }
