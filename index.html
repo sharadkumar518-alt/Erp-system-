@@ -10608,17 +10608,24 @@ var RECSYNC=(function(){
   }
 
   /* ---- pehli baar: sab kuch page-by-page utha lo ---- */
+  /* lastPullLive = pichhli poori pull me kitne ZINDA record aaye.
+     Cloud table me delete ho chuke records ke "nishan" (deleted=true) bhi
+     pade rehte hain, isliye table ki row-ginti aur asli record ki ginti
+     alag hoti hai. */
+  var lastPullLive=null;
   function pullAll(c,from){
-    var got=0;
+    var got=0, live=0;
     function page(cur){
       return rpc('comsyn_rec_since',{u:c.u,p:c.p,since:cur,lim:500}).then(function(rows){
         if(!rows || !rows.length) return;
-        got+=rows.length; merge(rows);
+        got+=rows.length;
+        rows.forEach(function(r){ if(r && r.id && !r.deleted) live++; });
+        merge(rows);
         var last=rows[rows.length-1].updated_at;
         if(rows.length>=500 && last && last!==cur) return page(last);
       });
     }
-    return page(from||null).then(function(){ return got; });
+    return page(from||null).then(function(){ if(!from) lastPullLive=live; return got; });
   }
 
   function boot(){
@@ -10672,16 +10679,33 @@ var RECSYNC=(function(){
      ek patti dikha do jisme ek tap me Full re-sync ho jaye.
      Ek-do baar ka farak normal hai (sync abhi chal rahi hoti hai), isliye
      lagataar 4 baar (~12 sec) farak hone par hi batate hain. */
-  var gMiss=0;
+  var gMiss=0, gTomb=0, gChecking=false, gCheckedAt=0;
   function syncGuard(nSrv){
     if(nSrv==null || !on || off) return;
     var local=(RECORDS||[]).length;
-    try{ window.__syncSrvN=nSrv; }catch(e){}
-    if(local >= nSrv){ gMiss=0; setSyncDot(false); return; }
+    /* Table ki row-ginti me se delete-nishan hata kar asli ginti nikalte hain */
+    var expect=Math.max(0, nSrv-gTomb);
+    if(local >= expect){ gMiss=0; setSyncDot(false); return; }
     gMiss++;
     /* Ek-do second ka farak normal hai (sync abhi chal rahi hoti hai),
-       isliye lagataar 4 baar (~12 sec) kam hone par hi point lagta hai. */
-    if(gMiss>=4) setSyncDot(true, local, nSrv);
+       isliye lagataar 4 baar (~12 sec) kam rehne par hi aage badhte hain.
+       Aur point turant nahi lagate — pehle poora data mangwa kar GINTE hain
+       ki asli me kitne zinda record hain. Isse do faayde: jhoothi warning
+       nahi aati, aur agar sach me record kam the to wo yahin wapas aa jate
+       hain — aapko kuch dabana hi nahi padta. */
+    if(gMiss>=4 && !gChecking && (Date.now()-gCheckedAt)>60000) checkGap(nSrv);
+  }
+  function checkGap(nSrv){
+    var c=creds(); if(!c.u||!c.p) return;
+    gChecking=true; lastPullLive=null;
+    pullAll(c,null).then(function(){
+      var live=(lastPullLive==null)?nSrv:lastPullLive;
+      gTomb=Math.max(0, nSrv-live);
+      var local=(RECORDS||[]).length;
+      gChecking=false; gCheckedAt=Date.now(); gMiss=0;
+      if(local<live) setSyncDot(true, local, live);   /* sach me kam hain */
+      else setSyncDot(false);                          /* sab poore the */
+    }).catch(function(){ gChecking=false; gCheckedAt=Date.now(); });
   }
 
   /* ---- save: sirf badle hue records bhejo ---- */
@@ -10740,11 +10764,17 @@ var RECSYNC=(function(){
     since=null; lastVer='';
     rebuildSig();
     var before=(RECORDS||[]).length;
+    lastPullLive=null;
     return pullAll(c,null)
       .then(function(got){
         return rpc('comsyn_rec_ver',{u:c.u,p:c.p}).then(function(j){
           if(j&&j.mx) setSince(j.mx);
-          return { pulled:got||0, before:before, after:(RECORDS||[]).length, server:(j&&j.n)?Number(j.n):null };
+          var nAll=(j&&j.n)?Number(j.n):null;
+          var live=(lastPullLive==null)?nAll:lastPullLive;
+          if(nAll!=null && live!=null) gTomb=Math.max(0,nAll-live);
+          gMiss=0; gCheckedAt=Date.now();
+          try{ setSyncDot((RECORDS||[]).length<live, (RECORDS||[]).length, live); }catch(e){}
+          return { pulled:got||0, before:before, after:(RECORDS||[]).length, server:live };
         });
       })
       .then(function(r){ busy=false; on=true; return r; })
