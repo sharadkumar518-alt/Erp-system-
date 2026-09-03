@@ -5692,7 +5692,12 @@ function rollReturnExcel(id){
 const KEY_GPSSTRICT='comsyn_gpss_v2';
 let GPSSTRICT=(function(){ var r=Store.get(KEY_GPSSTRICT); if(r){ try{ var p=JSON.parse(r); if(p&&typeof p==='object') return p; }catch(e){} } return {}; })();
 function saveGpsStrict(){ Store.set(KEY_GPSSTRICT,JSON.stringify(GPSSTRICT)); }
-function myDeviceId(){ try{ return String(localStorage.getItem('comsyn_device_id')||''); }catch(e){ return ''; } }
+/* App me DO alag device id hain:
+     comsyn_did       -> Active Users ki DEVICE ID column aur sessions (s.sid)
+     comsyn_device_id -> Approved Devices (admin device lock) ka alag id
+   GPS toggle aur "YE DEVICE" ka nishan — dono Active Users ki row se jude
+   hain, isliye yahan comsyn_did hi sahi hai. */
+function myDeviceId(){ try{ return String(localStorage.getItem('comsyn_did')||''); }catch(e){ return ''; } }
 function gpsStrictFor(dev){ var d=String(dev||'').trim(); return !!(d && GPSSTRICT[d]); }
 function gpsStrictOn(){ return gpsStrictFor(myDeviceId()); }
 const KEY_DLRIGHTS='comsyn_dlr_v1';
@@ -8922,7 +8927,7 @@ function _usersLoad(){
           if(x.blocked) return 2; return f?0:1; };
         return pr(a)-pr(b);
       });
-      var act=0, blk=0, myDid=''; try{ myDid=localStorage.getItem('comsyn_did')||''; }catch(e){}
+      var act=0, blk=0, myDid=''; try{ myDid=myDeviceId(); }catch(e){}
       var html=rows.map(function(s){
         var fresh=(Date.now()-new Date(s.last_seen).getTime())<120000;
         if(fresh&&!s.blocked) act++;
@@ -8934,7 +8939,8 @@ function _usersLoad(){
         var btn=s.blocked
           ?'<button class="ubtn" style="background:#1e9e50" data-ub="'+esc(s.sid)+'">Unblock</button>'
           :'<button class="ubtn" style="background:#d93636" data-bl="'+esc(s.sid)+'">Block</button>';
-        return '<tr><td><span class="st" style="color:'+stc+'"><i style="background:'+stc+'"></i>'+stt+'</span></td>'
+        var isMe=(s.sid===myDid && !!myDid);
+        return '<tr'+(isMe?' style="background:#F2FAF5;box-shadow:inset 3px 0 0 #1e7a3c"':'')+'><td><span class="st" style="color:'+stc+'"><i style="background:'+stc+'"></i>'+stt+'</span></td>'
           +'<td style="font-weight:700">'+esc(s.username||'')+me+'</td>'
           +'<td><span class="dvc" style="background:'+dvbg+';color:'+dvcl+'">'+esc(s.device||'\u2014')+'</span></td>'
           +'<td>'+(function(){
@@ -8963,7 +8969,19 @@ function _usersLoad(){
         saveGpsStrict(); _usersLoad();
         try{ toast('Device '+dv.slice(0,8)+'\u2026 \u2014 GPS '+(now?'OFF':'ON'),'ok'); }catch(e){}
       }; });
-      tb.querySelectorAll('[data-bl]').forEach(function(b){ b.onclick=function(){ _sessBlock(b.dataset.bl,true); }; });
+      tb.querySelectorAll('[data-bl]').forEach(function(b){ b.onclick=function(){
+        var sid=b.dataset.bl;
+        /* Apna hi device block karne par turant logout ho jata hai aur phir
+           isi device se unblock bhi nahi kar sakte — isliye pehle poochhte hain. */
+        if(myDid && sid===myDid){
+          confirmModalHtml('<b>Ye aapka apna device hai.</b><br><br>'+
+            'Block karte hi aap turant logout ho jayenge, aur is device se dobara login nahi hoga.<br><br>'+
+            '<span style="font-size:13px;color:var(--muted)">Wapas chalu karne ke liye kisi doosre chalu device se Active Users kholkar Unblock karna padega.</span>',
+            function(){ _sessBlock(sid,true); }, true);
+          return;
+        }
+        _sessBlock(sid,true);
+      }; });
       tb.querySelectorAll('[data-ub]').forEach(function(b){ b.onclick=function(){ _sessBlock(b.dataset.ub,false); }; });
     })
     .catch(function(){});
