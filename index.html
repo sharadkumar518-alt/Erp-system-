@@ -8177,6 +8177,20 @@ function _dshTipShow(tile,k){
   el.style.top=Math.max(10, top)+'px';
 }
 function _dshTipHide(){ var el=document.getElementById('dshTip'); if(el){ el.style.display='none'; el.removeAttribute('data-k'); } }
+/* Har machine tile ka operator naam naapo: patti me sama gaya to sthir khada
+   rahe, nahi samaya to sarke. Window resize par dobara naapte hain. */
+function _mopFit(root){
+  const sc=root||document;
+  sc.querySelectorAll('.mop').forEach(function(box){
+    const t=box.querySelector('.mop-t'); if(!t) return;
+    box.classList.remove('mop-run');
+    const need=t.scrollWidth, have=box.clientWidth;
+    if(need>have-4) box.classList.add('mop-run');
+  });
+}
+(function(){ var _t=null;
+  window.addEventListener('resize',function(){ clearTimeout(_t); _t=setTimeout(function(){ try{ _mopFit(); }catch(e){} },200); });
+})();
 function dshMachineStatus(){
   var iso=todayISO(); var out={};
   var _y=new Date(); _y.setDate(_y.getDate()-1);
@@ -8191,12 +8205,13 @@ function dshMachineStatus(){
     var st=r.rollCutStart?new Date(r.rollCutStart).getTime():0;
     var en=r.rollCutEnd?new Date(r.rollCutEnd).getTime():0;
     var ref=Math.max(st||0,en||0,num(r.savedAt)&&isFinite(new Date(r.savedAt).getTime())?new Date(r.savedAt).getTime():0);
-    if(!out[k] || ref>out[k].ref) out[k]={ref:ref, running:!!(st&&!en), since:(st&&!en)?st:(en||ref), rid:r.id};
+    if(!out[k] || ref>out[k].ref) out[k]={ref:ref, running:!!(st&&!en), since:(st&&!en)?st:(en||ref), rid:r.id,
+      op:(recHeaderVal(r,/operator/i)||'')};
   });
   var res={};
   Object.keys(out).forEach(function(k){
     /* rid = us machine ki sabse taaza entry — hover/tap par details ke liye */
-    if(out[k].since>0) res[k]={ running:out[k].running, since:out[k].since, rid:out[k].rid };
+    if(out[k].since>0) res[k]={ running:out[k].running, since:out[k].since, rid:out[k].rid, op:out[k].op };
   });
   return res;
 }
@@ -9273,6 +9288,13 @@ function renderDashboard(){
         } else {
           stSide=`<span class="mside mside-stop"><span class="mst-dot"></span>STOP <b class="mst-t" data-since="${st.since}">${_dshAgo(Date.now()-st.since)}</b></span>`;
         }
+        /* Operator ka naam — RUNNING chip aur wastage % ke beech, daayein se
+           baayein sarakta hua. Naam har machine ka alag samay par chalta hai
+           taaki saare tile ek saath na chalein (ekdum ek jaisa chalna
+           aankh ko chubhta hai). */
+        if(st.op){
+          stSide+=`<span class="mop"><span class="mop-t" style="animation-delay:${(0.6*i).toFixed(1)}s">OPERATOR \u00B7 ${esc(st.op)}</span></span>`;
+        }
       }
     }catch(e){}
     return `<div class="mtile${(window.__dshMach&&window.__dshMach[k]&&window.__dshMach[k].running)?' is-run':''}" data-mkey="${encodeURIComponent(k)}" style="background:${b.bg};animation:mtile360 1.7s cubic-bezier(.22,.7,.3,1) ${(0.28*i).toFixed(2)}s both${(window.__dshMach&&window.__dshMach[k]&&window.__dshMach[k].running)?(",mtileLoop 8s ease-in-out "+(2.2+0.5*i).toFixed(2)+"s infinite,premGlow 2.8s ease-in-out "+(2.0+0.3*i).toFixed(2)+"s infinite"):""};cursor:pointer">
@@ -9434,6 +9456,19 @@ function renderDashboard(){
     .dsh2 .mtile:nth-child(6) .mtile-body{animation-delay:3s}
     @keyframes mtFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
     .dsh2 .mtile-h{position:relative;overflow:hidden}
+    /* Patti pehle alag dabbe jaisi lag rahi thi — ab background hata diya,
+       sirf halki si upar wali lakeer se alag hoti hai. */
+    .dsh2 .mop{display:block;margin-top:4px;padding-top:4px;height:18px;overflow:hidden;position:relative;
+      border-top:1px solid rgba(255,255,255,.16)}
+    .dsh2 .mop-t{position:absolute;left:0;white-space:nowrap;font-family:'Times New Roman',Times,serif;
+      font-weight:700;font-size:11.5px;letter-spacing:.7px;line-height:18px;color:rgba(255,255,255,.88);
+      will-change:transform}
+    /* SAMAJHDAR: naam patti me sama jaye to chupchap khada rahe. Sirf lamba
+       naam sarakta hai — harkat tabhi jab uska koi kaam ho. */
+    .dsh2 .mop.mop-run .mop-t{animation:mopSlide 11s linear infinite}
+    @keyframes mopSlide{from{transform:translateX(100%)}to{transform:translateX(-100%)}}
+    @media (prefers-reduced-motion:reduce){
+      .dsh2 .mop .mop-t{animation:none!important;position:static;display:block}}
     .dsh2 .mtile-h::after{content:'';position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.20),transparent);animation:dshSheen 6s ease-in-out infinite;pointer-events:none}
     .dsh2 .mtile:nth-child(2) .mtile-h::after{animation-delay:1.5s}
     .dsh2 .mtile:nth-child(3) .mtile-h::after{animation-delay:3s}
@@ -9597,7 +9632,10 @@ function renderDashboard(){
     .dsh2 .mtile:hover{transform:translateY(-3px)}
         .dsh2 .mtile-h{display:flex;flex-direction:column;gap:6px;padding:10px 12px;font-weight:800;font-size:12.5px;letter-spacing:.4px}
         .dsh2 .mtile-hrow{display:flex;justify-content:space-between;align-items:center;gap:8px}
-        .dsh2 .mtile-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;font-size:17px;font-weight:800;letter-spacing:.5px}
+        /* Lamba machine name pehle "..." me kat jata tha. Ab wo do line tak
+           wrap hota hai aur tile apne aap lambi ho jati hai — naam poora dikhta hai. */
+        .dsh2 .mtile-name{white-space:normal;overflow-wrap:anywhere;word-break:break-word;
+          min-width:0;flex:1;font-size:17px;font-weight:800;letter-spacing:.5px;line-height:1.15}
         .dsh2 .mtile-h>.mside{margin-left:0;align-self:flex-start;max-width:100%}
     .dsh2 .mtile-tag{font-size:10px;background:rgba(255,255,255,.92);color:#333;padding:3px 9px;border-radius:10px;letter-spacing:.7px;font-weight:800;white-space:nowrap}
     .dsh2 .mtile-body{padding:11px 11px 12px;text-align:center;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(0,0,0,.05))}
@@ -9679,6 +9717,9 @@ function renderDashboard(){
   }; })();
   c.querySelectorAll('[data-band]').forEach(ch=>ch.onclick=()=>openDshBand(+ch.dataset.band));
   c.querySelectorAll('[data-fab]').forEach(ch=>ch.onclick=()=>openDshFabPick(ch.dataset.fab));
+  /* Operator naam: patti se chauda ho tabhi sarkao. CSS akela ye nahi jaan
+     sakta ki naam samaya ya nahi — isliye yahan naap kar tay karte hain. */
+  try{ _mopFit(c); }catch(e){}
   /* Tile par click = poori report (PDF/Excel wali) — jaisa pehle tha, waisa hi.
      Details ab header ke chhote "i" button se — sirf LIVE dashboard par. */
   c.querySelectorAll('[data-mkey]').forEach(t=>{
