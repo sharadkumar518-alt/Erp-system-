@@ -9314,10 +9314,10 @@ function renderDashboard(){
         <div class="mtile-pct" data-v="${mp.toFixed(1)}">0.0%</div>
         <div class="mtile-pl">WASTAGE</div>
         <div class="mtile-nums">
-          <div><b>${Math.round(m.prod)}</b><small>PROD KG</small></div>
-          <div><b>${Math.round(m.w)}</b><small>WASTE KG</small></div>
+          <div><b>${Math.round(m.prod)}</b><small>PRODUCTION KG</small></div>
+          <div><b>${Math.round(m.w)}</b><small>WASTAGE KG</small></div>
         </div>
-        <div class="mtile-brk"><span>LOOM ${Math.round(m.loom)}</span><span>LAM ${Math.round(m.lam)}</span><span>PROC ${Math.round(m.proc)}</span></div>
+        <div class="mtile-brk"><span>LOOM ${Math.round(m.loom)}</span><span>LAMINATION ${Math.round(m.lam)}</span><span>PROCESS ${Math.round(m.proc)}</span></div>
       </div>
     </div>`; }).join('') : `<div class="dsh-emp">Is period ki koi production entry nahi mili</div>`;
   const iso=todayISO();
@@ -9434,9 +9434,9 @@ function renderDashboard(){
       .dsh2 .chip .n{font-size:24px;min-width:50px}
       .dsh2 .chip .d b{font-size:14.5px}
       .dsh2 .chip .d small{font-size:11.5px}
-      .dsh2 .dstat-h{font-size:12px;letter-spacing:1px;padding:10px 5px}
-      .dsh2 .dstat-v{font-size:32px;padding:14px 4px 3px}
-      .dsh2 .dstat-s{font-size:11.5px;padding-bottom:11px}
+      .dsh2 .dstat-h{font-size:14px;letter-spacing:1.1px;padding:12px 5px}
+      .dsh2 .dstat-v{font-size:38px;padding:16px 4px 4px}
+      .dsh2 .dstat-s{font-size:13px;padding-bottom:13px}
     }
     /* ── back-date / month dekh rahe ho to saari animation band (app tez chale) ── */
     .dsh2.dsh-static,.dsh2.dsh-static *{animation:none!important;transition:none!important;
@@ -9580,10 +9580,10 @@ function renderDashboard(){
     @media(max-width:760px){.dsh2 .dstats{grid-template-columns:repeat(2,1fr)}}
     .dsh2 .dstat{border:1px solid #d5e0ee;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#ffffff,#f7fafd);box-shadow:0 3px 10px rgba(18,36,58,.10),inset 0 1px 0 #fff;transition:transform .18s,box-shadow .18s}
     .dsh2 .dstat:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(18,36,58,.16)}
-    .dsh2 .dstat-h{background:linear-gradient(120deg,#12233c,#1f3a5f 70%,#26507e);color:#fff;font-size:14px;font-weight:800;letter-spacing:1.3px;text-align:center;padding:12px 8px;border-bottom:2px solid #2e86c1;position:relative;overflow:hidden}
+    .dsh2 .dstat-h{background:linear-gradient(120deg,#12233c,#1f3a5f 70%,#26507e);color:#fff;font-size:16px;font-weight:800;letter-spacing:1.3px;text-align:center;padding:14px 8px;border-bottom:2px solid #2e86c1;position:relative;overflow:hidden}
     .dsh2 .dstat-h::after{content:'';position:absolute;top:0;left:-70%;width:50%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.18),transparent);animation:dshSheen 6s ease-in-out infinite}
-    .dsh2 .dstat-v{font-size:40px;font-weight:900;color:#0f2338;text-align:center;padding:17px 6px 4px;letter-spacing:.3px;font-variant-numeric:tabular-nums;line-height:1.1}
-    .dsh2 .dstat-s{font-size:13px;font-weight:800;color:#7d8da0;text-align:center;padding-bottom:13px;letter-spacing:.6px}
+    .dsh2 .dstat-v{font-size:46px;font-weight:900;color:#0f2338;text-align:center;padding:19px 6px 5px;letter-spacing:.3px;font-variant-numeric:tabular-nums;line-height:1.1}
+    .dsh2 .dstat-s{font-size:14.5px;font-weight:800;color:#7d8da0;text-align:center;padding-bottom:15px;letter-spacing:.6px}
     .dsh2 .mpanel{border:1px solid #d5e0ee;border-radius:16px;background:linear-gradient(180deg,#ffffff,#f7fafd);margin-top:14px;overflow:hidden;box-shadow:0 6px 18px rgba(18,36,58,.12)}
     .dsh2 .mpanel-h{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(120deg,#0f2036,#1c3c63 70%,#153252);color:#fff;padding:12px 17px;border-bottom:2px solid #2e86c1}
     .dsh2 .mpanel-h .mt{font-size:16px;font-weight:800;letter-spacing:1.1px}
@@ -9654,15 +9654,18 @@ function renderDashboard(){
           min-width:0;flex:1;font-size:17px;font-weight:800;letter-spacing:.5px;line-height:1.15}
         .dsh2 .mtile-h>.mside{margin-left:0;align-self:flex-start;max-width:100%}
     .dsh2 .mtile-tag{font-size:10px;background:rgba(255,255,255,.92);color:#333;padding:3px 9px;border-radius:10px;letter-spacing:.7px;font-weight:800;white-space:nowrap}
-    .dsh2 .mtile-body{padding:11px 11px 12px;text-align:center;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(0,0,0,.05))}
-    .dsh2 .mtile-pct{font-size:31px;font-weight:900;line-height:1;text-shadow:0 2px 6px rgba(0,0,0,.3)}
-    .dsh2 .mtile-pl{font-size:9px;font-weight:800;letter-spacing:1.4px;opacity:.88;margin:4px 0 9px}
-    .dsh2 .mtile-nums{display:flex;gap:7px;justify-content:center}
-    .dsh2 .mtile-nums div{background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:6px 0;flex:1}
-    .dsh2 .mtile-nums b{display:block;font-size:15px}
-    .dsh2 .mtile-nums small{font-size:8px;font-weight:800;letter-spacing:.7px;opacity:.92}
-    .dsh2 .mtile-brk{display:flex;gap:4px;justify-content:center;margin-top:8px;flex-wrap:wrap}
-    .dsh2 .mtile-brk span{font-size:9px;font-weight:800;background:rgba(0,0,0,.22);padding:3px 8px;border-radius:9px;letter-spacing:.3px}
+    /* Tile ab chaudi hai, isliye andar sab kuch bada aur poore naam ke saath —
+       WASTAGE, PRODUCTION KG, WASTAGE KG, LOOM/LAMINATION/PROCESS.
+       Tile ki height content se banti hai, isliye chhoti tile ajeeb nahi lagti. */
+    .dsh2 .mtile-body{padding:13px 12px 14px;text-align:center;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(0,0,0,.05))}
+    .dsh2 .mtile-pct{font-size:36px;font-weight:900;line-height:1;text-shadow:0 2px 6px rgba(0,0,0,.3)}
+    .dsh2 .mtile-pl{font-size:11px;font-weight:800;letter-spacing:1.6px;opacity:.92;margin:6px 0 11px}
+    .dsh2 .mtile-nums{display:flex;gap:8px;justify-content:center}
+    .dsh2 .mtile-nums div{background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:8px 2px;flex:1}
+    .dsh2 .mtile-nums b{display:block;font-size:19px;line-height:1.1}
+    .dsh2 .mtile-nums small{display:block;font-size:9.5px;font-weight:800;letter-spacing:.5px;opacity:.94;margin-top:3px}
+    .dsh2 .mtile-brk{display:flex;gap:5px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+    .dsh2 .mtile-brk span{font-size:10.5px;font-weight:800;background:rgba(0,0,0,.22);padding:4px 9px;border-radius:9px;letter-spacing:.3px}
     .dsh2 .dsh-emp{padding:26px;text-align:center;color:#8a99ad;font-weight:600}
     @keyframes dshIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   </style>
