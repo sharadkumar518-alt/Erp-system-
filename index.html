@@ -9311,11 +9311,11 @@ function renderDashboard(){
     return `<div class="mtile${(window.__dshMach&&window.__dshMach[k]&&window.__dshMach[k].running)?' is-run':''}" data-mkey="${encodeURIComponent(k)}" style="background:${b.bg};animation:mtile360 1.7s cubic-bezier(.22,.7,.3,1) ${(0.28*i).toFixed(2)}s both${(window.__dshMach&&window.__dshMach[k]&&window.__dshMach[k].running)?(",mtileLoop 8s ease-in-out "+(2.2+0.5*i).toFixed(2)+"s infinite,premGlow 2.8s ease-in-out "+(2.0+0.3*i).toFixed(2)+"s infinite"):""};cursor:pointer">
       <div class="mtile-h" style="background:${b.hd}"><div class="mtile-hrow"><span class="mtile-name${_dshIsLive()?' mtile-name-tap':''}"${_dshIsLive()?` data-minfo="${encodeURIComponent(k)}" title="Poori report kholo"`:''}>${esc(k)}</span><span class="mtile-tag">${b.label}</span></div>${stSide}</div>
       <div class="mtile-body">
-        <div class="mtile-pct" data-v="${mp.toFixed(1)}">0.0%</div>
-        <div class="mtile-pl">WASTAGE</div>
+        <div class="mtile-pct" data-v="${Math.round(m.prod)}" data-kind="kg">0</div>
+        <div class="mtile-pl">PRODUCTION KG</div>
         <div class="mtile-nums">
-          <div><b>${Math.round(m.prod)}</b><small>PRODUCTION KG</small></div>
           <div><b>${Math.round(m.w)}</b><small>WASTAGE KG</small></div>
+          <div><b>${mp.toFixed(1)}%</b><small>WASTAGE %</small></div>
         </div>
         <div class="mtile-brk"><span>LOOM ${Math.round(m.loom)}</span><span>LAMINATION ${Math.round(m.lam)}</span><span>PROCESS ${Math.round(m.proc)}</span></div>
       </div>
@@ -9829,16 +9829,18 @@ function renderDashboard(){
       window.__dshPrevVals={p:target,w:targW};
     }
   }catch(e){}
-  /* machine cards ka bada % \u2014 0 se apni value tak ginta hua */
+  /* machine cards ka bada number \u2014 0 se apni value tak ginta hua.
+     Ab yahan PRODUCTION KG aata hai (poora number), pehle % aata tha. */
   try{
     document.querySelectorAll('.mtile-pct[data-v]').forEach(function(el,ix){
       var tv=parseFloat(el.getAttribute('data-v'))||0;
+      var isKg=(el.getAttribute('data-kind')==='kg');
       var st=performance.now()+300+ix*220;
       (function cp(now){
         if(!el.isConnected) return;
         if(now<st){ requestAnimationFrame(cp); return; }
         var p=Math.min(1,(now-st)/900), e=1-Math.pow(1-p,3);
-        el.textContent=(tv*e).toFixed(1)+'%';
+        el.textContent = isKg ? String(Math.round(tv*e)) : (tv*e).toFixed(1)+'%';
         if(p<1) requestAnimationFrame(cp);
       })(performance.now());
     });
