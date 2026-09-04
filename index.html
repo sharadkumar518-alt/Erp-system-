@@ -5782,6 +5782,9 @@ function dlCollect(){
       if(f.type==='dropdown') out.push({src:'Line Production',sub:'Line field',label:f.label,obj:f,save:'lcfg'});
     });
   }catch(e){}
+  /* Stock Location — ye kisi form ka column nahi, apni alag list hai,
+     par manage yahin se hoti hai taaki sab dropdown ek jagah rahein. */
+  try{ out.push({src:'Cutting Stock',sub:'Stock',label:'Stock Location',obj:LOCLIST,save:'loclist'}); }catch(e){}
   out=out.filter(dlAllowed);                       /* user ko sirf uski di gayi list dikhe */
   out.forEach(function(o,i){ o.key=i; if(!Array.isArray(o.obj.options)) o.obj.options=[]; });
   return out;
@@ -5791,10 +5794,11 @@ function dlSave(which){
     if(which==='cfg') saveCfg();
     else if(which==='ocfg') saveOcfg();
     else if(which==='lcfg') saveLinepCfg();
+    else if(which==='loclist') saveLocList();
     _dgenBump();
   }catch(e){}
 }
-var DL_SRC_COL={'Cutting Entry':'#12386b','Order Entry':'#0d7a5f','Line Production':'#8a4b12'};
+var DL_SRC_COL={'Cutting Entry':'#12386b','Order Entry':'#0d7a5f','Line Production':'#8a4b12','Cutting Stock':'#534AB7'};
 
 function dlCardsHtml(){
   var all=dlCollect();
@@ -6109,6 +6113,13 @@ function saveLoc(){ Store.set(KEY_LOC,JSON.stringify(LOC)); }
    Jali 2 me 300, Jali 3 me 200). Purana LOC ek hi location rakhta tha.
    LOCM us component ka poora bikhraav rakhta hai. Jahan LOCM nahi hai
    wahan sab kuch bilkul pehle jaisa chalta hai. */
+/* Stock Location ki apni list — Dropdown Lists panel se add/delete hoti hai.
+   Pehle location sirf purane records se apne aap banti thi, isliye usme se
+   kuch hatana ya nayi jodna mumkin nahi tha. */
+const KEY_LOCLIST='comsyn_loclist_v1';
+let LOCLIST=(()=>{ const r=Store.get(KEY_LOCLIST); if(r){ try{ const p=JSON.parse(r); if(p&&Array.isArray(p.options)) return p; }catch(e){} }
+  return {label:'Stock Location', type:'dropdown', options:[]}; })();
+function saveLocList(){ Store.set(KEY_LOCLIST,JSON.stringify(LOCLIST)); }
 const KEY_LOCM='comsyn_locm_v1';
 let LOCM=(()=>{ const r=Store.get(KEY_LOCM); if(r){try{return JSON.parse(r);}catch(e){}} return {}; })();
 function saveLocm(){ Store.set(KEY_LOCM,JSON.stringify(LOCM)); }
@@ -7292,6 +7303,7 @@ function locPill(v){ return v? `<span class="stk-loc-lock">${STK_PIN}${esc(v)}</
 /* location dropdown options: from LOCATION section column options + saved records + LOC store */
 function stockLocOptions(){
   const seen={}, out=[]; const add=n=>{ n=String(n||'').trim(); if(n){ const k=n.toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(n); } } };
+  try{ (LOCLIST.options||[]).forEach(add); }catch(e){}
   (CFG.sections||[]).forEach(s=>{ (s.columns||[]).forEach(c=>{ if(/location/i.test(c.label)) (c.options||[]).forEach(add); }); });
   (RECORDS||[]).forEach(r=>{ ((r.config&&r.config.sections)||[]).forEach(s=>{ (s.columns||[]).forEach(c=>{ if(/location/i.test(c.label)) (r.sections[s.id]||[]).forEach(row=>add(row[c.id])); }); }); });
   Object.values(LOC||{}).forEach(m=>Object.values(m||{}).forEach(add));
@@ -8920,14 +8932,19 @@ function _muFullRestore(){
       var P={}, bad='';
       [[KEY_CFG,'Entry config','o'],[KEY_OCFG,'Order config','o'],[KEY_LINEPCFG,'Line config','o'],
        [KEY_CFGP,'Config pool','o'],[KEY_EXTRA,'Extra','o'],[KEY_LOC,'Stock location','o'],[KEY_LOCM,'Stock location (multi)','o'],
-       [KEY_ROLLRET,'Return roll to godown','a'],[KEY_XCUT,'Extra order cutting','o'],
-       [KEY_TXTCASE,'Text case','o'],[KEY_DLRIGHTS,'Download rights','o'],
+       [KEY_ROLLRET,'Return roll to godown','a'],
+       [KEY_XCUT,'Extra order cutting','n'],[KEY_TXTCASE,'Text case','s'],
+       [KEY_DLRIGHTS,'Download rights','o'],[KEY_LOCLIST,'Stock location list','o'],
        [KEY_REC,'Records','a'],[KEY_ORD,'Orders','a'],[KEY_BATCH,'Batches','a'],
        [KEY_TRASH,'Trash','a'],[KEY_LINEP,'Line production','a']].forEach(function(x){
         if(bad || d[x[0]]==null) return;
         try{ var v=JSON.parse(d[x[0]]);
           if(x[2]==='a' && !Array.isArray(v)){ bad=x[1]+' kharab hai'; return; }
           if(x[2]==='o' && (!v || typeof v!=='object')){ bad=x[1]+' kharab hai'; return; }
+          /* XCUT ek number hai (extra-cut ki hadd) aur TXTCASE ek string
+             ('off'/'upper'). Inhe object maan lene se restore ruk jata tha. */
+          if(x[2]==='n' && (typeof v!=='number' || isNaN(v))){ bad=x[1]+' kharab hai'; return; }
+          if(x[2]==='s' && typeof v!=='string'){ bad=x[1]+' kharab hai'; return; }
           P[x[0]]=v;
         }catch(e){ bad=x[1]+' padha nahi gaya'; }
       });
@@ -8954,6 +8971,10 @@ function _muFullRestore(){
             if(P[KEY_LOC]){ LOC=P[KEY_LOC]; saveLoc(); }
             if(P[KEY_LOCM]){ LOCM=P[KEY_LOCM]; saveLocm(); }
             if(P[KEY_ROLLRET]){ ROLLRET=P[KEY_ROLLRET]; saveRollRet(); }
+            if(P[KEY_XCUT]!=null){ XCUTLIMIT=P[KEY_XCUT]; try{ saveXcut(); }catch(e){} }
+            if(P[KEY_TXTCASE]){ TXTCASE=P[KEY_TXTCASE]; try{ Store.set(KEY_TXTCASE,JSON.stringify(TXTCASE)); }catch(e){} }
+            if(P[KEY_DLRIGHTS]){ DLRIGHTS=P[KEY_DLRIGHTS]; try{ saveDlRights(); }catch(e){} }
+            if(P[KEY_LOCLIST]){ LOCLIST=P[KEY_LOCLIST]; try{ saveLocList(); }catch(e){} }
             if(P[KEY_EXTRA]){ EXTRA=P[KEY_EXTRA]; saveExtra(); }
             if(P[KEY_REC]){
               /* jo abhi hain unhe cloud se hatao, phir file wale daalo */
@@ -9023,7 +9044,7 @@ function _bkpDownload(silent){
        bheje ja chuke the (8 ki jagah 14). */
     var keys=[KEY_CFG,KEY_CFGP,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_LOCM,KEY_BATCH,
               KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG,KEY_ROLLRET,KEY_XCUT,
-              KEY_TXTCASE,KEY_DLRIGHTS];
+              KEY_TXTCASE,KEY_DLRIGHTS,KEY_LOCLIST];
     var out={_app:'COMSYN ERP', _at:new Date().toISOString(), data:{}};
     var n=0, sz=0;
     keys.forEach(function(k){ var v=null; try{ v=localStorage.getItem(k); }catch(e){}
