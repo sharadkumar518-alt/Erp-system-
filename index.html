@@ -8180,12 +8180,23 @@ function _dshTipHide(){ var el=document.getElementById('dshTip'); if(el){ el.sty
 /* Har machine tile ka operator naam naapo: patti me sama gaya to sthir khada
    rahe, nahi samaya to sarke. Window resize par dobara naapte hain. */
 function _mopFit(root){
+  /* Operator naam ab hamesha sarkta hai (CSS se) — yahan sirf machine ke
+     naam ki chaudai naapni hai. */
+  try{ _mtnFit(root||document); }catch(e){}
+}
+/* Machine ka naam ek line me poora dikhna chahiye. Tile chaudi hone ke baad
+   bhi koi naam na samaye to uska font 17px se dheere-dheere ghata kar
+   (11px tak) fit karte hain — kaatne ya todne se behtar. */
+function _mtnFit(root){
   const sc=root||document;
-  sc.querySelectorAll('.mop').forEach(function(box){
-    const t=box.querySelector('.mop-t'); if(!t) return;
-    box.classList.remove('mop-run');
-    const need=t.scrollWidth, have=box.clientWidth;
-    if(need>have-4) box.classList.add('mop-run');
+  sc.querySelectorAll('.mtile-name').forEach(function(el){
+    el.style.fontSize='';
+    var box=el.parentElement; if(!box) return;
+    var tag=box.querySelector('.mtile-tag');
+    var avail=box.clientWidth-(tag?tag.offsetWidth:0)-10;
+    if(avail<=0) return;
+    var fs=17;
+    while(el.scrollWidth>avail && fs>11){ fs-=0.5; el.style.fontSize=fs+'px'; }
   });
 }
 (function(){ var _t=null;
@@ -9458,14 +9469,13 @@ function renderDashboard(){
     .dsh2 .mtile-h{position:relative;overflow:hidden}
     /* Patti pehle alag dabbe jaisi lag rahi thi — ab background hata diya,
        sirf halki si upar wali lakeer se alag hoti hai. */
-    .dsh2 .mop{display:block;margin-top:4px;padding-top:4px;height:18px;overflow:hidden;position:relative;
+    .dsh2 .mop{display:block;margin-top:4px;padding-top:4px;height:20px;overflow:hidden;position:relative;
       border-top:1px solid rgba(255,255,255,.16)}
     .dsh2 .mop-t{position:absolute;left:0;white-space:nowrap;font-family:'Times New Roman',Times,serif;
-      font-weight:700;font-size:11.5px;letter-spacing:.7px;line-height:18px;color:rgba(255,255,255,.88);
+      font-weight:700;font-size:13px;letter-spacing:.7px;line-height:20px;color:rgba(255,255,255,.95);
       will-change:transform}
-    /* SAMAJHDAR: naam patti me sama jaye to chupchap khada rahe. Sirf lamba
-       naam sarakta hai — harkat tabhi jab uska koi kaam ho. */
-    .dsh2 .mop.mop-run .mop-t{animation:mopSlide 11s linear infinite}
+    /* Naam chhota ho ya bada — hamesha daayein se baayein sarkega. */
+    .dsh2 .mop .mop-t{animation:mopSlide 11s linear infinite}
     @keyframes mopSlide{from{transform:translateX(100%)}to{transform:translateX(-100%)}}
     @media (prefers-reduced-motion:reduce){
       .dsh2 .mop .mop-t{animation:none!important;position:static;display:block}}
@@ -9578,7 +9588,12 @@ function renderDashboard(){
     .dsh2 .mpanel-h{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(120deg,#0f2036,#1c3c63 70%,#153252);color:#fff;padding:12px 17px;border-bottom:2px solid #2e86c1}
     .dsh2 .mpanel-h .mt{font-size:16px;font-weight:800;letter-spacing:1.1px}
     .dsh2 .mpanel-h .mc{font-size:11px;font-weight:800;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);padding:3px 11px;border-radius:12px;letter-spacing:.5px}
-    .dsh2 .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:11px;padding:14px;perspective:1100px;perspective-origin:50% 50%}
+    /* Tile ki kam se kam chaudai 160 se 230 ki — ek line me 3 ki jagah 2 tile
+       aate hain, aur machine ka poora naam ek hi line me sama jata hai.
+       Badi screen par jitne fit ho utne aayenge, pehle jaisa. */
+    .dsh2 .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:11px;padding:14px;perspective:1100px;perspective-origin:50% 50%}
+    /* Phone par pakka 2 tile ek line me — pehle 3 aate the aur naam kat jata tha. */
+    @media(max-width:760px){ .dsh2 .mgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:11px} }
     /* ===== MACHINE DETAILS POPUP (hover / tap) ===== */
     .dtip{position:fixed;z-index:99998;display:none;max-height:74vh;overflow:auto;
       font-family:'Times New Roman',Times,Georgia,serif;font-weight:700;
@@ -9632,9 +9647,10 @@ function renderDashboard(){
     .dsh2 .mtile:hover{transform:translateY(-3px)}
         .dsh2 .mtile-h{display:flex;flex-direction:column;gap:6px;padding:10px 12px;font-weight:800;font-size:12.5px;letter-spacing:.4px}
         .dsh2 .mtile-hrow{display:flex;justify-content:space-between;align-items:center;gap:8px}
-        /* Lamba machine name pehle "..." me kat jata tha. Ab wo do line tak
-           wrap hota hai aur tile apne aap lambi ho jati hai — naam poora dikhta hai. */
-        .dsh2 .mtile-name{white-space:normal;overflow-wrap:anywhere;word-break:break-word;
+        /* Naam ek hi line me, poora — na toota hua, na "..." me kata hua.
+           Tile ab chaudi hai isliye sama jata hai; bahut lamba naam ho to
+           _mtnFit() uska font thoda chhota kar deta hai. */
+        .dsh2 .mtile-name{white-space:nowrap;overflow:visible;text-overflow:clip;
           min-width:0;flex:1;font-size:17px;font-weight:800;letter-spacing:.5px;line-height:1.15}
         .dsh2 .mtile-h>.mside{margin-left:0;align-self:flex-start;max-width:100%}
     .dsh2 .mtile-tag{font-size:10px;background:rgba(255,255,255,.92);color:#333;padding:3px 9px;border-radius:10px;letter-spacing:.7px;font-weight:800;white-space:nowrap}
