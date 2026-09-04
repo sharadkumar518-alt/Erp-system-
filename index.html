@@ -869,7 +869,7 @@ table.dt tbody tr:hover td{background:rgba(232,112,42,.04)}
 .be-ready{width:115px;flex:none;min-width:95px;border:1.5px solid var(--line-2);border-radius:8px;padding:8px 10px;font-size:14px;font-weight:700;color:var(--steel);font-family:'JetBrains Mono',monospace}
 .be-inputs{display:flex;flex-direction:column;gap:6px;flex:none;width:132px}
 .be-inputs .be-ready{width:100%;min-width:0}
-.be-loc{width:100%;border:1.5px solid var(--line-2);border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;color:var(--steel)}
+.be-loc{width:100%;border:1.5px solid var(--line-2);border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;color:var(--steel);background:#fff;font-family:inherit;appearance:auto}
 .be-loc:focus,.be-ready:focus{outline:none;border-color:var(--amber)}
 .be-cap{font-size:11.5px;font-weight:700;color:#1E9E6A}
 .be-cap.be-cap0{color:#D1495B}
@@ -4859,6 +4859,7 @@ function storageStats(){
     ['Config',          KEY_CFG],
     ['Order Config',    KEY_OCFG],
     ['Stock Location',  KEY_LOC],
+    ['Stock Location (multi)', KEY_LOCM],
     ['Extra',           KEY_EXTRA],
     ['Cutting Records (purana)', KEY_REC]
   ].map(function(x){ return {name:x[0], bytes:_stBytes(x[1])}; })
@@ -4921,10 +4922,53 @@ function showStorageInfo(){
       '<table style="width:100%;border-collapse:collapse;font-size:13px">'+rows+'</table>'+
       '<p style="margin:14px 0 0;font-size:12px;color:#7a8b9f;line-height:1.6">Records ab IndexedDB me cache hote hain aur asli copy Supabase table me hai, isliye ye bar sirf config/orders/batch jaisi chhoti cheezon ka hai \u2014 ye dheere badhta hai.</p>'+
     '</div>',
-    footer:'<button class="btn" id="reSyncBtn" style="background:var(--blue);color:#fff;border-color:transparent">\u21bb Full re-sync</button><button class="btn" data-close>Close</button>'
+    footer:(APP_ENV!=='live'
+        ? '<button class="btn" id="wipeAllBtn" style="background:#B02F24;color:#fff;border-color:transparent">\u{1F5D1} Sab data mitao</button>'
+        : '')
+      +'<button class="btn" id="reSyncBtn" style="background:var(--blue);color:#fff;border-color:transparent">\u21bb Full re-sync</button><button class="btn" data-close>Close</button>'
   });
   _loadDbSize(_c);
   _bindResync();
+  _bindWipeAll();
+}
+/* ══════════ SAB DATA MITAO — SIRF TEST COPY ══════════
+   Records, orders, batches, line production, trash, stock location aur
+   cloud ki records table — sab saaf. Config (form layout) aur users chhode
+   jaate hain, warna app khali dabba ban jayegi. Live copy me ye button
+   markup me aata hi nahi, aur yahan bhi dobara jaanch hoti hai. */
+function _bindWipeAll(){
+  const b=document.getElementById('wipeAllBtn'); if(!b) return;
+  if(APP_ENV==='live'){ b.remove(); return; }
+  b.onclick=function(){
+    const n1=(RECORDS||[]).length, n2=(ORDERS||[]).length, n3=(BATCHES||[]).length;
+    confirmModalHtml('<b>Sab data mit jayega \u2014 TEST copy se.</b><br><br>'
+      +'Records: <b>'+n1+'</b><br>Orders: <b>'+n2+'</b><br>Batch cards: <b>'+n3+'</b><br>'
+      +'Line production, Trash aur Stock location bhi.<br><br>'
+      +'<span style="font-size:13px;color:var(--muted)">Form ka layout (Assignment) aur users waise hi rahenge \u2014 sirf data jayega. '
+      +'Cloud ki test table bhi saaf hogi. Ye wapas nahi aayega.</span>',function(){
+      confirmModalHtml('Pakka? <b>' + (n1+n2+n3) + '</b> cheezein hamesha ke liye chali jayengi.<br><br>'
+        +'<span style="font-size:13px;color:var(--muted)">Ye TEST copy hai \u2014 live data ko koi farak nahi padega.</span>',
+        function(){ _doWipeAll(); }, true);
+    }, true);
+  };
+}
+function _doWipeAll(){
+  if(APP_ENV==='live'){ toast('Live copy me ye kaam nahi hota','err'); return; }
+  try{
+    const ids=(RECORDS||[]).map(r=>r.id);
+    RECORDS=[]; ORDERS=[]; BATCHES=[]; LINEP=[]; TRASH=[]; LOC={}; LOCM={};
+    try{ recDel(ids); }catch(e){}
+    saveRec(); saveOrders(); saveBatches(); saveLinep(); saveTrash(); saveLoc(); saveLocm();
+    try{ Store.set(KEY_EXTRA,'{}'); }catch(e){}
+    try{ _cutIdx=null; _cutMemo=null; }catch(e){}
+    closeModal();
+    openModal({ title:'\u2713 Data saaf ho gaya',
+      body:'<div style="font-size:14.5px;line-height:1.9;color:var(--ink)">'
+        +'Ab ye ek bilkul naya ERP hai \u2014 shuru se entry kar sakte ho.<br>'
+        +'<span style="font-size:13px;color:var(--muted)">Form ka layout aur users waise hi hain.</span></div>',
+      footer:'<button class="btn btn-primary" data-close>Theek hai</button>' });
+    try{ render(); }catch(e){}
+  }catch(e){ toast('Saaf nahi ho paya: '+((e&&e.message)||'error'),'err'); }
 }
 /* ── FULL RE-SYNC ──
    Do device (mobile + PC) par record ki ginti alag ho jaye to yahan se cloud
@@ -6060,6 +6104,37 @@ function bindCaseBar(){
 const KEY_LOC='comsyn_loc_v1';
 let LOC=(()=>{ const r=Store.get(KEY_LOC); if(r){try{return JSON.parse(r);}catch(e){}} return {}; })();
 function saveLoc(){ Store.set(KEY_LOC,JSON.stringify(LOC)); }
+/* ---- MULTI-LOCATION ----
+   Ek component ka maal kai jagah pada ho sakta hai (SIDE: Jali 1 me 500,
+   Jali 2 me 300, Jali 3 me 200). Purana LOC ek hi location rakhta tha.
+   LOCM us component ka poora bikhraav rakhta hai. Jahan LOCM nahi hai
+   wahan sab kuch bilkul pehle jaisa chalta hai. */
+const KEY_LOCM='comsyn_locm_v1';
+let LOCM=(()=>{ const r=Store.get(KEY_LOCM); if(r){try{return JSON.parse(r);}catch(e){}} return {}; })();
+function saveLocm(){ Store.set(KEY_LOCM,JSON.stringify(LOCM)); }
+function getLocm(oid,ck){ const a=(LOCM[oid]&&LOCM[oid][ck])||null; return (a&&a.length)?a:null; }
+function setLocm(oid,ck,list){
+  list=(list||[]).filter(x=>x&&x.loc&&num(x.qty)>0);
+  if(!list.length){ if(LOCM[oid]){ delete LOCM[oid][ck]; if(!Object.keys(LOCM[oid]).length) delete LOCM[oid]; } }
+  else { if(!LOCM[oid])LOCM[oid]={}; LOCM[oid][ck]=list.map(x=>({loc:String(x.loc),qty:num(x.qty)})); }
+  saveLocm();
+}
+/* Balance ko locations me baanto. Bikhraav ke anupat me, aur aakhri location
+   par rounding ka farak adjust — taaki jod hamesha balance ke barabar rahe. */
+function locSplit(o,cmp,bal){
+  bal=num(bal);
+  const m=getLocm(o.id,cmp.key);
+  if(!m){ const l=resolveLoc(o,cmp); return l?[{loc:l,qty:bal}]:[]; }
+  const tot=m.reduce((a,x)=>a+num(x.qty),0);
+  if(tot<=0){ const l=resolveLoc(o,cmp); return l?[{loc:l,qty:bal}]:[]; }
+  let left=bal, out=[];
+  m.forEach((x,i)=>{
+    let q = (i===m.length-1) ? left : Math.round(bal*(num(x.qty)/tot));
+    if(q>left) q=left;
+    left-=q; out.push({loc:x.loc, qty:q});
+  });
+  return out.filter(x=>x.qty>0);
+}
 function getLoc(oid,ck){ return (LOC[oid]&&LOC[oid][ck])||''; }
 function setLoc(oid,ck,val){ if(!LOC[oid])LOC[oid]={}; if(val) LOC[oid][ck]=val; else { delete LOC[oid][ck]; if(!Object.keys(LOC[oid]).length) delete LOC[oid]; } saveLoc(); }
 let stockSub='order', stockQuery='', stockDate='';
@@ -6192,6 +6267,7 @@ function orderNewEntryHtml(){
       <div style="margin-top:18px;display:flex;gap:10px">
         <button class="btn btn-primary" id="oSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Save Order</button>
         <button class="btn" id="oClear">Clear</button>
+        <button class="btn" id="oImport" title="Excel se purana data ek saath daalo" style="margin-left:auto;background:#0F6E72;color:#fff;border-color:transparent">&#8659; Import (purana data)</button>
       </div>
     </div></div>`;
 }
@@ -6256,6 +6332,288 @@ function bindCompRows(){
     inp.addEventListener('input',()=>showCompCombo(inp));
     inp.addEventListener('blur',()=>setTimeout(hideCombo,200));
   });
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PURANA DATA IMPORT  —  Excel se paste karke ek saath orders banao
+   Sheet ka kram (16 column):
+     ORDER NO | FILE NO | SF NO | BAG SIZE | GSM | ORDER QTY |
+     WEBBING COLOUR | FABRIC COLOUR | PRINTING MATTER |
+     COMPONENT | CUT LENGTH | COMPONENT QTY |
+     ALREADY CUT QTY | BATCH GIVEN QTY | LOCATION | LOCATION QTY
+   Niyam: ek component = ek row. Ek order ke kai component = kai row.
+   ══════════════════════════════════════════════════════════════════════ */
+var IMP_COLS=['ORDER NO','FILE NO','SF NO','BAG SIZE','GSM','ORDER QTY','WEBBING COLOUR',
+  'FABRIC COLOUR','PRINTING MATTER','COMPONENT','CUT LENGTH','COMPONENT QTY',
+  'ALREADY CUT QTY','BATCH GIVEN QTY','LOCATION','LOCATION QTY'];
+
+
+/* ---- .xlsx seedha padhne ke liye chhota reader ----
+   xlsx asal me ek ZIP hai. Browser ka DecompressionStream se use kholte hain,
+   phir sharedStrings + pehli sheet ka XML padh kar rows nikal lete hain.
+   Purane browser me DecompressionStream nahi hota — wahan saaf message
+   dikhate hain ki Excel se "Save As -> CSV" karke wo file chuniye. */
+function xlsxSupported(){ try{ return typeof DecompressionStream==='function'; }catch(e){ return false; } }
+function _zipEntries(buf){
+  var dv=new DataView(buf), n=buf.byteLength, eocd=-1;
+  for(var i=n-22;i>=0 && i>n-66000;i--){ if(dv.getUint32(i,true)===0x06054b50){ eocd=i; break; } }
+  if(eocd<0) throw new Error('ZIP nahi mila');
+  var cnt=dv.getUint16(eocd+10,true), off=dv.getUint32(eocd+16,true), out=[];
+  for(var k=0;k<cnt;k++){
+    if(dv.getUint32(off,true)!==0x02014b50) break;
+    var meth=dv.getUint16(off+10,true), csz=dv.getUint32(off+20,true);
+    var nl=dv.getUint16(off+28,true), el=dv.getUint16(off+30,true), cl=dv.getUint16(off+32,true);
+    var lho=dv.getUint32(off+42,true);
+    var name=new TextDecoder().decode(new Uint8Array(buf,off+46,nl));
+    var lnl=dv.getUint16(lho+26,true), lel=dv.getUint16(lho+28,true);
+    out.push({name:name, method:meth, start:lho+30+lnl+lel, size:csz});
+    off+=46+nl+el+cl;
+  }
+  return out;
+}
+function _zipRead(buf,e){
+  var raw=new Uint8Array(buf,e.start,e.size);
+  if(e.method===0) return Promise.resolve(new TextDecoder().decode(raw));
+  var ds=new DecompressionStream('deflate-raw');
+  return new Response(new Blob([raw]).stream().pipeThrough(ds)).arrayBuffer()
+    .then(function(ab){ return new TextDecoder().decode(new Uint8Array(ab)); });
+}
+function _xmlCells(xml, shared){
+  var rows=[], rowRe=/<row[^>]*>([\s\S]*?)<\/row>/g, m;
+  while((m=rowRe.exec(xml))){
+    var cells=[], cRe=/<c([^>]*)>([\s\S]*?)<\/c>|<c([^>]*)\/>/g, cm;
+    while((cm=cRe.exec(m[1]))){
+      var attrs=cm[1]||cm[3]||'', inner=cm[2]||'';
+      var ref=(attrs.match(/r="([A-Z]+)\d+"/)||[])[1]||'';
+      var col=0; for(var i=0;i<ref.length;i++) col=col*26+(ref.charCodeAt(i)-64);
+      var t=(attrs.match(/t="([^"]+)"/)||[])[1]||'';
+      var v='';
+      if(t==='inlineStr'){ v=(inner.match(/<t[^>]*>([\s\S]*?)<\/t>/g)||[]).map(function(x){return x.replace(/<[^>]+>/g,'');}).join(''); }
+      else { var vm=inner.match(/<v>([\s\S]*?)<\/v>/); v=vm?vm[1]:''; if(t==='s') v=shared[parseInt(v,10)]||''; }
+      v=String(v).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&apos;/g,"'");
+      if(col>0) cells[col-1]=v;
+    }
+    for(var j=0;j<cells.length;j++) if(cells[j]==null) cells[j]='';
+    rows.push(cells);
+  }
+  return rows;
+}
+function xlsxToTsv(file){
+  return file.arrayBuffer().then(function(buf){
+    var es=_zipEntries(buf);
+    var sheet=es.filter(function(e){ return /^xl\/worksheets\/sheet\d+\.xml$/.test(e.name); })
+                .sort(function(a,b){ return a.name.localeCompare(b.name,undefined,{numeric:true}); })[0];
+    if(!sheet) throw new Error('Sheet nahi mili');
+    var ss=es.filter(function(e){ return e.name==='xl/sharedStrings.xml'; })[0];
+    var pShared = ss ? _zipRead(buf,ss).then(function(x){
+        return (x.match(/<si>[\s\S]*?<\/si>/g)||[]).map(function(si){
+          return (si.match(/<t[^>]*>([\s\S]*?)<\/t>/g)||[]).map(function(t){return t.replace(/<[^>]+>/g,'');}).join('');
+        });
+      }) : Promise.resolve([]);
+    return pShared.then(function(shared){
+      return _zipRead(buf,sheet).then(function(xml){
+        return _xmlCells(xml,shared).map(function(r){ return r.join('\t'); }).join('\n');
+      });
+    });
+  });
+}
+function impSplit(text){
+  var out=[], lines=String(text||'').replace(/\r/g,'').split('\n');
+  for(var i=0;i<lines.length;i++){
+    var L=lines[i]; if(!L.trim()) continue;
+    var cells = (L.indexOf('\t')>=0) ? L.split('\t') : _impCsv(L);
+    out.push(cells.map(function(c){ return String(c==null?'':c).trim(); }));
+  }
+  return out;
+}
+/* CSV: quote ke andar ka comma nahi todta */
+function _impCsv(line){
+  var out=[], cur='', q=false;
+  for(var i=0;i<line.length;i++){
+    var ch=line[i];
+    if(q){ if(ch==='"'){ if(line[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=ch; }
+    else { if(ch==='"') q=true; else if(ch===','){ out.push(cur); cur=''; } else cur+=ch; }
+  }
+  out.push(cur); return out;
+}
+function impParse(text){
+  var rows=impSplit(text), data=[], skipped=[];
+  rows.forEach(function(r,ix){
+    var a=(r[0]||'').toUpperCase();
+    /* header, hint aur title ki line chhod do */
+    if(!r[0]) return;
+    if(a==='ORDER NO' || a.indexOf('COMSYN ERP')===0 || a.indexOf('NIYAM')===0 ||
+       a.indexOf('EK COMPONENT')===0 || a.indexOf('PEELI')===0 || a.indexOf('ORDER KA NAAM')===0) return;
+    if(!r[9]){ skipped.push({line:ix+1, why:'COMPONENT khali hai'}); return; }
+    data.push({
+      ono:r[0]||'', file:r[1]||'', sf:r[2]||'', bag:r[3]||'', gsm:r[4]||'', oqty:r[5]||'',
+      web:r[6]||'', fab:r[7]||'', print:r[8]||'',
+      comp:r[9]||'', len:r[10]||'', cqty:num(r[11]), cut:num(r[12]), given:num(r[13]),
+      loc:r[14]||'', locq:num(r[15])
+    });
+  });
+  return {data:data, skipped:skipped};
+}
+/* rows -> orders (order no + file no + sf no par group) */
+function impGroup(rows){
+  var map={}, order=[];
+  rows.forEach(function(r){
+    var k=_k(r.ono)+'|'+_k(r.file)+'|'+_k(r.sf);
+    if(!map[k]){ map[k]={key:k, head:r, comps:[]}; order.push(k); }
+    var g=map[k], ex=null;
+    g.comps.forEach(function(c){ if(_k(c.comp)===_k(r.comp)) ex=c; });
+    if(ex){
+      /* Wahi component dobara aaya — matlab uska maal ek se zyada jagah hai.
+         Cut/diya hua ek hi baar ginte hain (pehli row se), aur location list
+         me nayi jagah jod dete hain. */
+      if(r.cut>0 && !ex._cutSet){ ex.cut=r.cut; ex._cutSet=true; }
+      if(r.given>0 && !ex._givSet){ ex.given=r.given; ex._givSet=true; }
+      if(r.loc) ex.locs.push({loc:r.loc, qty:r.locq});
+    } else {
+      var c=Object.assign({},r);
+      c.locs = r.loc ? [{loc:r.loc, qty:r.locq}] : [];
+      c._cutSet=(r.cut>0); c._givSet=(r.given>0);
+      g.comps.push(c);
+    }
+  });
+  return order.map(function(k){ return map[k]; });
+}
+function impFieldId(re){ var f=(ORDERCFG.fields||[]).find(function(x){ return re.test(x.label); }); return f?f.id:null; }
+function impExists(g){
+  return ORDERS.some(function(o){
+    return _eq(ordVal(o,/order\s*no/i),g.head.ono) && _eq(ordVal(o,/file\s*no/i),g.head.file)
+        && _eq(ordVal(o,/sf\s*no/i),g.head.sf);
+  });
+}
+function openImportOrders(){
+  openModal({
+    title:'\u2913 Purana data import',
+    body:'<p style="margin:0 0 9px;font-size:14px;line-height:1.6;color:var(--ink)">'
+      +'Excel me apni sheet kholo, <b>header ke neeche wali saari row select karke copy</b> karo, aur yahan paste kar do. '
+      +'Column ka kram wahi rehna chahiye jo import sheet me hai.</p>'
+      +'<textarea id="impTxt" rows="7" placeholder="Yahan paste karo\u2026" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid #D9E7E8;border-radius:9px;font-family:monospace;font-size:12px"></textarea>'
+      +'<div style="margin-top:8px;font-size:13px;color:var(--muted)">\u2026 ya seedha file chuno (.xlsx ya .csv): <input type="file" id="impFile" accept=".xlsx,.csv,.txt"></div>'
+      +'<div id="impPrev" style="margin-top:12px"></div>',
+    footer:'<button class="btn" data-close>Cancel</button>'
+      +'<button class="btn" id="impCheck" style="background:var(--blue);color:#fff;border-color:transparent">Jaanch karo</button>'
+  });
+  var ta=document.getElementById('impTxt');
+  var fi=document.getElementById('impFile');
+  if(fi) fi.onchange=function(){
+    var f=fi.files&&fi.files[0]; if(!f) return;
+    if(/\.xlsx$/i.test(f.name)){
+      if(!xlsxSupported()){
+        toast('Ye browser .xlsx seedha nahi padh sakta \u2014 Excel me File > Save As > CSV karke wo file chuniye','err');
+        return;
+      }
+      ta.value='Excel padh rahe hain\u2026';
+      xlsxToTsv(f).then(function(tsv){ ta.value=tsv; impPreview(tsv); })
+        .catch(function(e){ ta.value=''; toast('Excel nahi khul payi: '+((e&&e.message)||'error')+' \u2014 CSV me save karke try karein','err'); });
+      return;
+    }
+    var fr=new FileReader();
+    fr.onload=function(){ ta.value=String(fr.result||''); impPreview(ta.value); };
+    fr.readAsText(f);
+  };
+  var b=document.getElementById('impCheck');
+  if(b) b.onclick=function(){ impPreview(ta.value); };
+}
+function impPreview(text){
+  var box=document.getElementById('impPrev'); if(!box) return;
+  var pr=impParse(text);
+  if(!pr.data.length){ box.innerHTML='<div style="background:#FDECEC;border:1.5px solid #E5A3A3;border-radius:10px;padding:11px;font-size:13.5px">Koi row nahi mili. Header ke neeche wali row copy karke paste karein.</div>'; return; }
+  var groups=impGroup(pr.data);
+  var dup=groups.filter(impExists), fresh=groups.filter(function(g){ return !impExists(g); });
+  var multi=[]; groups.forEach(function(g){ g.comps.forEach(function(c){
+    if(c.locs && c.locs.length>1) multi.push(g.head.ono+' / '+c.comp+' \u2014 '+c.locs.map(function(x){return x.loc+' ('+x.qty+')';}).join(', '));
+  }); });
+  var rows=fresh.slice(0,60).map(function(g){
+    return '<tr><td style="padding:5px 7px"><b>'+esc(g.head.ono)+'</b></td><td style="padding:5px 7px">'+esc(g.head.file)+'</td>'
+      +'<td style="padding:5px 7px">'+esc(g.head.sf)+'</td>'
+      +'<td style="padding:5px 7px">'+g.comps.map(function(c){ return esc(c.comp)+' ('+c.cqty+', cut '+c.cut+', diya '+c.given+')'; }).join('<br>')+'</td></tr>';
+  }).join('');
+  box.innerHTML=
+    '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:10px">'
+    +'<span style="background:#E7F6EC;color:#1E7A3C;border:1px solid #B7E2C6;border-radius:9px;padding:7px 12px;font-weight:700;font-size:13px">'+fresh.length+' naye order</span>'
+    +'<span style="background:#FFF4E5;color:#8A4B12;border:1px solid #F0D2A8;border-radius:9px;padding:7px 12px;font-weight:700;font-size:13px">'+dup.length+' pehle se hain (skip)</span>'
+    +'<span style="background:#EEF2F7;color:#41536B;border:1px solid #D9E2EC;border-radius:9px;padding:7px 12px;font-weight:700;font-size:13px">'+pr.data.length+' row padhi</span>'
+    +'</div>'
+    +(pr.skipped.length?'<div style="background:#FDECEC;border:1.5px solid #E5A3A3;border-radius:10px;padding:10px;margin-bottom:10px;font-size:13px">'
+      +pr.skipped.length+' row chhodi (COMPONENT khali): line '+pr.skipped.slice(0,10).map(function(x){return x.line;}).join(', ')+'</div>':'')
+    +(multi.length?'<div style="background:#E7F6EC;border:1.5px solid #B7E2C6;border-radius:10px;padding:10px;margin-bottom:10px;font-size:13px">'
+      +'<b>Kai jagah rakha maal \u2014 sab record hoga:</b><br>'+esc(multi.slice(0,12).join(' \u00B7 '))+'</div>':'')
+    +'<div style="max-height:230px;overflow:auto;border:1px solid #E4E9F0;border-radius:9px">'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="background:#F1F5F9">'
+    +'<th style="padding:6px 7px;text-align:left">Order</th><th style="padding:6px 7px;text-align:left">File</th>'
+    +'<th style="padding:6px 7px;text-align:left">Sf</th><th style="padding:6px 7px;text-align:left">Components</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody></table></div>'
+    +(fresh.length>60?'<div style="font-size:12px;color:var(--muted);margin-top:6px">\u2026 aur '+(fresh.length-60)+' order</div>':'');
+  var ft=document.querySelector('.modal-foot')||document.querySelector('[data-close]').parentElement;
+  if(ft && !document.getElementById('impGo') && fresh.length){
+    var g=document.createElement('button');
+    g.className='btn'; g.id='impGo'; g.textContent='\u2713 '+fresh.length+' order import karo';
+    g.style.cssText='background:#0F6E72;color:#fff;border-color:transparent';
+    g.onclick=function(){ impRun(fresh); };
+    ft.appendChild(g);
+  }
+}
+function impRun(groups){
+  var made=0, batches=0;
+  groups.forEach(function(g){
+    var vals={};
+    var set=function(re,v){ var id=impFieldId(re); if(id && v!=='') vals[id]=v; };
+    set(/order\s*no/i, g.head.ono); set(/file\s*no/i, g.head.file); set(/sf\s*no/i, g.head.sf);
+    set(/bag\s*size/i, g.head.bag); set(/gsm/i, g.head.gsm); set(/order\s*qty/i, g.head.oqty);
+    set(/webbing/i, g.head.web); set(/fabric\s*colour|fabric\s*color/i, g.head.fab);
+    set(/printing/i, g.head.print);
+
+    /* Component ka asli key 'c_'+id hota hai (orderComponents isi se banata
+       hai). Location, batch-ready aur cut-length sab isi key par tikte hain —
+       isliye pehle id bana kar wahi har jagah use karte hain.
+       Cut length ka field ka naam bhi 'cutLen' hai, 'len' nahi. */
+    var comps=g.comps.map(function(c){
+      var cid=uid();
+      c._key='c_'+cid;
+      return { id:cid, name:c.comp, qty:num(c.cqty), cutLen:(c.len===''||c.len==null)?'':num(c.len) };
+    });
+    var oid=uid();
+    var openCut={}, given={};
+    g.comps.forEach(function(c){
+      if(c.cut>0) openCut[c.comp]=num(c.cut);
+      if(c.given>0) given[c._key]=num(c.given);
+    });
+
+    var ord={ id:oid, vals:vals, components:comps, compCut:{}, openCut:openCut,
+              status:'new', savedAt:Date.now(), imported:true };
+    ORDERS.push(ord); made++;
+
+    /* location — ek jagah ho ya kai jagah, dono record hoti hain */
+    g.comps.forEach(function(c){
+      var ls=(c.locs||[]).filter(function(x){ return x.loc; });
+      if(!ls.length) return;
+      try{ setLoc(oid, c._key, ls[0].loc); }catch(e){}
+      if(ls.length>1 || num(ls[0].qty)>0){ try{ setLocm(oid, c._key, ls); }catch(e){} }
+    });
+
+    /* batch card — jitna line ko ja chuka wo OPENING ke roop me */
+    try{
+      var nb={ id:uid(), orderId:oid, type:'', pattern:'', location:'', date:todayISO(),
+               ready:given, locs:{}, savedAt:Date.now(), opening:true };
+      g.comps.forEach(function(c){ if(c.given>0 && c.locs && c.locs[0]) nb.locs[c._key]=c.locs[0].loc; });
+      if(typeof recomputeBatch==='function') recomputeBatch(nb);
+      BATCHES.push(nb); batches++;
+    }catch(e){}
+  });
+  try{ saveOrders(); }catch(e){}
+  try{ saveBatches(); }catch(e){}
+  try{ refreshOrderStatuses(); }catch(e){}
+  try{ closeModal(); }catch(e){}
+  openModal({ title:'\u2713 Import poora hua',
+    body:'<div style="font-size:14.5px;line-height:1.9;color:var(--ink)">'
+      +'<b>'+made+'</b> order bane<br><b>'+batches+'</b> batch card bane<br>'
+      +'<span style="font-size:13px;color:var(--muted)">Purana cut aur line ko diya gaya maal "opening" ke roop me daala gaya hai \u2014 wo aapke naye production report ya wastage me nahi ginega.</span></div>',
+    footer:'<button class="btn btn-primary" data-close>Theek hai</button>' });
+  try{ renderOrderEntry(); }catch(e){}
 }
 function bindOrderNewEntry(){
   bindCompRows();
@@ -6349,6 +6707,8 @@ function bindOrderNewEntry(){
     resetComps();
     try{ renderOrderEntry(); }catch(e){}
   }
+  var _imp=document.getElementById('oImport');
+  if(_imp) _imp.onclick=function(){ openImportOrders(); };
   document.getElementById('oClear').onclick=()=>{ document.querySelectorAll('[data-of]').forEach(el=>el.value=''); resetComps(); };
 }
 function orderFilter(sub){ return ORDERS.filter(o=>o.status===sub); }
@@ -6469,6 +6829,18 @@ function autoCutDone(order, compName, excludeId){
       if(nm===cn || nm.indexOf(cn)>=0 || cn.indexOf(nm)>=0) total+=s.c[nm];
     }
   }
+  /* ERP se pehle ka cut (import kiya hua opening) — records me hai hi nahi,
+     isliye yahan jodte hain. Isse purani cutting production report aur
+     wastage me nahi ghusti, par order ka balance sahi rehta hai. */
+  try{
+    if(order && order.openCut && !excludeId){
+      const ok=Object.keys(order.openCut);
+      for(let i=0;i<ok.length;i++){
+        const nm=_k(ok[i]);
+        if(nm===cn || nm.indexOf(cn)>=0 || cn.indexOf(nm)>=0) total+=num(order.openCut[ok[i]]);
+      }
+    }
+  }catch(e){}
   if(_cutMemo) _cutMemo[memoKey]=total;
   return total;
 }
@@ -6938,10 +7310,11 @@ function stockOrderHtml(query){
     const on=ordVal(o,/order\s*no/i), fn=ordVal(o,/file\s*no/i), sf=ordVal(o,/sf\s*no/i), bag=ordVal(o,/bag\s*size/i), gsm=ordVal(o,/gsm/i), oq=ordVal(o,/order\s*qty/i);
     const comps=orderComponents(o);
     const rows=comps.map(cmp=>{
-      const loc=resolveLoc(o,cmp);
       const cut=autoCutDone(o,cmp.name);
       const given=stockGivenAt(o,cmp.key);
       const bal=cut-given;
+      const _mm=getLocm(o.id,cmp.key);
+      const loc=_mm ? _mm.map(x=>x.loc+' ('+num(x.qty)+')').join(', ') : resolveLoc(o,cmp);
       return `<tr>
         <td class="stk-comp">${esc(cmp.name)}</td>
         <td>${oq?esc(oq):'<span class="stk-dim">—</span>'}</td>
@@ -6973,7 +7346,11 @@ function stockLocationHtml(query){
   const map={};
   stockOrders().forEach(o=>{
     const on=ordVal(o,/order\s*no/i), fn=ordVal(o,/file\s*no/i), bag=ordVal(o,/bag\s*size/i), gsm=ordVal(o,/gsm/i), oq=ordVal(o,/order\s*qty/i);
-    orderComponents(o).forEach(cmp=>{ const loc=resolveLoc(o,cmp); if(!loc) return; const cut=autoCutDone(o,cmp.name), given=stockGivenAt(o,cmp.key), bal=cut-given; if(bal<=0) return; (map[loc]=map[loc]||[]).push({on,fn,bag,gsm,oq,comp:cmp.name,cqty:cmp.qty,given,cut,bal}); });
+    orderComponents(o).forEach(cmp=>{ const cut=autoCutDone(o,cmp.name), given=stockGivenAt(o,cmp.key), bal=cut-given; if(bal<=0) return;
+      /* Ek component kai jagah pada ho to har jagah apni-apni qty ke saath */
+      locSplit(o,cmp,bal).forEach(pt=>{ const loc=pt.loc; if(!loc) return;
+        (map[loc]=map[loc]||[]).push({on,fn,bag,gsm,oq,comp:cmp.name,cqty:cmp.qty,cut,given,bal:pt.qty}); });
+    });
   });
   let locs=Object.keys(map).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'}));
   if(query){ const q=query.toLowerCase(); locs=locs.filter(l=>l.toLowerCase().includes(q)); }
@@ -7380,6 +7757,19 @@ function batchExportBar(){
     <div class="bexp-hint">Date select karo — us din ke saare batch (kis order ka kaun se component diye) PDF / Excel me download.</div>
   </div></div>`;
 }
+/* Location ka asli dropdown — wahi list jo Dropdown Lists panel se chalti hai
+   (Cutting Entry ke Location column ke options + jahan-jahan maal pada hai).
+   Native select hai, isliye phone par app wala hi picker khulta hai.
+   Purani value list me na ho to wo bhi upar dikhti hai, gum nahi hoti. */
+function beLocSelect(ck, cur, on){
+  var opts=[]; try{ opts=stockLocOptions()||[]; }catch(e){ opts=[]; }
+  cur=String(cur||'').trim();
+  if(cur && opts.map(function(x){return String(x).toLowerCase();}).indexOf(cur.toLowerCase())<0) opts=[cur].concat(opts);
+  return '<select class="be-loc" data-lk="'+esc(ck)+'"'+(on?'':' disabled')+'>'
+    + '<option value="">Location \u2014 chuno</option>'
+    + opts.map(function(l){ return '<option value="'+esc(l)+'"'+(_eq(l,cur)?' selected':'')+'>'+esc(l)+'</option>'; }).join('')
+    + '</select>';
+}
 function openBatchEditor(b){
   const o=batchOrder(b); if(!o){ toast('Order nahi mila','err'); return; }
   const comps=orderComponents(o);
@@ -7397,12 +7787,12 @@ function openBatchEditor(b){
     return `<div class="be-row${canAdd>0?'':' be-off'}">
       <div class="be-cinfo">
         <span class="be-c">${esc(c.name)}</span>
-        <span class="be-req">Req ${c.qty} · Ready <b>${rd}</b> · Cutting <b>${cut}</b></span>
+        <span class="be-req">Req ${c.qty} · Batch Qty <b>${rd}</b> · Cutting <b>${cut}</b></span>
         <span class="be-cap ${canAdd>0?'':'be-cap0'}">${canAdd>0?('Max de sakte ho: '+canAdd):(cut<=0?'Cutting qty 0 \u2014 abhi kuch nahi de sakte':'Poori cutting qty ja chuki')}</span>
       </div>
       <div class="be-inputs">
         ${qtyBox}
-        <input class="be-loc" data-lk="${esc(c.key)}" value="${esc(loc)}" placeholder="Location" ${canAdd>0?'':'disabled'}>
+        ${beLocSelect(c.key, loc, canAdd>0)}
       </div>
     </div>`;
   }).join('');
@@ -7410,8 +7800,8 @@ function openBatchEditor(b){
       <label>Type<input class="be-f" data-f="type" value="${esc(b.type||'')}"></label>
       <label>Pattern<input class="be-f" data-f="pattern" value="${esc(b.pattern||'')}"></label>
     </div>`;
-  const note = `<div class="be-note">Sirf aaj ki nayi ready qty daalo — wo purani value me <b>add</b> ho jayegi (jaise 10 + 50 = 60). Khaali chhodoge to koi change nahi. Qty bharte hi date aaj ki ho jayegi.<br><b>Qty utni hi de sakte ho jitni cutting hui hai</b>, aur qty ke saath uski <b>Location</b> bharni zaroori hai.</div>`;
-  openModal({ title:'Edit Batch — Add Ready Qty', body:`<div class="be-wrap">${manual}${note}<div class="be-comps">${compRows||'<div style="color:var(--muted)">Koi component nahi</div>'}</div></div>`,
+  const note = `<div class="be-note">Sirf aaj ki nayi batch qty daalo — wo purani value me <b>add</b> ho jayegi (jaise 10 + 50 = 60). Khaali chhodoge to koi change nahi. Qty bharte hi date aaj ki ho jayegi.<br><b>Qty utni hi de sakte ho jitni cutting hui hai</b>, aur qty ke saath uski <b>Location</b> bharni zaroori hai.</div>`;
+  openModal({ title:'Edit Batch — Add Batch Qty', body:`<div class="be-wrap">${manual}${note}<div class="be-comps">${compRows||'<div style="color:var(--muted)">Koi component nahi</div>'}</div></div>`,
     footer:`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="beSave">Save</button>` });
   document.getElementById('beSave').onclick=()=>{
     /* ---- pehle jaanch, tabhi kuch save ---- */
@@ -8529,7 +8919,9 @@ function _muFullRestore(){
       /* pehle sab parse karke jaanch lo — aadha-adhura restore nahi hona chahiye */
       var P={}, bad='';
       [[KEY_CFG,'Entry config','o'],[KEY_OCFG,'Order config','o'],[KEY_LINEPCFG,'Line config','o'],
-       [KEY_CFGP,'Config pool','o'],[KEY_EXTRA,'Extra','o'],[KEY_LOC,'Stock location','o'],
+       [KEY_CFGP,'Config pool','o'],[KEY_EXTRA,'Extra','o'],[KEY_LOC,'Stock location','o'],[KEY_LOCM,'Stock location (multi)','o'],
+       [KEY_ROLLRET,'Return roll to godown','a'],[KEY_XCUT,'Extra order cutting','o'],
+       [KEY_TXTCASE,'Text case','o'],[KEY_DLRIGHTS,'Download rights','o'],
        [KEY_REC,'Records','a'],[KEY_ORD,'Orders','a'],[KEY_BATCH,'Batches','a'],
        [KEY_TRASH,'Trash','a'],[KEY_LINEP,'Line production','a']].forEach(function(x){
         if(bad || d[x[0]]==null) return;
@@ -8560,6 +8952,8 @@ function _muFullRestore(){
             if(P[KEY_TRASH]){ TRASH=P[KEY_TRASH]; saveTrash(); }
             if(P[KEY_LINEP]){ LINEP=P[KEY_LINEP]; saveLinep(); }
             if(P[KEY_LOC]){ LOC=P[KEY_LOC]; saveLoc(); }
+            if(P[KEY_LOCM]){ LOCM=P[KEY_LOCM]; saveLocm(); }
+            if(P[KEY_ROLLRET]){ ROLLRET=P[KEY_ROLLRET]; saveRollRet(); }
             if(P[KEY_EXTRA]){ EXTRA=P[KEY_EXTRA]; saveExtra(); }
             if(P[KEY_REC]){
               /* jo abhi hain unhe cloud se hatao, phir file wale daalo */
@@ -8622,7 +9016,14 @@ function _muCfgRestore(){
    dono wahi file banayein. */
 function _bkpDownload(silent){
   try{
-    var keys=[KEY_CFG,KEY_CFGP,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_BATCH,KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG];
+    /* Ye list adhoori thi — Return Roll to Godown (rollret), Extra Order
+       Cutting (xcut), multi-location (locm), Case aur Download-rights
+       backup me jaate hi nahi the. Isi wajah se restore ke baad
+       Cutting Roll Stock me wo roll wapas dikhne lagte the jo godown
+       bheje ja chuke the (8 ki jagah 14). */
+    var keys=[KEY_CFG,KEY_CFGP,KEY_REC,KEY_OCFG,KEY_ORD,KEY_LOC,KEY_LOCM,KEY_BATCH,
+              KEY_TRASH,KEY_EXTRA,KEY_LINEP,KEY_LINEPCFG,KEY_ROLLRET,KEY_XCUT,
+              KEY_TXTCASE,KEY_DLRIGHTS];
     var out={_app:'COMSYN ERP', _at:new Date().toISOString(), data:{}};
     var n=0, sz=0;
     keys.forEach(function(k){ var v=null; try{ v=localStorage.getItem(k); }catch(e){}
