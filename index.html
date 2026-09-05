@@ -2492,7 +2492,7 @@ var RECCACHE_READY=(function(){
 const KEY_TRASH='comsyn_trash_v1';
 let TRASH=(()=>{ const r=Store.get(KEY_TRASH); if(r){try{return JSON.parse(r);}catch(e){}} return []; })();
 function saveTrash(){ Store.set(KEY_TRASH,JSON.stringify(TRASH)); }
-function trashAdd(type,item){ try{ let _it=clone(item); if(type==='record') _it=dehydrateRec(_it); TRASH.unshift({tid:uid(),type:type,item:_it,deletedBy:(sessionStorage.getItem('comsyn_user')||'unknown'),deletedAt:new Date().toISOString()}); if(TRASH.length>300) TRASH.length=300; saveTrash(); }catch(e){} }
+function trashAdd(type,item,grp){ try{ let _it=clone(item); if(type==='record') _it=dehydrateRec(_it); TRASH.unshift({tid:uid(),type:type,grp:grp||'',item:_it,deletedBy:(sessionStorage.getItem('comsyn_user')||'unknown'),deletedAt:new Date().toISOString()}); if(TRASH.length>300) TRASH.length=300; saveTrash(); }catch(e){} }
 // one-time: enable Multiple rows on Order Details (1 roll -> many orders). Runs once; user can still toggle later.
 (function(){ try{ if(!Store.get('comsyn_mr_orderdetails')){ const od=CFG.sections.find(s=>/order/i.test(s.title)); if(od && !od.multiRow){ od.multiRow=true; saveCfg(); } Store.set('comsyn_mr_orderdetails','1'); } }catch(e){} })();
 
@@ -2611,6 +2611,14 @@ function _dshFullSync(){
 }
 function setTab(tab){
   current=tab;
+  /* Har tab hamesha sabse upar se khule \u2014 pichhle tab ka scroll saath
+     na aaye, jaise professional software me hota hai. */
+  try{
+    const _c=document.getElementById('content');
+    if(_c) _c.scrollTop=0;
+    const _m=document.querySelector('.main'); if(_m) _m.scrollTop=0;
+    window.scrollTo(0,0);
+  }catch(e){}
   if(tab!=='dashboard') _dshFullOff=false;   /* agla dashboard phir full khulega */
   _dshFullSync();
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
@@ -3847,7 +3855,10 @@ function renderReports(body){
       confirmModalHtml(`Pakka? <b>${_rs.length} report</b> hat jayengi.<br><br>
         <span style="font-size:13px;color:var(--muted)">Trash me jayengi \u2014 wahan se wapas laayi ja sakti hain.</span>`,()=>{
         const _dids=_rs.map(r=>r.id);
-        _rs.forEach(r=>trashAdd('record',r));
+        /* Poore din ki entries ek hi group me jaati hain \u2014 Trash me ek hi
+           card banega, taaki restore me koi entry chhoot na jaye. */
+        const _gid='g'+uid();
+        _rs.forEach(r=>trashAdd('record',r,_gid));
         RECORDS=RECORDS.filter(r=>r.date!==d);recDel(_dids);saveRec();renderRecords();
         toast(_rs.length+' report Trash me chali gayi','info');
       },true);
@@ -7774,11 +7785,25 @@ function batchExportBar(){
    Native select hai, isliye phone par app wala hi picker khulta hai.
    Purani value list me na ho to wo bhi upar dikhti hai, gum nahi hoti. */
 function beLocSelect(ck, cur, on){
-  var opts=[]; try{ opts=stockLocOptions()||[]; }catch(e){ opts=[]; }
+  /* Ab list SIRF "Stock Location" (Dropdown Lists panel) se aati hai —
+     purane records se apne aap bani hui bekaar entries ("1", "2", "Vnod")
+     nahi. Pehli baar list khali ho to ek baar purani jagahein daal dete hain,
+     phir aap panel se jo chaho hata sakte ho. */
+  var opts=[];
+  try{
+    if(!(LOCLIST.options||[]).length){
+      var seed=[]; try{ seed=stockLocOptions()||[]; }catch(e){}
+      if(seed.length){ LOCLIST.options=seed.slice(); saveLocList(); }
+    }
+    opts=(LOCLIST.options||[]).slice();
+  }catch(e){ opts=[]; }
   cur=String(cur||'').trim();
   if(cur && opts.map(function(x){return String(x).toLowerCase();}).indexOf(cur.toLowerCase())<0) opts=[cur].concat(opts);
+  /* Pehli khali option se "Location \u2014 chuno" ka text hata diya.
+     Option khud rakha hai (bina text ke) \u2014 warna browser apne aap pehli
+     jagah chun leta aur bina chune hi galat location save ho jati. */
   return '<select class="be-loc" data-lk="'+esc(ck)+'"'+(on?'':' disabled')+'>'
-    + '<option value="">Location \u2014 chuno</option>'
+    + (cur?'':'<option value=""></option>')
     + opts.map(function(l){ return '<option value="'+esc(l)+'"'+(_eq(l,cur)?' selected':'')+'>'+esc(l)+'</option>'; }).join('')
     + '</select>';
 }
@@ -10988,6 +11013,40 @@ function trashSummary(t){
   return t.type||'item';
 }
 function fmtTrashTime(iso){ try{ const d=new Date(iso); const p=n=>(n<10?'0':'')+n; return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes()); }catch(e){ return iso||''; } }
+/* Ek saath delete hui entries ek group me hoti hain \u2014 restore, delete
+   aur view teenon poore group par chalte hain, taaki aadha data kabhi na
+   bache. */
+function trashGroup(tid){
+  const t=TRASH.find(x=>x.tid===tid); if(!t) return [];
+  return t.grp ? TRASH.filter(x=>x.grp===t.grp) : [t];
+}
+function restoreTrashGroup(tid){
+  const g=trashGroup(tid); if(!g.length) return;
+  if(g.length===1){ restoreTrash(g[0].tid); return; }
+  let done=0;
+  g.slice().forEach(x=>{ const before=TRASH.length; _restoreOne(x.tid); if(TRASH.length<before) done++; });
+  renderTrash();
+  toast('\u267B\uFE0F '+done+' entry wapas aa gayi','ok');
+}
+function killTrashGroup(tid){
+  const g=trashGroup(tid); if(!g.length) return;
+  const ids=g.map(x=>x.tid);
+  confirmModalHtml('<b>'+g.length+'</b> entry HAMESHA ke liye delete karein?<br><br>'
+    +'<span style="font-size:13px;color:var(--muted)">Iske baad wapas nahi aayengi.</span>',function(){
+    TRASH=TRASH.filter(x=>ids.indexOf(x.tid)<0); saveTrash(); renderTrash();
+    toast(g.length+' entry hamesha ke liye delete ho gayi','info');
+  }, true);
+}
+function _restoreOne(tid){
+  const t=TRASH.find(x=>x.tid===tid); if(!t) return false;
+  const it=t.item||{};
+  if(t.type==='record'){ if(!RECORDS.some(r=>r.id===it.id)){ TRASH=TRASH.filter(x=>x.tid!==tid); saveTrash(); RECORDS.unshift(hydrateRec(it)); saveRec(); return true; } }
+  else if(t.type==='order'){ if(!ORDERS.some(o=>o.id===it.id)){ ORDERS.unshift(it); saveOrders(); } }
+  else if(t.type==='batch'){ if(!BATCHES.some(b=>b.id===it.id)){ BATCHES.unshift(it); saveBatches(); } }
+  else if(t.type==='linep'){ if(!LINEP.some(x=>x.id===it.id)){ LINEP.unshift(it); saveLinep(); } }
+  TRASH=TRASH.filter(x=>x.tid!==tid); saveTrash();
+  return true;
+}
 function restoreTrash(tid){
   const t=TRASH.find(x=>x.tid===tid); if(!t) return;
   const it=t.item||{}; let ok=false, dup=false;
@@ -11011,27 +11070,124 @@ function renderTrash(){
   html+='<div style="font-size:12px;color:#8a93a3;margin-bottom:14px">Delete ki hui entries yahan 30 din tak nahi \u2014 hamesha \u2014 rehti hain jab tak aap Restore ya Delete Forever na karein. Restore karne par entry apni asli jagah waise ki waisi wapas chali jaati hai.</div>';
   if(!TRASH.length){ html+='<div style="text-align:center;color:#8a93a3;padding:34px 10px;font-size:14px">Trash khali hai \u2014 jo bhi entry delete hogi, wo yahan aayegi aur restore ki ja sakegi. \u267B\uFE0F</div>'; }
   else{
-    html+=TRASH.map(t=>{
+    /* Records ko date-wise group karo \u2014 bilkul Records tab jaisa.
+       Ek din ki 5 entry delete ki ho to Trash me bhi wahi 5 ek hi date ke
+       neeche dikhengi, pehchanne me aasani rahegi. */
+    /* Ek saath delete hui entries (poora din) ka EK hi card \u2014 pehla item
+       poore group ko darshaata hai. Alag-alag delete hui entries apne
+       apne card me. */
+    const _seen={}, _cards=[];
+    TRASH.forEach(t=>{
+      if(t.grp){ if(_seen[t.grp]) return; _seen[t.grp]=1;
+        t=Object.assign({},t,{_gn:TRASH.filter(x=>x.grp===t.grp).length}); }
+      _cards.push(t);
+    });
+    const _byDate={}, _rest=[];
+    _cards.forEach(t=>{ if(t.type==='record' && t.item && t.item.date){ (_byDate[t.item.date]=_byDate[t.item.date]||[]).push(t); } else _rest.push(t); });
+    const _dates=Object.keys(_byDate).sort((a,b)=>b.localeCompare(a));
+    const _ordered=[];
+    _dates.forEach(d=>{ const n=_byDate[d].reduce((s,x)=>s+(x._gn||1),0);
+      _ordered.push({_hdr:d, _n:n}); _byDate[d].forEach(t=>_ordered.push(t)); });
+    _rest.forEach(t=>_ordered.push(t));
+    html+=_ordered.map(t=>{
+      if(t._hdr) return '<div style="display:flex;align-items:center;gap:10px;margin:16px 0 8px">'
+        +'<div style="font-family:\'Times New Roman\',Times,serif;font-weight:700;font-size:15px;color:#0d1726">'+esc(fmtDate(t._hdr))+'</div>'
+        +'<div style="flex:1;height:1px;background:#e3e6ec"></div>'
+        +'<span style="font-size:11.5px;font-weight:700;color:#5a6b80;background:#eef2f7;border-radius:999px;padding:3px 10px">'+t._n+(t._n===1?' entry':' entries')+'</span></div>';
       const badgeCol=t.type==='record'?'#1565c0':(t.type==='order'?'#6a1b9a':'#2e7d32');
       return '<div style="border:1px solid #e3e6ec;border-radius:12px;padding:12px 14px;margin-bottom:10px;background:#fff">'
         +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">'
         +'<span style="background:'+badgeCol+';color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">'+(TRASH_LABEL[t.type]||t.type)+'</span>'
         +'<span style="font-size:11.5px;color:#8a93a3">from '+(TRASH_FROM[t.type]||'')+' tab</span></div>'
-        +'<div style="font-size:13.5px;font-weight:600;margin-bottom:4px">'+esc(trashSummary(t))+'</div>'
+        +(t._gn>1?'<div style="display:inline-block;background:#FFF4E5;color:#8A4B12;border:1px solid #F0D2A8;border-radius:999px;padding:2px 10px;font-size:11.5px;font-weight:700;margin-bottom:6px">Ek saath delete hui \u2014 '+t._gn+' entry</div>':'')
+        +'<div style="font-size:13.5px;font-weight:600;margin-bottom:4px">'+esc(t._gn>1?(fmtDate((t.item||{}).date)+' \u2014 poora din ('+t._gn+' entry)'):trashSummary(t))+'</div>'
         +'<div style="font-size:12px;color:#8a93a3;margin-bottom:10px">Deleted by <b>'+esc(t.deletedBy||'?')+'</b> \u2022 '+fmtTrashTime(t.deletedAt)+'</div>'
         +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
         +'<button class="btn t-restore" data-tid="'+t.tid+'" style="background:#2e7d32;color:#fff;border-color:transparent">\u267B\uFE0F Restore</button>'
         +'<button class="btn btn-danger t-kill" data-tid="'+t.tid+'">Delete Forever</button>'
+        +'<button class="btn t-view" data-tid="'+t.tid+'" style="background:#0F6E72;color:#fff;border-color:transparent">\u{1F441} View</button>'
         +'</div></div>';
     }).join('');
   }
   html+='</div>';
   c.innerHTML=html;
-  document.querySelectorAll('.t-restore').forEach(b=>b.onclick=()=>restoreTrash(b.dataset.tid));
-  document.querySelectorAll('.t-kill').forEach(b=>b.onclick=()=>confirmModal('Is item ko HAMESHA ke liye delete karein? Iske baad wapas nahi aayega.',()=>{ TRASH=TRASH.filter(x=>x.tid!==b.dataset.tid); saveTrash(); renderTrash(); toast('Permanently deleted','info'); },true));
+  document.querySelectorAll('.t-restore').forEach(b=>b.onclick=()=>restoreTrashGroup(b.dataset.tid));
+  document.querySelectorAll('.t-view').forEach(b=>b.onclick=()=>viewTrash(b.dataset.tid));
+  document.querySelectorAll('.t-kill').forEach(b=>b.onclick=()=>killTrashGroup(b.dataset.tid));
   const et=document.getElementById('emptyTrash'); if(et) et.onclick=()=>confirmModal('Pura Trash khali karein? Saare items HAMESHA ke liye delete ho jayenge.',()=>{ TRASH=[]; saveTrash(); renderTrash(); toast('Trash emptied','info'); },true);
 }
 
+/* Delete Forever se pehle dekh lo ki us item me tha kya — poori details,
+   waise hi jaise wo entry / order / batch me dikhti thi. */
+function viewTrash(tid){
+  const t=TRASH.find(x=>x.tid===tid);
+  if(!t){ toast('Item nahi mila','err'); return; }
+  const grp=trashGroup(tid);
+  /* Ek saath delete hui saari entries ek hi View me \u2014 jaise Day View. */
+  if(grp.length>1){
+    let all='';
+    grp.forEach((g,i)=>{
+      let one='';
+      try{ one='<div class="report-doc" style="transform:none;width:auto">'+buildReportHTML(liveRec(g.item))+'</div>'; }
+      catch(e){ one=_trRawHtml(g.item); }
+      all+='<div style="font-family:\'Times New Roman\',Times,serif;font-weight:700;font-size:13px;color:#5a6b80;margin:'+(i?'22px':'0')+' 0 6px">Entry '+(i+1)+' / '+grp.length+'</div>'+one;
+    });
+    openModal({
+      title:'\u{1F441} '+fmtDate((t.item||{}).date)+' \u2014 '+grp.length+' entry (ek saath delete hui)',
+      body:'<div style="font-size:12.5px;color:var(--muted);margin-bottom:10px">Deleted by <b>'+esc(t.deletedBy||'?')
+        +'</b> \u00B7 '+fmtTrashTime(t.deletedAt)+'</div><div style="overflow:auto;max-height:64vh">'+all+'</div>',
+      footer:'<button class="btn" data-close>Band karo</button>'
+        +'<button class="btn" id="trViewRestore" style="background:#2e7d32;color:#fff;border-color:transparent">\u267B\uFE0F Saari '+grp.length+' restore</button>'
+    });
+    const rb2=document.getElementById('trViewRestore');
+    if(rb2) rb2.onclick=function(){ closeModal(); restoreTrashGroup(tid); };
+    return;
+  }
+  const it=t.item||{};
+  let body='';
+  try{
+    if(t.type==='record'){
+      const lr=liveRec(it);
+      body='<div class="report-doc" style="transform:none;width:auto">'+buildReportHTML(lr)+'</div>';
+    } else if(t.type==='order'){
+      body=_trOrderHtml(it);
+    } else {
+      body=_trRawHtml(it);
+    }
+  }catch(e){ body=_trRawHtml(it); }
+  openModal({
+    title:'\u{1F441} '+(TRASH_LABEL[t.type]||t.type)+' \u2014 delete ki hui entry',
+    body:'<div style="font-size:12.5px;color:var(--muted);margin-bottom:10px">Deleted by <b>'+esc(t.deletedBy||'?')
+      +'</b> \u00B7 '+fmtTrashTime(t.deletedAt)+'</div><div style="overflow:auto;max-height:64vh">'+body+'</div>',
+    footer:'<button class="btn" data-close>Band karo</button>'
+      +'<button class="btn" id="trViewRestore" style="background:#2e7d32;color:#fff;border-color:transparent">\u267B\uFE0F Restore</button>'
+  });
+  const rb=document.getElementById('trViewRestore');
+  if(rb) rb.onclick=function(){ closeModal(); restoreTrash(tid); };
+}
+function _trOrderHtml(o){
+  const rows=(ORDERCFG.fields||[]).filter(f=>f.type!=='component').map(f=>
+    '<tr><td style="padding:6px 9px;color:#5a6b80;font-size:12.5px">'+esc(f.label||'')+'</td>'
+    +'<td style="padding:6px 9px;font-weight:700">'+esc((o.vals||{})[f.id]||'\u2014')+'</td></tr>').join('');
+  const comps=(o.components||[]).map(c=>
+    '<tr><td style="padding:6px 9px;font-weight:700">'+esc(c.name||'')+'</td>'
+    +'<td style="padding:6px 9px">'+esc(c.cutLen||'\u2014')+' cm</td>'
+    +'<td style="padding:6px 9px">'+esc(c.qty||0)+'</td></tr>').join('');
+  return '<table style="width:100%;border-collapse:collapse;font-size:13.5px">'+rows+'</table>'
+    +(comps?'<div style="margin-top:12px;font-weight:700;font-size:13px">Components</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:13.5px"><tr style="background:#F1F5F9">'
+      +'<th style="padding:6px 9px;text-align:left">Component</th><th style="padding:6px 9px;text-align:left">Cut Length</th>'
+      +'<th style="padding:6px 9px;text-align:left">Qty</th></tr>'+comps+'</table>':'');
+}
+function _trRawHtml(it){
+  const rows=Object.keys(it||{}).filter(k=>k!=='id').map(k=>{
+    let v=it[k];
+    if(v && typeof v==='object') v=JSON.stringify(v);
+    return '<tr><td style="padding:6px 9px;color:#5a6b80;font-size:12.5px">'+esc(k)+'</td>'
+      +'<td style="padding:6px 9px;font-weight:700;word-break:break-word">'+esc(String(v==null||v===''?'\u2014':v))+'</td></tr>';
+  }).join('');
+  return '<table style="width:100%;border-collapse:collapse;font-size:13.5px">'+rows+'</table>';
+}
 function recDel(ids){ try{ RECSYNC.del(Array.isArray(ids)?ids:[ids]); }catch(e){} }
 
 /* ── SYNC ALERT DOT ──
